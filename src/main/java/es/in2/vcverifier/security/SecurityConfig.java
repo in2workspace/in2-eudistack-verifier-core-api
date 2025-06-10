@@ -48,6 +48,7 @@ public class SecurityConfig {
     private static class CsrfProtectionMatcher implements RequestMatcher {
         private final AntPathRequestMatcher[] requestMatchers = {
                 new AntPathRequestMatcher("/health"),
+                new AntPathRequestMatcher("/prometheus"),
                 new AntPathRequestMatcher("/oid4vp/auth-request/**"),
                 new AntPathRequestMatcher("/oid4vp/auth-response"),
                 new AntPathRequestMatcher("/login"),
