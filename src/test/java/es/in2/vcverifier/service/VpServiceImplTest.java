@@ -10,6 +10,7 @@ import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.vcverifier.exception.JsonConversionException;
 import es.in2.vcverifier.model.credentials.SimpleIssuer;
+import es.in2.vcverifier.model.credentials.lear.CredentialStatus;
 import es.in2.vcverifier.model.credentials.lear.Mandator;
 import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV1;
 import es.in2.vcverifier.model.credentials.lear.employee.subject.CredentialSubjectV1;
@@ -26,6 +27,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
+
 import java.security.InvalidAlgorithmParameterException;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
@@ -41,8 +43,7 @@ import java.util.Map;
 
 import static es.in2.vcverifier.util.Constants.DID_ELSI_PREFIX;
 import static es.in2.vcverifier.util.Constants.LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -262,7 +263,7 @@ class VpServiceImplTest {
     }
 
     @Test
-    void validateVerifiablePresentation_success() throws Exception {
+    void validateOldVerifiablePresentation_success() throws Exception {
         // Given
         String verifiablePresentation = "valid.vp.jwt";
         LEARCredentialEmployeeV1 learCredentialEmployeeV1 = getLEARCredentialEmployee();
@@ -344,6 +345,144 @@ class VpServiceImplTest {
 
             // Verify interactions
             verify(jwtService).verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
+        }
+    }
+
+
+    @Test
+    void validateNewVerifiablePresentation_success() throws Exception {
+        // Given
+        String verifiablePresentation = "valid.vp.jwt";
+        LEARCredentialEmployeeV1 learCredentialEmployeeV1 = getNewLEARCredentialEmployee();
+
+        // Step 1: Parse the VP JWT
+        SignedJWT vpSignedJWT = mock(SignedJWT.class);
+        try (MockedStatic<SignedJWT> mockedSignedJWT = mockStatic(SignedJWT.class)) {
+
+            mockedSignedJWT.when(() -> SignedJWT.parse(verifiablePresentation)).thenReturn(vpSignedJWT);
+
+            // Set up the VP claims
+            JWTClaimsSet vpClaimsSet = mock(JWTClaimsSet.class);
+            when(vpSignedJWT.getJWTClaimsSet()).thenReturn(vpClaimsSet);
+
+            // Mock the "vp" claim in the VP
+            Map<String, Object> vcClaimMap = new HashMap<>();
+            String vcJwt = "valid.vc.jwt";
+            vcClaimMap.put("verifiableCredential", List.of(vcJwt));
+            when(vpClaimsSet.getClaim("vp")).thenReturn(vcClaimMap);
+
+            // Step 2: Parse the VC JWT
+            SignedJWT jwtCredential = mock(SignedJWT.class);
+            mockedSignedJWT.when(() -> SignedJWT.parse(vcJwt)).thenReturn(jwtCredential);
+
+            Payload payload = mock(Payload.class);
+            when(jwtService.getPayloadFromSignedJWT(jwtCredential)).thenReturn(payload);
+
+            // Step 3: Validate the credential id is not in the revoked list
+            // Create a vcFromPayload Map
+            LinkedTreeMap<String, Object> vcFromPayload = new LinkedTreeMap<>();
+            when(jwtService.getVCFromPayload(payload)).thenReturn(vcFromPayload);
+
+            // Mock trustFrameworkService.getCredentialStatusListData to return an empty list
+            when(trustFrameworkService.getCredentialStatusListData(any())).thenReturn(Collections.emptyList());
+
+            // Step 4: Extract and validate credential types
+            vcFromPayload.put("type", List.of("LEARCredentialEmployee"));
+            vcFromPayload.put("@context", LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT);
+
+            // Step 5: Retrieve the list of issuer capabilities
+            List<IssuerCredentialsCapabilities> issuerCapabilitiesList = List.of(
+                    IssuerCredentialsCapabilities.builder()
+                            .validFor(new TimeRange(Instant.now().toString(), Instant.now().plusSeconds(3600).toString()))
+                            .credentialsType("LEARCredentialEmployee")
+                            .claims(null)
+                            .build()
+            );
+            when(trustFrameworkService.getTrustedIssuerListData(learCredentialEmployeeV1.issuer().getId())).thenReturn(issuerCapabilitiesList);
+
+            when(objectMapper.convertValue(vcFromPayload, LEARCredentialEmployeeV1.class)).thenReturn(learCredentialEmployeeV1);
+
+            // Step 7: Validate the mandator with trusted issuer service
+            when(trustFrameworkService.getTrustedIssuerListData(DID_ELSI_PREFIX + learCredentialEmployeeV1.mandatorOrganizationIdentifier())).thenReturn(issuerCapabilitiesList);
+
+            // Step 7: Verify the signature and the organizationId of the credential signature
+            Map<String, Object> vcHeader = new HashMap<>();
+            vcHeader.put("x5c", List.of("base64Cert"));
+            JWSHeader header = mock(JWSHeader.class);
+            when(jwtCredential.getHeader()).thenReturn(header);
+            when(header.toJSONObject()).thenReturn(vcHeader);
+
+
+            when(jwtCredential.serialize()).thenReturn(vcJwt);
+
+            doNothing().when(certificateValidationService).extractAndVerifyCertificate(any(), eq(vcHeader),eq("issuer"));
+
+            // Step 8: Get the holder's public key
+            PublicKey holderPublicKey = generateECPublicKey();
+            when(didService.getPublicKeyFromDid(learCredentialEmployeeV1.mandateeId())).thenReturn(holderPublicKey);
+
+            // Mock jwtService.verifyJWTSignature for the Verifiable Presentation
+            doNothing().when(jwtService).verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
+
+            // When
+            boolean result = vpServiceImpl.validateVerifiablePresentation(verifiablePresentation);
+
+            // Then
+            assertTrue(result);
+
+            // Verify interactions
+            verify(jwtService).verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
+        }
+    }
+
+    @Test
+    void validateNewVerifiablePresentation_revocated() throws Exception {
+        // Given
+        String verifiablePresentation = "valid.vp.jwt";
+        LEARCredentialEmployeeV1 learCredentialEmployeeV1 = getNewLEARCredentialEmployee();
+
+        // Step 1: Parse the VP JWT
+        SignedJWT vpSignedJWT = mock(SignedJWT.class);
+        try (MockedStatic<SignedJWT> mockedSignedJWT = mockStatic(SignedJWT.class)) {
+
+            mockedSignedJWT.when(() -> SignedJWT.parse(verifiablePresentation)).thenReturn(vpSignedJWT);
+
+            // Set up the VP claims
+            JWTClaimsSet vpClaimsSet = mock(JWTClaimsSet.class);
+            when(vpSignedJWT.getJWTClaimsSet()).thenReturn(vpClaimsSet);
+
+            // Mock the "vp" claim in the VP
+            Map<String, Object> vcClaimMap = new HashMap<>();
+            String vcJwt = "valid.vc.jwt";
+            vcClaimMap.put("verifiableCredential", List.of(vcJwt));
+            when(vpClaimsSet.getClaim("vp")).thenReturn(vcClaimMap);
+
+            // Step 2: Parse the VC JWT
+            SignedJWT jwtCredential = mock(SignedJWT.class);
+            mockedSignedJWT.when(() -> SignedJWT.parse(vcJwt)).thenReturn(jwtCredential);
+
+            Payload payload = mock(Payload.class);
+            when(jwtService.getPayloadFromSignedJWT(jwtCredential)).thenReturn(payload);
+
+            // Step 3: Validate the credential id is not in the revoked list
+            // Create a vcFromPayload Map
+            LinkedTreeMap<String, Object> vcFromPayload = new LinkedTreeMap<>();
+            when(jwtService.getVCFromPayload(payload)).thenReturn(vcFromPayload);
+
+            // Mock trustFrameworkService.getCredentialStatusListData to return an empty list
+            when(trustFrameworkService.getCredentialStatusListData(any())).thenReturn(List.of("1"));
+
+            // Step 4: Extract and validate credential types
+            vcFromPayload.put("id", "urn:uuid:1234");
+            vcFromPayload.put("type", List.of("LEARCredentialEmployee"));
+            vcFromPayload.put("@context", LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT);
+
+            when(objectMapper.convertValue(vcFromPayload, LEARCredentialEmployeeV1.class)).thenReturn(learCredentialEmployeeV1);
+
+            boolean result = vpServiceImpl.validateVerifiablePresentation(verifiablePresentation);
+
+            assertFalse(result);
+
         }
     }
 
@@ -468,6 +607,44 @@ class VpServiceImplTest {
                 .credentialSubjectV1(credentialSubject)
                 .validUntil(ZonedDateTime.now().plusDays(1).toString())
                 .validFrom(ZonedDateTime.now().toString())
+                .build();
+    }
+
+    private LEARCredentialEmployeeV1 getNewLEARCredentialEmployee(){
+        MandateeV1 mandateeV1 = MandateeV1.builder()
+                .id("did:key:1234")
+                .firstName("John")
+                .lastName("Doe")
+                .email("john.doe@example.com")
+                .build();
+        Mandator mandator = Mandator.builder()
+                .organizationIdentifier("VATIT-1234")
+                .build();
+        MandateV1 mandate = MandateV1.builder()
+                .mandatee(mandateeV1)
+                .mandator(mandator)
+                .build();
+        CredentialSubjectV1 credentialSubject = CredentialSubjectV1.builder()
+                .mandate(mandate)
+                .build();
+        CredentialStatus credentialStatus = CredentialStatus.builder()
+                .id("urn:uuid:1234")
+                .type("LEARCredentialEmployee")
+                .purpose("revocation")
+                .index("1")
+                .credentials("url/status/1")
+                .build();
+        return LEARCredentialEmployeeV1.builder()
+                .type(List.of("VerifiableCredential", "LEARCredentialEmployee"))
+                .context(LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT)
+                .id("urn:uuid:1234")
+                .issuer(SimpleIssuer.builder()
+                        .id("did:elsi:issuer")
+                        .build())
+                .credentialSubjectV1(credentialSubject)
+                .validUntil(ZonedDateTime.now().plusDays(1).toString())
+                .validFrom(ZonedDateTime.now().toString())
+                .credentialStatus(credentialStatus)
                 .build();
     }
 }

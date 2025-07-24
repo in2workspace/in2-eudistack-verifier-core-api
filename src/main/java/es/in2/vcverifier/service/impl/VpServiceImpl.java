@@ -66,9 +66,19 @@ public class VpServiceImpl implements VpService {
             log.debug("VpServiceImpl -- validateVerifiablePresentation -- Validating the time window of the credential");
             validateCredentialTimeWindow(learCredential);
 
-            // Step 3: Validate the credential id is not in the revoked list
-            log.debug("VpServiceImpl -- validateVerifiablePresentation -- Validating that the credential is not revoked");
-            validateCredentialNotRevoked(learCredential.id());
+            // Step 3: Validate the old credential id is not in the revoked list
+
+            if (hasCredentialStatus(learCredential)) {
+                log.debug("CredentialStatus detected: {}", learCredential.credentialStatusId());
+                if (!validateNewCredentialNotRevoked(learCredential)) {
+                    throw new CredentialRevokedException("Credential ID " + learCredential.id() + " is revoked.");
+                }
+            } else {
+                log.debug("No CredentialStatus block found; using old ID check for credential {}", learCredential.id());
+                if (!validateOldCredentialNotRevoked(learCredential.id())) {
+                    throw new CredentialRevokedException("Credential ID " + learCredential.id() + " is revoked.");
+                }
+            }
             log.info("Credential is not revoked");
 
             // Step 4: Validate the issuer
@@ -228,12 +238,28 @@ public class VpServiceImpl implements VpService {
         throw new InvalidCredentialTypeException("Credential types " + credentialTypes + " are not supported by the issuer.");
     }
 
-    private void validateCredentialNotRevoked(String credentialId) {
-        List<String> revokedIds = trustFrameworkService.getRevokedCredentialIds();
-        if (revokedIds.contains(credentialId)) {
-            throw new CredentialRevokedException("Credential ID " + credentialId + " is revoked.");
+    private boolean hasCredentialStatus(LEARCredential credential) {
+        if (!credential.learCredentialStatusExist()) {
+            return false;
         }
+        return credential.credentialStatusId() != null && !credential.credentialStatusId().isBlank() &&
+                credential.credentialStatusType() != null && !credential.credentialStatusType().isBlank() &&
+                credential.credentialStatusPurpose() != null && !credential.credentialStatusPurpose().isBlank();
 
+    }
+
+    private boolean validateOldCredentialNotRevoked(String credentialId) {
+        List<String> revokedIds = trustFrameworkService.getRevokedCredentialIds();
+        return !revokedIds.contains(credentialId); //negate because we want a true just only when really not exist
+
+    }
+
+    private boolean validateNewCredentialNotRevoked(LEARCredential learCredential) {
+        if("revocation".equals(learCredential.credentialStatusPurpose())){
+            return !trustFrameworkService.getCredentialStatusListData(learCredential.statusListCredential())
+                    .contains(learCredential.credentialStatusListIndex()); //negate because we want a true just only when really not exist
+        }
+        return Boolean.FALSE;
     }
 
     private void validateCredentialTimeWindow(LEARCredential credential) {

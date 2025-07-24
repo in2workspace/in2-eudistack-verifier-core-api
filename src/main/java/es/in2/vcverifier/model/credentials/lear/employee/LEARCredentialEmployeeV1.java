@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import es.in2.vcverifier.model.credentials.Issuer;
 import es.in2.vcverifier.model.credentials.IssuerDeserializer;
+import es.in2.vcverifier.model.credentials.lear.CredentialStatus;
 import es.in2.vcverifier.model.credentials.lear.employee.subject.CredentialSubjectV1;
 import lombok.Builder;
 
@@ -32,7 +33,10 @@ public record LEARCredentialEmployeeV1(
         @JsonProperty("expirationDate")
         String expirationDate,
         @JsonProperty("issuanceDate")
-        String issuanceDate
+        String issuanceDate,
+        @JsonProperty("credentialStatus")
+        CredentialStatus credentialStatus
+
 ) implements LEARCredentialEmployee {
 
         @Override
@@ -44,6 +48,24 @@ public record LEARCredentialEmployeeV1(
         public String mandatorOrganizationIdentifier() {
                 return credentialSubjectV1.mandate().mandator().organizationIdentifier();
         }
+
+        @Override
+        public boolean learCredentialStatusExist()  { return credentialStatus != null; }
+
+        @Override
+        public String credentialStatusId() { return credentialStatus.id(); }
+
+        @Override
+        public String credentialStatusType() { return credentialStatus.type(); }
+
+        @Override
+        public String credentialStatusPurpose() { return credentialStatus.purpose(); }
+
+        @Override
+        public String credentialStatusListIndex() { return credentialStatus.index(); }
+
+        @Override
+        public String statusListCredential() { return credentialStatus.credentials(); }
 
         @Override
         public String mandateeFirstName() {

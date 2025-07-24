@@ -1,5 +1,6 @@
 package es.in2.vcverifier.service.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import es.in2.vcverifier.config.BackendConfig;
@@ -77,6 +78,30 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
             log.error("Error fetching issuer data for id {}: {}", id, e.getMessage());
             Thread.currentThread().interrupt();
             throw new FailedCommunicationException("Error fetching issuer data");
+        }
+    }
+
+    public List<String> getCredentialStatusListData(String url) {
+        try {
+            // Step 1: Send HTTP request to fetch issuer data
+            HttpClient client = HttpClient.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .build();
+
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() == 200) {
+                return objectMapper.readValue(response.body(), new TypeReference<List<String>>() {});
+            } else if (response.statusCode() == 404) {
+                throw new IOException("Credential List with url: " + url + " not found.");
+            } else {
+                throw new IOException("Failed to fetch credential data. Status code: " + response.statusCode());
+            }
+        } catch (IOException | InterruptedException e) {
+            log.error("Error fetching credential status data for url {}: {}", url, e.getMessage());
+            Thread.currentThread().interrupt();
+            throw new FailedCommunicationException("Error fetching credential status data");
         }
     }
 

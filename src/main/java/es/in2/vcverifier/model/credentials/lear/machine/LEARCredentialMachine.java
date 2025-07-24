@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import es.in2.vcverifier.model.credentials.Issuer;
 import es.in2.vcverifier.model.credentials.IssuerDeserializer;
+import es.in2.vcverifier.model.credentials.lear.CredentialStatus;
 import es.in2.vcverifier.model.credentials.lear.LEARCredential;
 import es.in2.vcverifier.model.credentials.lear.machine.subject.CredentialSubject;
 import lombok.Builder;
@@ -33,7 +34,10 @@ public record LEARCredentialMachine(
         @JsonProperty("expirationDate")
         String expirationDate,
         @JsonProperty("issuanceDate")
-        String issuanceDate
+        String issuanceDate,
+        @JsonProperty("credentialStatus")
+        CredentialStatus credentialStatus
+
 ) implements LEARCredential {
 
     @Override
@@ -45,5 +49,23 @@ public record LEARCredentialMachine(
     public String mandatorOrganizationIdentifier() {
         return credentialSubject.mandate().mandator().organizationIdentifier();
     }
+
+    @Override
+    public boolean learCredentialStatusExist() { return credentialStatus != null; }
+
+    @Override
+    public String credentialStatusId() { return credentialStatus.id(); }
+
+    @Override
+    public String credentialStatusType() { return credentialStatus.type(); }
+
+    @Override
+    public String credentialStatusPurpose() { return credentialStatus.purpose(); }
+
+    @Override
+    public String credentialStatusListIndex() { return credentialStatus.index(); }
+
+    @Override
+    public String statusListCredential() { return credentialStatus.credentials(); }
 
 }

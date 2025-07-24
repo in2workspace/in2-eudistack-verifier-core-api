@@ -6,6 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import es.in2.vcverifier.model.credentials.Issuer;
 import es.in2.vcverifier.model.credentials.IssuerDeserializer;
+import es.in2.vcverifier.model.credentials.lear.CredentialStatus;
 import es.in2.vcverifier.model.credentials.lear.employee.subject.CredentialSubjectV2;
 import lombok.Builder;
 
@@ -30,7 +31,10 @@ public record LEARCredentialEmployeeV2(
         @JsonProperty("validFrom")
         String validFrom,
         @JsonProperty("validUntil")
-        String validUntil
+        String validUntil,
+        @JsonProperty("credentialStatus")
+        CredentialStatus credentialStatus
+
 ) implements LEARCredentialEmployee {
 
     @Override
@@ -42,6 +46,9 @@ public record LEARCredentialEmployeeV2(
     public String mandatorOrganizationIdentifier() {
         return credentialSubjectV2.mandate().mandator().organizationIdentifier();
     }
+
+    @Override
+    public boolean learCredentialStatusExist() { return credentialStatus != null; }
 
     @Override
     public String mandateeFirstName() {
@@ -57,4 +64,19 @@ public record LEARCredentialEmployeeV2(
     public String mandateeEmail() {
         return credentialSubjectV2.mandate().mandatee().email();
     }
+
+    @Override
+    public String credentialStatusId() { return credentialStatus.id(); }
+
+    @Override
+    public String credentialStatusType() { return credentialStatus.type(); }
+
+    @Override
+    public String credentialStatusPurpose() { return credentialStatus.purpose(); }
+
+    @Override
+    public String credentialStatusListIndex() { return credentialStatus.index(); }
+
+    @Override
+    public String statusListCredential() { return credentialStatus.credentials(); }
 }
