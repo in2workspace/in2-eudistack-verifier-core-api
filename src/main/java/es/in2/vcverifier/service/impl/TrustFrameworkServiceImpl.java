@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import es.in2.vcverifier.config.BackendConfig;
+import es.in2.vcverifier.dto.CredentialStatusResponse;
 import es.in2.vcverifier.exception.FailedCommunicationException;
 import es.in2.vcverifier.exception.IssuerNotAuthorizedException;
 import es.in2.vcverifier.exception.JsonConversionException;
@@ -26,6 +27,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -92,7 +94,10 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
 
             if (response.statusCode() == 200) {
-                return objectMapper.readValue(response.body(), new TypeReference<List<String>>() {});
+                return objectMapper.readValue(response.body(), new TypeReference<List<CredentialStatusResponse>>() {})
+                        .stream()
+                        .map(CredentialStatusResponse::credentialNonce)
+                        .collect(Collectors.toList());
             } else if (response.statusCode() == 404) {
                 throw new IOException("Credential List with url: " + url + " not found.");
             } else {
