@@ -8,7 +8,7 @@ import com.nimbusds.jose.Payload;
 import com.nimbusds.jose.shaded.gson.internal.LinkedTreeMap;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import es.in2.vcverifier.exception.JsonConversionException;
+import es.in2.vcverifier.exception.*;
 import es.in2.vcverifier.model.credentials.SimpleIssuer;
 import es.in2.vcverifier.model.credentials.lear.CredentialStatus;
 import es.in2.vcverifier.model.credentials.lear.Mandator;
@@ -194,72 +194,74 @@ class VpServiceImplTest {
     void validateVerifiablePresentation_vp_claim_with_verifiableCredential_claim_string_but_not_jwt_format_throws_JWTParsingException_and_return_false() {
         String vpClaimWithVcNotJwtFormat = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJkaWQ6a2V5OnpEbmFlblF6WEthVE5SNlYyaWZyY0VFU042VFR1WWpweWFmUGh0c1pZU3Y0VlJia3IiLCJuYmYiOjE3MTc0MzgwMDMsImlzcyI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsInZwIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sImhvbGRlciI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsImlkIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIiwidHlwZSI6WyJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIl0sInZlcmlmaWFibGVDcmVkZW50aWFsIjpbImludmFsaWQtand0Il19LCJleHAiOjE3MjAwMzAwMDMsImlhdCI6MTcxNzQzODAwMywianRpIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIn0.MHfKhZCCmXUlAwdgC_cT5bWJyINKeMjVDiXx3dCBKydSPdzX3QO2kiESeoO1tmzolA-7KRtJj7R-b6HfNE4xbA";
 
-        boolean result = vpServiceImpl.validateVerifiablePresentation(vpClaimWithVcNotJwtFormat);
-
-        Assertions.assertThat(result).isFalse();
+        assertThrows(JWTParsingException.class, () ->
+                vpServiceImpl.validateVerifiablePresentation(vpClaimWithVcNotJwtFormat)
+        );
     }
 
     @Test
     void validateVerifiablePresentation_vp_claim_with_verifiableCredential_claim_no_string_format_throws_CredentialException_and_return_false() {
         String vpClaimWithVcNotStringFormat = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJkaWQ6a2V5OnpEbmFlblF6WEthVE5SNlYyaWZyY0VFU042VFR1WWpweWFmUGh0c1pZU3Y0VlJia3IiLCJuYmYiOjE3MTc0MzgwMDMsImlzcyI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsInZwIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sImhvbGRlciI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsImlkIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIiwidHlwZSI6WyJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIl0sInZlcmlmaWFibGVDcmVkZW50aWFsIjpbMV19LCJleHAiOjE3MjAwMzAwMDMsImlhdCI6MTcxNzQzODAwMywianRpIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIn0.K-bG85t--QMmOumsZsNbk7Vm62AUsl8kgDxwH3G9---Eb7xfX0NkVuq1r2iTh-H2uRNcpmnao03Y8fbrnYVqFA";
 
-        boolean result = vpServiceImpl.validateVerifiablePresentation(vpClaimWithVcNotStringFormat);
-
-        Assertions.assertThat(result).isFalse();
+        assertThrows(CredentialException.class, () ->
+                vpServiceImpl.validateVerifiablePresentation(vpClaimWithVcNotStringFormat)
+        );
     }
 
     @Test
     void validateVerifiablePresentation_vp_claim_with_verifiableCredential_claim_is_not_found_throws_CredentialException_and_return_false() {
         String vpClaimWithVcArrayEmpty = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJkaWQ6a2V5OnpEbmFlblF6WEthVE5SNlYyaWZyY0VFU042VFR1WWpweWFmUGh0c1pZU3Y0VlJia3IiLCJuYmYiOjE3MTc0MzgwMDMsImlzcyI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsInZwIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sImhvbGRlciI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsImlkIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIiwidHlwZSI6WyJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIl0sInZlcmlmaWFibGVDcmVkZW50aWFsIjpbXX0sImV4cCI6MTcyMDAzMDAwMywiaWF0IjoxNzE3NDM4MDAzLCJqdGkiOiI0MWFjYWRhMy02N2I0LTQ5NGUtYTZlMy1lMDk2NjQ0OWYyNWQifQ.kR4ob7mBGb246EpUYpMRKaESEqGc7yZaNnyoZpkxbMrF_bgC9VLRmMagsHP4DXfl7f8XyBUKFyUcda2PUPs-bA";
 
-        boolean result = vpServiceImpl.validateVerifiablePresentation(vpClaimWithVcArrayEmpty);
-
-        Assertions.assertThat(result).isFalse();
+        assertThrows(CredentialException.class, () ->
+                vpServiceImpl.validateVerifiablePresentation(vpClaimWithVcArrayEmpty)
+        );
     }
 
     @Test
     void validateVerifiablePresentation_vp_claim_with_verifiableCredential_claim_is_not_an_array_throws_CredentialException_and_return_false() {
         String vpClaimWithVcNotArrayFormat = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJkaWQ6a2V5OnpEbmFlblF6WEthVE5SNlYyaWZyY0VFU042VFR1WWpweWFmUGh0c1pZU3Y0VlJia3IiLCJuYmYiOjE3MTc0MzgwMDMsImlzcyI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsInZwIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sImhvbGRlciI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsImlkIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIiwidHlwZSI6WyJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIl0sInZlcmlmaWFibGVDcmVkZW50aWFsIjoibm90LWFycmF5LWZvcm1hdCJ9LCJleHAiOjE3MjAwMzAwMDMsImlhdCI6MTcxNzQzODAwMywianRpIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIn0.0Jpm4g5IUBnZRH5Zf1FSs0nSJmdD9dQncchlFJoqT_tDU733rXLT7UbD0f4KIfwPPZn_APKNt-h5ziTQjgXJiw";
 
-        boolean result = vpServiceImpl.validateVerifiablePresentation(vpClaimWithVcNotArrayFormat);
-
-        Assertions.assertThat(result).isFalse();
+        assertThrows(CredentialException.class, () ->
+                vpServiceImpl.validateVerifiablePresentation(vpClaimWithVcNotArrayFormat)
+        );
     }
 
     @Test
     void validateVerifiablePresentation_vp_claim_without_verifiableCredential_claim_inside_throws_JWTClaimMissingException_and_return_false() {
         String vpClaimNotValidObject = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJ2cCI6e319.hLaehswoW9QiU_FmLGCDZIPOvnNOvn2HsOCs9lKhHUE";
 
-        boolean result = vpServiceImpl.validateVerifiablePresentation(vpClaimNotValidObject);
-
-        Assertions.assertThat(result).isFalse();
+        assertThrows(JWTClaimMissingException.class, () ->
+                vpServiceImpl.validateVerifiablePresentation(vpClaimNotValidObject)
+        );
     }
 
     @Test
     void validateVerifiablePresentation_vp_claim_not_valid_object_throws_JWTClaimMissingException_and_return_false() {
         String vpClaimNotValidObject = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyLCJ2cCI6ImludmFsaWRWcEZvcm1hdCJ9.5-6R9OxqX7lXEEqVL_12Bf0UODXnkPtrt_ntoD2IrPQ";
 
-        boolean result = vpServiceImpl.validateVerifiablePresentation(vpClaimNotValidObject);
-
-        Assertions.assertThat(result).isFalse();
+        assertThrows(JWTClaimMissingException.class, () ->
+                vpServiceImpl.validateVerifiablePresentation(vpClaimNotValidObject)
+        );
     }
 
     @Test
     void validateVerifiablePresentation_invalidVP_throws_JWTClaimMissingException_and_return_false() {
         String jwtWithoutVpClaim = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c";
 
-        boolean result = vpServiceImpl.validateVerifiablePresentation(jwtWithoutVpClaim);
-
-        Assertions.assertThat(result).isFalse();
+        assertThrows(JWTClaimMissingException.class, () ->
+                vpServiceImpl.validateVerifiablePresentation(jwtWithoutVpClaim)
+        );
     }
 
     @Test
     void validateVerifiablePresentation_invalidVP_throws_JWTParsingException_and_return_false() {
         String invalidVP = "invalidVPJWT";
 
-        boolean result = vpServiceImpl.validateVerifiablePresentation(invalidVP);
+        assertThrows(JWTParsingException.class, () ->
+                vpServiceImpl.validateVerifiablePresentation(invalidVP)
+        );
 
-        Assertions.assertThat(result).isFalse();
+
     }
 
     @Test
@@ -337,12 +339,9 @@ class VpServiceImplTest {
             // Mock jwtService.verifyJWTSignature for the Verifiable Presentation
             doNothing().when(jwtService).verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
 
-            // When
-            boolean result = vpServiceImpl.validateVerifiablePresentation(verifiablePresentation);
-
-            // Then
-            assertTrue(result);
-
+            assertDoesNotThrow(() ->
+                    vpServiceImpl.validateVerifiablePresentation(verifiablePresentation)
+            );
             // Verify interactions
             verify(jwtService).verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
         }
@@ -424,11 +423,9 @@ class VpServiceImplTest {
             // Mock jwtService.verifyJWTSignature for the Verifiable Presentation
             doNothing().when(jwtService).verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
 
-            // When
-            boolean result = vpServiceImpl.validateVerifiablePresentation(verifiablePresentation);
-
-            // Then
-            assertTrue(result);
+            assertDoesNotThrow(() ->
+                    vpServiceImpl.validateVerifiablePresentation(verifiablePresentation)
+            );
 
             // Verify interactions
             verify(jwtService).verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
@@ -479,9 +476,10 @@ class VpServiceImplTest {
 
             when(objectMapper.convertValue(vcFromPayload, LEARCredentialEmployeeV1.class)).thenReturn(learCredentialEmployeeV1);
 
-            boolean result = vpServiceImpl.validateVerifiablePresentation(verifiablePresentation);
+            assertThrows(CredentialRevokedException.class, () ->
+                    vpServiceImpl.validateVerifiablePresentation(verifiablePresentation)
+            );
 
-            assertFalse(result);
 
         }
     }
@@ -523,9 +521,9 @@ class VpServiceImplTest {
             when(jwtService.getVCFromPayload(payload)).thenReturn(vcFromPayload);
             when(objectMapper.convertValue(vcFromPayload, LEARCredentialEmployeeV1.class)).thenReturn(expiredCredential);
 
-            boolean result = vpServiceImpl.validateVerifiablePresentation(invalidVP);
-
-            Assertions.assertThat(result).isFalse();
+            assertThrows(CredentialExpiredException.class, () ->
+                    vpServiceImpl.validateVerifiablePresentation(invalidVP)
+            );
 
         }
     }
@@ -567,9 +565,9 @@ class VpServiceImplTest {
             when(jwtService.getVCFromPayload(payload)).thenReturn(vcFromPayload);
             when(objectMapper.convertValue(vcFromPayload, LEARCredentialEmployeeV1.class)).thenReturn(expiredCredential);
 
-            boolean result = vpServiceImpl.validateVerifiablePresentation(invalidVP);
-
-            Assertions.assertThat(result).isFalse();
+            assertThrows(CredentialNotActiveException.class, () ->
+                    vpServiceImpl.validateVerifiablePresentation(invalidVP)
+            );
 
         }
     }
