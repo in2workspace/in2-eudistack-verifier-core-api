@@ -43,7 +43,8 @@ import java.util.Map;
 
 import static es.in2.vcverifier.util.Constants.DID_ELSI_PREFIX;
 import static es.in2.vcverifier.util.Constants.LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -485,6 +486,57 @@ class VpServiceImplTest {
     }
 
     @Test
+    void validateOldVerifiablePresentation_revocated() throws Exception {
+        // Given
+        String verifiablePresentation = "valid.vp.jwt";
+        LEARCredentialEmployeeV1 learCredentialEmployeeV1 = getLEARCredentialEmployee();
+
+        // Step 1: Parse the VP JWT
+        SignedJWT vpSignedJWT = mock(SignedJWT.class);
+        try (MockedStatic<SignedJWT> mockedSignedJWT = mockStatic(SignedJWT.class)) {
+
+            mockedSignedJWT.when(() -> SignedJWT.parse(verifiablePresentation)).thenReturn(vpSignedJWT);
+
+            // Set up the VP claims
+            JWTClaimsSet vpClaimsSet = mock(JWTClaimsSet.class);
+            when(vpSignedJWT.getJWTClaimsSet()).thenReturn(vpClaimsSet);
+
+            // Mock the "vp" claim in the VP
+            Map<String, Object> vcClaimMap = new HashMap<>();
+            String vcJwt = "valid.vc.jwt";
+            vcClaimMap.put("verifiableCredential", List.of(vcJwt));
+            when(vpClaimsSet.getClaim("vp")).thenReturn(vcClaimMap);
+
+            // Step 2: Parse the VC JWT
+            SignedJWT jwtCredential = mock(SignedJWT.class);
+            mockedSignedJWT.when(() -> SignedJWT.parse(vcJwt)).thenReturn(jwtCredential);
+
+            Payload payload = mock(Payload.class);
+            when(jwtService.getPayloadFromSignedJWT(jwtCredential)).thenReturn(payload);
+
+            // Step 3: Validate the credential id is not in the revoked list
+            // Create a vcFromPayload Map
+            LinkedTreeMap<String, Object> vcFromPayload = new LinkedTreeMap<>();
+            when(jwtService.getVCFromPayload(payload)).thenReturn(vcFromPayload);
+
+            when(trustFrameworkService.getRevokedCredentialIds()).thenReturn(List.of("urn:uuid:1234"));
+
+            // Step 4: Extract and validate credential types
+            vcFromPayload.put("id", "urn:uuid:1234");
+            vcFromPayload.put("type", List.of("LEARCredentialEmployee"));
+            vcFromPayload.put("@context", LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT);
+
+            when(objectMapper.convertValue(vcFromPayload, LEARCredentialEmployeeV1.class)).thenReturn(learCredentialEmployeeV1);
+
+            assertThrows(CredentialRevokedException.class, () ->
+                    vpServiceImpl.validateVerifiablePresentation(verifiablePresentation)
+            );
+
+
+        }
+    }
+
+    @Test
     void validateVerifiablePresentation_invalidTimeWindowForExpired() throws Exception {
         // Given
         String invalidVP = "invalid-time-window.vp.jwt";
@@ -605,6 +657,7 @@ class VpServiceImplTest {
                 .credentialSubjectV1(credentialSubject)
                 .validUntil(ZonedDateTime.now().plusDays(1).toString())
                 .validFrom(ZonedDateTime.now().toString())
+                .credentialStatus(null)
                 .build();
     }
 
