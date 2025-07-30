@@ -248,7 +248,7 @@ public class VpServiceImpl implements VpService {
     }
 
     private boolean validateNewCredentialNotRevoked(LEARCredential learCredential) {
-        if("revocation".equals(learCredential.credentialStatusPurpose())){
+        if(REVOCATION.equals(learCredential.credentialStatusPurpose())){
             return !trustFrameworkService.getCredentialStatusListData(learCredential.statusListCredential())
                     .contains(learCredential.credentialStatusListIndex()); //negate because we want a true just only when really not exist
         }
