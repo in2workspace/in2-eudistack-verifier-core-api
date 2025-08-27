@@ -78,23 +78,6 @@ jobs:
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Ensure ECR repository exists (optional)
-        run: |
-          set +e
-          OUT=$(aws ecr describe-repositories --repository-names "${{ secrets.ECR_REPOSITORY }}" 2>&1)
-          RC=$?
-          set -e
-          if [ $RC -eq 0 ]; then
-            echo "ECR repo exists: ${{ secrets.ECR_REPOSITORY }}"
-          elif echo "$OUT" | grep -q 'RepositoryNotFoundException'; then
-            echo "Repo not found. Creating ${{ secrets.ECR_REPOSITORY }}..."
-            aws ecr create-repository --repository-name "${{ secrets.ECR_REPOSITORY }}" \
-              --image-scanning-configuration scanOnPush=true
-          else
-            echo "Describe failed (permissions/region/name). Will NOT create."
-            echo "$OUT"
-          fi
-
       - name: Build and Push docker image (DockerHub + ECR)
         env:
           PROJECT_NAME: ${{ env.PROJECT_NAME }}
@@ -106,19 +89,15 @@ jobs:
         run: |
           set -euo pipefail
           TAG="v${VERSION}${SNAPSHOT_SUFFIX}"
-
-          # Tags completos
+          
           DH_IMAGE="docker.io/${DOCKERHUB_ORG}/${PROJECT_NAME}:${TAG}"
           ECR_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${TAG}"
-
-          # Build una sola vez y etiqueta para ambos registries
+          
           docker build -f Dockerfile --build-arg SKIP_TESTS=true -t "${DH_IMAGE}" .
           docker tag "${DH_IMAGE}" "${ECR_IMAGE}"
-
-          # Push a DockerHub
+         
           docker push "${DH_IMAGE}"
-
-          # Push a ECR
+          
           docker push "${ECR_IMAGE}"
 
   release:
@@ -177,23 +156,6 @@ jobs:
       - name: Login to Amazon ECR
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Ensure ECR repository exists (optional)
-        run: |
-          set +e
-          OUT=$(aws ecr describe-repositories --repository-names "${{ secrets.ECR_REPOSITORY }}" 2>&1)
-          RC=$?
-          set -e
-          if [ $RC -eq 0 ]; then
-            echo "ECR repo exists: ${{ secrets.ECR_REPOSITORY }}"
-          elif echo "$OUT" | grep -q 'RepositoryNotFoundException'; then
-            echo "Repo not found. Creating ${{ secrets.ECR_REPOSITORY }}..."
-            aws ecr create-repository --repository-name "${{ secrets.ECR_REPOSITORY }}" \
-              --image-scanning-configuration scanOnPush=true
-          else
-            echo "Describe failed (permissions/region/name). Will NOT create."
-            echo "$OUT"
-          fi
 
       - name: Build and Push docker image (DockerHub + ECR)
         env:
