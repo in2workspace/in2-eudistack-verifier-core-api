@@ -1,11 +1,13 @@
 package es.in2.vcverifier.service;
 
-import com.nimbusds.jose.*;
+import com.nimbusds.jose.JOSEException;
+import com.nimbusds.jose.JOSEObjectType;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.vcverifier.config.CacheStore;
-import es.in2.vcverifier.exception.InvalidVPtokenException;
 import es.in2.vcverifier.exception.JWTClaimMissingException;
 import es.in2.vcverifier.exception.JWTParsingException;
 import es.in2.vcverifier.exception.LoginTimeoutException;
@@ -26,16 +28,19 @@ import org.springframework.security.oauth2.server.authorization.OAuth2Authorizat
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
-import static es.in2.vcverifier.util.Constants.EXPIRATION;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
-import java.util.*;
+import java.util.Base64;
+import java.util.Date;
+import java.util.Map;
+import java.util.NoSuchElementException;
 
+import static es.in2.vcverifier.util.Constants.EXPIRATION;
+import static es.in2.vcverifier.util.Constants.LOGIN_TIMEOUT;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.oauth2.core.oidc.IdTokenClaimNames.NONCE;
-import static es.in2.vcverifier.util.Constants.LOGIN_TIMEOUT;
 
 @ExtendWith(MockitoExtension.class)
 class AuthorizationResponseProcessorServiceImplTest {
@@ -114,7 +119,6 @@ class AuthorizationResponseProcessorServiceImplTest {
         when(cacheStoreForOAuth2AuthorizationRequest.get(state)).thenReturn(oAuth2AuthorizationRequest);
         doNothing().when(cacheStoreForOAuth2AuthorizationRequest).delete(state);
 
-        when(vpService.validateVerifiablePresentation(anyString())).thenReturn(true);
         when(vpService.getCredentialFromTheVerifiablePresentationAsJsonNode(anyString())).thenReturn(null);
 
         when(registeredClientRepository.findByClientId("client-id")).thenReturn(registeredClient);
@@ -178,14 +182,13 @@ class AuthorizationResponseProcessorServiceImplTest {
 
         when(cacheForNonceByState.get(state)).thenReturn(state);
 
-        when(vpService.validateVerifiablePresentation(anyString())).thenReturn(false);
+        doThrow(new RuntimeException("Something failed")).when(vpService).validateVerifiablePresentation(anyString());
 
         // Act & Assert
-        InvalidVPtokenException exception = assertThrows(InvalidVPtokenException.class, () ->
+        assertThrows(RuntimeException.class, () ->
                 authorizationResponseProcessorService.processAuthResponse(state, vpToken)
         );
 
-        assertEquals("VP Token used in H2M flow is invalid", exception.getMessage());
     }
 
     @Test
@@ -206,8 +209,6 @@ class AuthorizationResponseProcessorServiceImplTest {
 
         when(cacheStoreForOAuth2AuthorizationRequest.get(state)).thenReturn(oAuth2AuthorizationRequest);
         doNothing().when(cacheStoreForOAuth2AuthorizationRequest).delete(state);
-
-        when(vpService.validateVerifiablePresentation(anyString())).thenReturn(true);
 
         when(registeredClientRepository.findByClientId("client-id")).thenReturn(null);
 

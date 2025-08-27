@@ -13,4 +13,10 @@ public interface LEARCredential {
     String mandatorOrganizationIdentifier();
     String validFrom();
     String validUntil();
+    boolean learCredentialStatusExist();
+    String credentialStatusId();
+    String credentialStatusType();
+    String credentialStatusPurpose();
+    String credentialStatusListIndex();
+    String statusListCredential();
 }

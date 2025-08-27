@@ -2,7 +2,6 @@ package es.in2.vcverifier.service.impl;
 
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.vcverifier.config.CacheStore;
-import es.in2.vcverifier.exception.InvalidVPtokenException;
 import es.in2.vcverifier.exception.JWTClaimMissingException;
 import es.in2.vcverifier.exception.JWTParsingException;
 import es.in2.vcverifier.exception.LoginTimeoutException;
@@ -23,7 +22,7 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.web.util.UriComponentsBuilder;
-import static es.in2.vcverifier.util.Constants.EXPIRATION;
+
 import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.time.Instant;
@@ -78,10 +77,11 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
         validateVpTokenNonceAndAudience(decodedVpToken, state);
 
         // Send the decoded token to a service for validation
-        boolean isValid = vpService.validateVerifiablePresentation(decodedVpToken);
-        if (!isValid) {
-            log.error("VP Token is invalid");
-            throw new InvalidVPtokenException("VP Token used in H2M flow is invalid");
+        try{
+            vpService.validateVerifiablePresentation(decodedVpToken);
+        }catch(Exception e){
+            log.error("VP Token is invalid - VP Token used in H2M flow is invalid");
+            throw e;
         }
         log.info("VP Token validated successfully");
 

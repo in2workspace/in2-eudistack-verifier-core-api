@@ -1,6 +1,5 @@
 package es.in2.vcverifier.exception.handler;
 
-import es.in2.vcverifier.exception.InvalidVPtokenException;
 import es.in2.vcverifier.exception.*;
 import es.in2.vcverifier.model.GlobalErrorMessage;
 import jakarta.servlet.http.HttpServletRequest;
@@ -12,8 +11,6 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 import java.util.NoSuchElementException;
-
-import static es.in2.vcverifier.util.Constants.LOGIN_TIMEOUT;
 
 @Slf4j
 @RestControllerAdvice
@@ -41,7 +38,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     @ExceptionHandler(CredentialRevokedException.class)
-    @ResponseStatus(HttpStatus.UNAUTHORIZED)
+    @ResponseStatus(HttpStatus.FORBIDDEN)
     public GlobalErrorMessage handleException(CredentialRevokedException ex) {
         log.error("The credential has been revoked: ", ex);
         return new GlobalErrorMessage("Verifiable presentation failed","","");
