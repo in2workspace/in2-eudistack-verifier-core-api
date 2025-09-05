@@ -12,6 +12,7 @@ public record Mandator(
         @JsonProperty("commonName") String commonName,
         @JsonProperty("country") String country,
         @JsonProperty("emailAddress") String emailAddress,
+        @JsonProperty("id") String id,
         @JsonProperty("organization") String organization,
         @JsonProperty("organizationIdentifier") String organizationIdentifier,
         @JsonProperty("serialNumber") String serialNumber
