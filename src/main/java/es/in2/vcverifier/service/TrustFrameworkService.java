@@ -7,6 +7,7 @@ import java.util.List;
 
 public interface TrustFrameworkService {
     List<IssuerCredentialsCapabilities> getTrustedIssuerListData(String id);
+    List<String> getCredentialStatusListData(String url);
     List<String> getRevokedCredentialIds();
     ExternalTrustedListYamlData fetchAllowedClient();
 }

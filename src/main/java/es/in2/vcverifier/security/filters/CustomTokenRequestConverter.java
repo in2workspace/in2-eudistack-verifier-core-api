@@ -6,7 +6,6 @@ import com.nimbusds.jose.Payload;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.vcverifier.config.CacheStore;
 import es.in2.vcverifier.exception.InvalidCredentialTypeException;
-import es.in2.vcverifier.exception.InvalidVPtokenException;
 import es.in2.vcverifier.exception.UnsupportedGrantTypeException;
 import es.in2.vcverifier.model.AuthorizationCodeData;
 import es.in2.vcverifier.model.RefreshTokenDataCache;
@@ -132,12 +131,16 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
             log.error("CustomTokenRequestConverter -- handleClientCredentialsGrant -- JWT claims from assertion are invalid");
             throw new IllegalArgumentException("Invalid JWT claims from assertion");
         }
-        // Validate VP
-        isValid = vpService.validateVerifiablePresentation(decodedVpToken);
-        if (!isValid) {
+
+        try {
+            // Validate VP
+            vpService.validateVerifiablePresentation(decodedVpToken);
+        }catch(Exception e){
+            log.warn("VP Token used in M2M flow is invalid");
             log.error("CustomTokenRequestConverter -- handleClientCredentialsGrant -- VP Token is invalid");
-            throw new InvalidVPtokenException("VP Token used in M2M flow is invalid");
+            throw e;
         }
+
         log.info("VP Token validated successfully");
         Map<String, Object> additionalParameters = new HashMap<>();
         additionalParameters.put(OAuth2ParameterNames.CLIENT_ID,clientId);

@@ -6,7 +6,6 @@ import com.nimbusds.jose.Payload;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.vcverifier.config.CacheStore;
 import es.in2.vcverifier.exception.InvalidCredentialTypeException;
-import es.in2.vcverifier.exception.InvalidVPtokenException;
 import es.in2.vcverifier.exception.UnsupportedGrantTypeException;
 import es.in2.vcverifier.model.AuthorizationCodeData;
 import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachine;
@@ -125,7 +124,6 @@ class CustomTokenRequestConverterTest {
         when(vpService.getCredentialFromTheVerifiablePresentationAsJsonNode(rawVpToken)).thenReturn(mockVC);
 
         when(clientAssertionValidationService.validateClientAssertionJWTClaims(clientId, payload)).thenReturn(true);
-        when(vpService.validateVerifiablePresentation(rawVpToken)).thenReturn(true);
 
         LEARCredentialMachine learCredentialMachine = mock(LEARCredentialMachine.class);
         when(objectMapper.convertValue(mockVC, LEARCredentialMachine.class)).thenReturn(learCredentialMachine);
@@ -208,9 +206,9 @@ class CustomTokenRequestConverterTest {
         when(learCredentialMachine.type()).thenReturn(List.of(LEARCredentialType.LEAR_CREDENTIAL_MACHINE.getValue()));
 
         when(clientAssertionValidationService.validateClientAssertionJWTClaims(anyString(), any())).thenReturn(true);
-        when(vpService.validateVerifiablePresentation(anyString())).thenReturn(false);
+        doThrow(new RuntimeException("Something failed")).when(vpService).validateVerifiablePresentation(anyString());
 
-        assertThrows(InvalidVPtokenException.class, () ->
+        assertThrows(RuntimeException.class, () ->
                 customTokenRequestConverter.convert(mockRequest));
     }
 
