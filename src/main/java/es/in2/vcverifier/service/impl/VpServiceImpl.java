@@ -8,6 +8,7 @@ import es.in2.vcverifier.exception.*;
 import es.in2.vcverifier.model.credentials.lear.LEARCredential;
 import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV1;
 import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV2;
+import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV3;
 import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachine;
 import es.in2.vcverifier.model.enums.LEARCredentialType;
 import es.in2.vcverifier.model.issuer.IssuerCredentialsCapabilities;
@@ -205,6 +206,8 @@ public class VpServiceImpl implements VpService {
                 return objectMapper.convertValue(vcMap, LEARCredentialEmployeeV1.class);
             } else if (contextList.equals(LEAR_CREDENTIAL_EMPLOYEE_V2_CONTEXT)) {
                 return objectMapper.convertValue(vcMap, LEARCredentialEmployeeV2.class);
+            } else if(contextList.equals(LEAR_CREDENTIAL_EMPLOYEE_V3_CONTEXT)){
+                return objectMapper.convertValue(vcMap, LEARCredentialEmployeeV3.class);
             } else {
                 throw new InvalidCredentialTypeException("Unknown LEARCredentialEmployee version: " + contextList);
             }
