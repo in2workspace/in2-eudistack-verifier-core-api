@@ -1,4 +1,5 @@
-package es.in2.vcverifier.model.credentials.lear.machine.subject.mandate.power;
+package es.in2.vcverifier.model.credentials.lear.machine.subject.mandate.mandatee;
+
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -8,10 +9,9 @@ import lombok.Builder;
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record Power(
+public record MandateeV2(
         @JsonProperty("id") String id,
-        @JsonProperty("tmf_action") Object tmfAction,
-        @JsonProperty("tmf_domain") String tmfDomain,
-        @JsonProperty("tmf_function") String tmfFunction,
-        @JsonProperty("tmf_type") String tmfType
+        @JsonProperty("domain") String domain,
+        @JsonProperty("ipAddress") String ipAddress
 ) {}
+

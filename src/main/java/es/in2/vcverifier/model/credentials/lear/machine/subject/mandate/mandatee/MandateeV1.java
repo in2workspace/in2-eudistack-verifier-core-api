@@ -9,7 +9,7 @@ import lombok.Builder;
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record Mandatee(
+public record MandateeV1(
         @JsonProperty("id") String id,
         @JsonProperty("serviceName") String serviceName,
         @JsonProperty("serviceType") String serviceType,

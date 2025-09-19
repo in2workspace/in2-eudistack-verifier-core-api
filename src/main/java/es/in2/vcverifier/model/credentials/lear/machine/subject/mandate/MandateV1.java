@@ -6,8 +6,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import es.in2.vcverifier.model.credentials.lear.LifeSpan;
 import es.in2.vcverifier.model.credentials.lear.Mandator;
 import es.in2.vcverifier.model.credentials.lear.Signer;
-import es.in2.vcverifier.model.credentials.lear.machine.subject.mandate.mandatee.Mandatee;
-import es.in2.vcverifier.model.credentials.lear.machine.subject.mandate.power.Power;
+import es.in2.vcverifier.model.credentials.lear.machine.subject.mandate.mandatee.MandateeV1;
+import es.in2.vcverifier.model.credentials.lear.machine.subject.mandate.power.PowerV1;
 import lombok.Builder;
 
 import java.util.List;
@@ -15,11 +15,11 @@ import java.util.List;
 @Builder
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public record Mandate(
+public record MandateV1(
         @JsonProperty("id") String id,
         @JsonProperty("life_span") LifeSpan lifeSpan,
-        @JsonProperty("mandatee") Mandatee mandatee,
+        @JsonProperty("mandatee") MandateeV1 mandatee,
         @JsonProperty("mandator") Mandator mandator,
-        @JsonProperty("power") List<Power> power,
+        @JsonProperty("power") List<PowerV1> power,
         @JsonProperty("signer") Signer signer
 ) {}

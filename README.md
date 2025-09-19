@@ -208,7 +208,7 @@ The `access_token` payload will have a similar structure:
 "LEARCredentialEmployee",
 "VerifiableCredential"
 ],
-"credentialSubject": {
+"credentialSubjectV1": {
 "mandate": {
 "id": "c2965059",
 "lifeSpan": {
@@ -452,7 +452,7 @@ Mappers allow you to extract information from the IDP and use it for local users
 
 #### 4.1. Attribute Importer
 
-- **Claim:** The location of the value to retrieve, e.g., `vc.credentialSubject.mandate.mandator.organizationIdentifier`.
+- **Claim:** The location of the value to retrieve, e.g., `vc.credentialSubjectV1.mandate.mandator.organizationIdentifier`.
 - **User Attribute Name:** The user attribute to which the retrieved value will be associated, e.g., `organizationIdentifier`.
 
 <div style="border: 1px solid #ddd; padding: 10px; border-radius: 5px; background: #f9f9f9;">
