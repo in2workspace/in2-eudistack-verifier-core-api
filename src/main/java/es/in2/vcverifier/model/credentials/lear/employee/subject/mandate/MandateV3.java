@@ -17,7 +17,7 @@ import java.util.List;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record MandateV3(
         //todo remove
-        @JsonProperty("id") String id,
+//        @JsonProperty("id") String id,
         @JsonProperty("mandatee") MandateeV3 mandatee,
         @JsonProperty("mandator") MandatorV3 mandator,
         @JsonProperty("power") List<PowerV3> power

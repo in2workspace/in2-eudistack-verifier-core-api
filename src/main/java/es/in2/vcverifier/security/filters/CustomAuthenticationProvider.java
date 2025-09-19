@@ -493,7 +493,6 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                 .validUntil(credentialV3.validUntil())
                 .credentialSubjectV3(CredentialSubjectV3.builder()
                         .mandate(MandateV3.builder()
-                                .id(credentialV3.credentialSubjectV3().mandate().id())
                                 .mandatee(normalizedMandatee)
                                 .power(normalizedPowers)
                                 .mandator(normalizedMandator)
