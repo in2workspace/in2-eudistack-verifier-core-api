@@ -193,8 +193,8 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                 LEARCredentialEmployeeV2 learCredentialEmployeeV2 = objectMapper.convertValue(verifiableCredential, LEARCredentialEmployeeV2.class);
                 return normalizeLearCredentialEmployeeV2(learCredentialEmployeeV2);
             } else if(contextList.equals(LEAR_CREDENTIAL_EMPLOYEE_V3_CONTEXT)){
-                LEARCredentialEmployeeV3 learCredentialEmployeeV3 = objectMapper.convertValue(verifiableCredential, LEARCredentialEmployeeV3.class);
-                return normalizeLearCredentialEmployeeV3(learCredentialEmployeeV3);
+                return objectMapper.convertValue(verifiableCredential, LEARCredentialEmployeeV3.class);
+
             }
             else {
                 throw new OAuth2AuthenticationException(new OAuth2Error(
@@ -441,65 +441,65 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
      * FIXME: Temporary workaround to normalize LEAR V3 credential for compatibility.
      * This function copies V3 attributes into their legacy counterparts.
      */
-    private LEARCredentialEmployee normalizeLearCredentialEmployeeV3(LEARCredentialEmployeeV3 credentialV3) {
-        // Cast the mandatee to MandateeV3
-        MandateeV3 originalMandatee = credentialV3.credentialSubjectV3().mandate().mandatee();
-        MandateeV3 normalizedMandatee = MandateeV3.builder()
-                .id(originalMandatee.id())
-                .employeeId(originalMandatee.employeeId())
-                .email(originalMandatee.email())
-                .firstName(originalMandatee.firstName())
-                .lastName(originalMandatee.lastName())
-                .firstNameV1(originalMandatee.firstName())
-                .lastNameV1(originalMandatee.lastName())
-                .build();
-
-        // Mandator: emailAddress legacy
-        MandatorV3 srcMandator = credentialV3.credentialSubjectV3().mandate().mandator();
-        MandatorV3 normalizedMandator = MandatorV3.builder()
-                .id(srcMandator.id())
-                .commonName(srcMandator.commonName())
-                .organizationIdentifier(srcMandator.organizationIdentifier())
-                .organization(srcMandator.organization())
-                .country(srcMandator.country())
-                .serialNumber(srcMandator.serialNumber())
-                .email(srcMandator.email())
-                .emailAddress(srcMandator.email())
-                .build();
-
-        // Normalize each PowerV3: duplicate values into tmf_* fields for compatibility
-        List<PowerV3> originalPowers = credentialV3.credentialSubjectV3().mandate().power();
-        List<PowerV3> normalizedPowers = originalPowers.stream()
-                .map(power -> PowerV3.builder()
-                        .action(power.action())
-                        .domain(power.domain())
-                        .function(power.function())
-                        .type(power.type())
-                        .tmfAction(power.action())
-                        .tmfDomain(power.domain())
-                        .tmfFunction(power.function())
-                        .tmfType(power.type())
-                        .build())
-                .toList();
-
-        // Build a normalized Mandate using the normalized mandatee and powers
-        return LEARCredentialEmployeeV3.builder()
-                .context(credentialV3.context())
-                .id(credentialV3.id())
-                .type(credentialV3.type())
-                .description(credentialV3.description())
-                .issuer(credentialV3.issuer())
-                .validFrom(credentialV3.validFrom())
-                .validUntil(credentialV3.validUntil())
-                .credentialSubjectV3(CredentialSubjectV3.builder()
-                        .mandate(MandateV3.builder()
-                                .mandatee(normalizedMandatee)
-                                .power(normalizedPowers)
-                                .mandator(normalizedMandator)
-                                .build())
-                        .build())
-                .build();
-    }
+//    private LEARCredentialEmployee normalizeLearCredentialEmployeeV3(LEARCredentialEmployeeV3 credentialV3) {
+//        // Cast the mandatee to MandateeV3
+//        MandateeV3 originalMandatee = credentialV3.credentialSubjectV3().mandate().mandatee();
+//        MandateeV3 normalizedMandatee = MandateeV3.builder()
+//                .id(originalMandatee.id())
+//                .employeeId(originalMandatee.employeeId())
+//                .email(originalMandatee.email())
+//                .firstName(originalMandatee.firstName())
+//                .lastName(originalMandatee.lastName())
+//                .firstNameV1(originalMandatee.firstName())
+//                .lastNameV1(originalMandatee.lastName())
+//                .build();
+//
+//        // Mandator: emailAddress legacy
+//        MandatorV3 srcMandator = credentialV3.credentialSubjectV3().mandate().mandator();
+//        MandatorV3 normalizedMandator = MandatorV3.builder()
+//                .id(srcMandator.id())
+//                .commonName(srcMandator.commonName())
+//                .organizationIdentifier(srcMandator.organizationIdentifier())
+//                .organization(srcMandator.organization())
+//                .country(srcMandator.country())
+//                .serialNumber(srcMandator.serialNumber())
+//                .email(srcMandator.email())
+//                .emailAddress(srcMandator.email())
+//                .build();
+//
+//        // Normalize each PowerV3: duplicate values into tmf_* fields for compatibility
+//        List<PowerV3> originalPowers = credentialV3.credentialSubjectV3().mandate().power();
+//        List<PowerV3> normalizedPowers = originalPowers.stream()
+//                .map(power -> PowerV3.builder()
+//                        .action(power.action())
+//                        .domain(power.domain())
+//                        .function(power.function())
+//                        .type(power.type())
+//                        .tmfAction(power.action())
+//                        .tmfDomain(power.domain())
+//                        .tmfFunction(power.function())
+//                        .tmfType(power.type())
+//                        .build())
+//                .toList();
+//
+//        // Build a normalized Mandate using the normalized mandatee and powers
+//        return LEARCredentialEmployeeV3.builder()
+//                .context(credentialV3.context())
+//                .id(credentialV3.id())
+//                .type(credentialV3.type())
+//                .description(credentialV3.description())
+//                .issuer(credentialV3.issuer())
+//                .validFrom(credentialV3.validFrom())
+//                .validUntil(credentialV3.validUntil())
+//                .credentialSubjectV3(CredentialSubjectV3.builder()
+//                        .mandate(MandateV3.builder()
+//                                .mandatee(normalizedMandatee)
+//                                .power(normalizedPowers)
+//                                .mandator(normalizedMandator)
+//                                .build())
+//                        .build())
+//                .build();
+//    }
 
     @Override
     public boolean supports(Class<?> authentication) {

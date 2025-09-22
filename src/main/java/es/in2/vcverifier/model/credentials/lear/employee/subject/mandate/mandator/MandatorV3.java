@@ -15,7 +15,7 @@ public record MandatorV3(
         @JsonProperty("email") String email,
         @JsonProperty("organization") String organization,
         @JsonProperty("organizationIdentifier") String organizationIdentifier,
-        @JsonProperty("serialNumber") String serialNumber,
+        @JsonProperty("serialNumber") String serialNumber
         // FIXME: Those fields are here to avoid some components failure due the incompatibility for Lear V3
-        @JsonProperty("emailAddress") String emailAddress
+//        @JsonProperty("emailAddress") String emailAddress
 ) {}

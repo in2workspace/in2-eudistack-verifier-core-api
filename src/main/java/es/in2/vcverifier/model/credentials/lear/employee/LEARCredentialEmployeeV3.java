@@ -40,7 +40,6 @@ public record LEARCredentialEmployeeV3(
 
 ) implements LEARCredentialEmployee {
 
-    //todo remove
     @Override
     public String mandateeId() {
         return credentialSubjectV3.mandate().mandatee().id();
