@@ -288,7 +288,7 @@ class CustomAuthenticationProviderTest {
         verify(oAuth2AuthorizationService).save(authorizationCaptor.capture());
     }
 
-//    @Test
+//    todo @Test
 //    void authenticate_validClientCredentialsGrant_withMachineCredential_success() {
 //        // Arrange
 //        String clientId = "test-client-id";
