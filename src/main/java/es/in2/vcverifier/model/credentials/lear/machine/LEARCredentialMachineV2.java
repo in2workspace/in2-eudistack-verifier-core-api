@@ -19,7 +19,6 @@ import java.util.List;
 public record LEARCredentialMachineV2 (
         @JsonProperty("@context")
         List<String> context,
-        // todo remove
         @JsonProperty("id")
         String id,
         @JsonProperty("type")

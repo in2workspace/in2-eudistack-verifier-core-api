@@ -19,14 +19,12 @@ import java.util.List;
 public record LEARCredentialEmployeeV3(
         @JsonProperty("@context")
         List<String> context,
-        //todo remove
         @JsonProperty("id")
         String id,
         @JsonProperty("type")
         List<String> type,
         @JsonProperty("description")
         String description,
-        // todo remove deserialize?
         @JsonProperty("issuer") @JsonDeserialize(using = IssuerDeserializer.class)
         Issuer issuer,
         @JsonProperty("credentialSubject")
