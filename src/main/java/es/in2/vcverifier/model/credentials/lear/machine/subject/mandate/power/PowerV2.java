@@ -9,9 +9,9 @@ import lombok.Builder;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record PowerV2(
-        @JsonProperty("action") Object tmfAction,
-        @JsonProperty("domain") String tmfDomain,
-        @JsonProperty("function") String tmfFunction,
-        @JsonProperty("type") String tmfType
+        @JsonProperty("action") Object action,
+        @JsonProperty("domain") String domain,
+        @JsonProperty("function") String function,
+        @JsonProperty("type") String type
 ) {}
 
