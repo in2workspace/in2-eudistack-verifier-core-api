@@ -8,19 +8,25 @@ import es.in2.vcverifier.exception.*;
 import es.in2.vcverifier.model.credentials.lear.LEARCredential;
 import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV1;
 import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV2;
-import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachine;
+import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV3;
+import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachineV1;
+import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachineV2;
 import es.in2.vcverifier.model.enums.LEARCredentialType;
 import es.in2.vcverifier.model.issuer.IssuerCredentialsCapabilities;
 import es.in2.vcverifier.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.json.JSONObject;
+import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.stereotype.Service;
 
 import java.security.PublicKey;
 import java.text.ParseException;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -135,6 +141,29 @@ public class VpServiceImpl implements VpService {
         return convertObjectToJSONNode(getCredentialFromTheVerifiablePresentation(verifiablePresentation));
     }
 
+    @Override
+    public List<String> extractContextFromJson(JsonNode verifiableCredential) {
+        JsonNode contextNode = verifiableCredential.get("@context");
+        if (contextNode == null || !contextNode.isArray()) {
+            throw new OAuth2AuthenticationException(new OAuth2Error(
+                    OAuth2ErrorCodes.INVALID_REQUEST,
+                    "'@context' field is missing or is not an array",
+                    null));
+        }
+
+        List<String> contextList = new ArrayList<>();
+        for (JsonNode node : contextNode) {
+            if (!node.isTextual()) {
+                throw new OAuth2AuthenticationException(new OAuth2Error(
+                        OAuth2ErrorCodes.INVALID_REQUEST,
+                        "Elements of '@context' must be strings",
+                        null));
+            }
+            contextList.add(node.asText());
+        }
+        return contextList;
+    }
+
     private LEARCredential mapPayloadToVerifiableCredential(Payload payload) {
         Object vcObject = jwtService.getVCFromPayload(payload);
         try {
@@ -196,21 +225,29 @@ public class VpServiceImpl implements VpService {
 
 
     private LEARCredential mapToSpecificCredential(Map<String, Object> vcMap, List<String> types) {
+        List<String> contextList = extractContext(vcMap);
+
         if (types.contains(LEARCredentialType.LEAR_CREDENTIAL_EMPLOYEE.getValue())) {
             // Extract the '@context' field from the VC
-            List<String> contextList = extractContext(vcMap);
 
             // Compare the context with the v1 and v2 constants
             if (contextList.equals(LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT)) {
                 return objectMapper.convertValue(vcMap, LEARCredentialEmployeeV1.class);
             } else if (contextList.equals(LEAR_CREDENTIAL_EMPLOYEE_V2_CONTEXT)) {
                 return objectMapper.convertValue(vcMap, LEARCredentialEmployeeV2.class);
+            } else if(contextList.equals(LEAR_CREDENTIAL_EMPLOYEE_V3_CONTEXT)){
+                return objectMapper.convertValue(vcMap, LEARCredentialEmployeeV3.class);
             } else {
                 throw new InvalidCredentialTypeException("Unknown LEARCredentialEmployee version: " + contextList);
             }
         } else if (types.contains(LEARCredentialType.LEAR_CREDENTIAL_MACHINE.getValue())) {
-            return objectMapper.convertValue(vcMap, LEARCredentialMachine.class);
-        } else {
+            if(contextList.equals(LEAR_CREDENTIAL_MACHINE_V2_CONTEXT)){
+                return objectMapper.convertValue(vcMap, LEARCredentialMachineV2.class);
+            } else {
+                return objectMapper.convertValue(vcMap, LEARCredentialMachineV1.class);
+            }
+        }
+        else {
             throw new InvalidCredentialTypeException("Unsupported credential type: " + types);
         }
     }
@@ -349,4 +386,5 @@ public class VpServiceImpl implements VpService {
         }
         return firstCredential;
     }
+
 }

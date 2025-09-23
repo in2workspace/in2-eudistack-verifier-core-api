@@ -10,6 +10,8 @@ import es.in2.vcverifier.exception.UnsupportedGrantTypeException;
 import es.in2.vcverifier.model.AuthorizationCodeData;
 import es.in2.vcverifier.model.RefreshTokenDataCache;
 import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachine;
+import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachineV1;
+import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachineV2;
 import es.in2.vcverifier.model.enums.LEARCredentialType;
 import es.in2.vcverifier.service.ClientAssertionValidationService;
 import es.in2.vcverifier.service.JWTService;
@@ -36,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static es.in2.vcverifier.util.Constants.LEAR_CREDENTIAL_MACHINE_V2_CONTEXT;
 import static org.springframework.security.oauth2.core.oidc.IdTokenClaimNames.NONCE;
 
 @Slf4j
@@ -119,7 +122,14 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
 
         // Check if VC is LEARCredentialMachine Type
         JsonNode vc = vpService.getCredentialFromTheVerifiablePresentationAsJsonNode(decodedVpToken);
-        LEARCredentialMachine learCredentialMachine = objectMapper.convertValue(vc, LEARCredentialMachine.class);
+        List<String> contexts = vpService.extractContextFromJson(vc);
+        LEARCredentialMachine learCredentialMachine;
+        if(contexts.equals(LEAR_CREDENTIAL_MACHINE_V2_CONTEXT)){
+            learCredentialMachine = objectMapper.convertValue(vc, LEARCredentialMachineV2.class);
+        } else {
+            learCredentialMachine = objectMapper.convertValue(vc, LEARCredentialMachineV1.class);
+        }
+
         List<String> types = learCredentialMachine.type();
         if (!types.contains(LEARCredentialType.LEAR_CREDENTIAL_MACHINE.getValue())){
             log.error("CustomTokenRequestConverter -- handleClientCredentialsGrant-- LEARCredentialType Expected: {}", LEARCredentialType.LEAR_CREDENTIAL_MACHINE.getValue());

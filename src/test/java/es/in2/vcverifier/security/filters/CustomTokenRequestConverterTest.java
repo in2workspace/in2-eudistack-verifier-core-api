@@ -8,7 +8,7 @@ import es.in2.vcverifier.config.CacheStore;
 import es.in2.vcverifier.exception.InvalidCredentialTypeException;
 import es.in2.vcverifier.exception.UnsupportedGrantTypeException;
 import es.in2.vcverifier.model.AuthorizationCodeData;
-import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachine;
+import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachineV1;
 import es.in2.vcverifier.model.enums.LEARCredentialType;
 import es.in2.vcverifier.service.ClientAssertionValidationService;
 import es.in2.vcverifier.service.JWTService;
@@ -125,8 +125,8 @@ class CustomTokenRequestConverterTest {
 
         when(clientAssertionValidationService.validateClientAssertionJWTClaims(clientId, payload)).thenReturn(true);
 
-        LEARCredentialMachine learCredentialMachine = mock(LEARCredentialMachine.class);
-        when(objectMapper.convertValue(mockVC, LEARCredentialMachine.class)).thenReturn(learCredentialMachine);
+        LEARCredentialMachineV1 learCredentialMachine = mock(LEARCredentialMachineV1.class);
+        when(objectMapper.convertValue(mockVC, LEARCredentialMachineV1.class)).thenReturn(learCredentialMachine);
         when(learCredentialMachine.type()).thenReturn(List.of(LEARCredentialType.LEAR_CREDENTIAL_MACHINE.getValue()));
 
         // Act
@@ -167,8 +167,8 @@ class CustomTokenRequestConverterTest {
         JsonNode mockVC = mock(JsonNode.class);
         when(vpService.getCredentialFromTheVerifiablePresentationAsJsonNode(anyString())).thenReturn(mockVC);
 
-        LEARCredentialMachine learCredentialMachine = mock(LEARCredentialMachine.class);
-        when(objectMapper.convertValue(mockVC, LEARCredentialMachine.class)).thenReturn(learCredentialMachine);
+        LEARCredentialMachineV1 learCredentialMachine = mock(LEARCredentialMachineV1.class);
+        when(objectMapper.convertValue(mockVC, LEARCredentialMachineV1.class)).thenReturn(learCredentialMachine);
         when(learCredentialMachine.type()).thenReturn(List.of(LEARCredentialType.LEAR_CREDENTIAL_MACHINE.getValue()));
 
         when(clientAssertionValidationService.validateClientAssertionJWTClaims(anyString(), any())).thenReturn(false);
@@ -201,8 +201,8 @@ class CustomTokenRequestConverterTest {
         JsonNode mockVC = mock(JsonNode.class);
         when(vpService.getCredentialFromTheVerifiablePresentationAsJsonNode(anyString())).thenReturn(mockVC);
 
-        LEARCredentialMachine learCredentialMachine = mock(LEARCredentialMachine.class);
-        when(objectMapper.convertValue(mockVC, LEARCredentialMachine.class)).thenReturn(learCredentialMachine);
+        LEARCredentialMachineV1 learCredentialMachine = mock(LEARCredentialMachineV1.class);
+        when(objectMapper.convertValue(mockVC, LEARCredentialMachineV1.class)).thenReturn(learCredentialMachine);
         when(learCredentialMachine.type()).thenReturn(List.of(LEARCredentialType.LEAR_CREDENTIAL_MACHINE.getValue()));
 
         when(clientAssertionValidationService.validateClientAssertionJWTClaims(anyString(), any())).thenReturn(true);
@@ -237,8 +237,8 @@ class CustomTokenRequestConverterTest {
         JsonNode mockVC = mock(JsonNode.class);
         when(vpService.getCredentialFromTheVerifiablePresentationAsJsonNode(rawVpToken)).thenReturn(mockVC);
 
-        LEARCredentialMachine learCredentialMachine = mock(LEARCredentialMachine.class);
-        when(objectMapper.convertValue(mockVC, LEARCredentialMachine.class)).thenReturn(learCredentialMachine);
+        LEARCredentialMachineV1 learCredentialMachine = mock(LEARCredentialMachineV1.class);
+        when(objectMapper.convertValue(mockVC, LEARCredentialMachineV1.class)).thenReturn(learCredentialMachine);
 
         // Simulate an invalid LEARCredentialType
         when(learCredentialMachine.type()).thenReturn(List.of("InvalidType"));
