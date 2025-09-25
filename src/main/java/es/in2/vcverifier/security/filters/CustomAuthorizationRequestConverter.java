@@ -104,6 +104,9 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
     private Authentication handleFAPIRequest(AuthorizationContext authorizationContext,
                                              HttpServletRequest request,
                                              RegisteredClient registeredClient) {
+        log.debug("handleFAPIRequest: start");
+        log.debug("request {}", request);
+        log.debug("registered client {}", registeredClient);
         String jwt = retrieveJwtFromRequestUriOrRequest(
                 authorizationContext.requestUri(),
                 request,
@@ -138,7 +141,9 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
                     authorizationContext.originalRequestURL()
             );
         }
-
+        log.debug("handleFAPIRequest: end");
+        log.debug("registered client {}", registeredClient);
+        log.debug("signedJwt {}", signedJwt);
         // Process the authorization flow
         return processAuthorizationFlow(authorizationContext, signedJwt, registeredClient);
     }

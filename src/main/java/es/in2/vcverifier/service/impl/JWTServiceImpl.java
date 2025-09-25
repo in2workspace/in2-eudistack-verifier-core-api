@@ -60,6 +60,10 @@ public class JWTServiceImpl implements JWTService {
 
     @Override
     public void verifyJWTWithECKey(String jwt, PublicKey publicKey) {
+        log.debug("verifyJWTWithECKey");
+        log.debug("jwt {}", jwt);
+        log.debug("publicKey {}", publicKey);
+
         try {
             // Ensure the provided key is of the correct type
             if (!(publicKey instanceof ECPublicKey)) {
