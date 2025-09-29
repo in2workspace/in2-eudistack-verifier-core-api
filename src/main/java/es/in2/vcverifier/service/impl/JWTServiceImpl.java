@@ -23,6 +23,7 @@ import org.springframework.stereotype.Service;
 import java.security.PublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.text.ParseException;
+import java.util.Base64;
 import java.util.Map;
 
 import static es.in2.vcverifier.util.Constants.OID4VP_TYPE;
@@ -73,10 +74,28 @@ public class JWTServiceImpl implements JWTService {
             // Parse the JWT
             SignedJWT signedJWT = SignedJWT.parse(jwt);
             log.debug("signedJwt {}", signedJWT);
+            var hdr = signedJWT.getHeader();
+            System.out.println("ALG = " + hdr.getAlgorithm());
+            System.out.println("KID = " + hdr.getKeyID());
+            System.out.println("CRIT = " + hdr.getCriticalParams());
+            System.out.println("B64? = " + hdr.isBase64URLEncodePayload());
+            System.out.println("Header JSON = " + hdr.toJSONObject());
+            System.out.println("Signature length (JOSE r||s) = " + signedJWT.getSignature().decode().length);
 
+            ECPublicKey eck = (ECPublicKey) publicKey;
+            int fieldSize = eck.getParams().getCurve().getField().getFieldSize(); // 256, 384 o 521
+            System.out.println("EC key field size = " + fieldSize);
             // Create the EC verifier
             JWSVerifier verifier = new ECDSAVerifier((ECPublicKey) publicKey);
             log.debug("verifier {}", verifier);
+
+            // Si tens la JWK o el PEM de la clau pública:
+            String pem = convertToPEM(publicKey);
+            ECKey ecJwk = (ECKey) ECKey.parseFromPEMEncodedObjects(pem);
+            JWSVerifier verifierTwo = new ECDSAVerifier(ecJwk);
+            boolean ok = signedJWT.verify(verifierTwo);
+            System.out.println("Curve = " + ecJwk.getCurve());
+
 
             // Verify the signature
             if (!signedJWT.verify(verifier)) {
@@ -168,5 +187,12 @@ public class JWTServiceImpl implements JWTService {
             log.error("JWTServiceImpl -- generateJWT -- Error during JWT creation", e);
             throw new JWTCreationException("Error creating JWT");
         }
+    }
+    //todo remove
+    private static String convertToPEM(PublicKey publicKey) {
+        String base64 = Base64.getEncoder().encodeToString(publicKey.getEncoded());
+        return "-----BEGIN PUBLIC KEY-----\n"
+                + base64.replaceAll("(.{64})", "$1\n")
+                + "\n-----END PUBLIC KEY-----";
     }
 }
