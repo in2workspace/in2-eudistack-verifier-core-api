@@ -72,9 +72,11 @@ public class JWTServiceImpl implements JWTService {
 
             // Parse the JWT
             SignedJWT signedJWT = SignedJWT.parse(jwt);
+            log.debug("signedJwt {}", signedJWT);
 
             // Create the EC verifier
             JWSVerifier verifier = new ECDSAVerifier((ECPublicKey) publicKey);
+            log.debug("verifier {}", verifier);
 
             // Verify the signature
             if (!signedJWT.verify(verifier)) {
