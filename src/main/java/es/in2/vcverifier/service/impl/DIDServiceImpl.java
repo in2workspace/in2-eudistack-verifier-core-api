@@ -54,6 +54,23 @@ public class DIDServiceImpl implements DIDService {
 
             // Multibase decode (Base58) the encoded part to get the bytes
             byte[] decodedBytes = Base58.base58Decode(multibaseEncoded);
+            if (decodedBytes.length < 35) {
+                throw new PublicKeyDecodingException("Decoded key too short");
+            }
+            // 2. comprova multicodec
+            if ((decodedBytes[0] & 0xFF) != 0x12 || (decodedBytes[1] & 0xFF) != 0x00) {
+                throw new PublicKeyDecodingException(
+                        String.format("Unexpected multicodec prefix: 0x%02X%02X (not P-256)", decodedBytes[0], decodedBytes[1])
+                );
+            }
+            byte[] publicKeyBytesArr = Arrays.copyOfRange(decodedBytes, 2, decodedBytes.length);
+            // 3. comprova prefix SEC1 comprimit: 0x02 o 0x03
+            int yParity = publicKeyBytesArr[0] & 0xFF;
+            if (yParity != 0x02 && yParity != 0x03) {
+                throw new PublicKeyDecodingException(
+                        String.format("Unexpected EC point format: 0x%02X (expected 0x02/0x03 compressed)", yParity)
+                );
+            }
             log.debug("DIDServiceImpl -- decodePublicKeyIntoPubKey -- Decoded bytes from Base58: {}", Arrays.toString(decodedBytes));
 
             // Multicodec prefix is fixed for "0x1200" for the secp256r1 curve
@@ -69,6 +86,8 @@ public class DIDServiceImpl implements DIDService {
 
             // Recover the Y coordinate from the X coordinate and the curve
             BigInteger y = curve.decodePoint(publicKeyBytes).getYCoord().toBigInteger();
+            log.info("DID key point X = {}", x);
+            log.info("DID key point Y = {}", y);
 
             log.debug("DIDServiceImpl -- decodePublicKeyIntoPubKey -- Calculated ECPoint coordinates - X: {}, Y: {}", x, y);
             ECPoint point = new ECPoint(x, y);

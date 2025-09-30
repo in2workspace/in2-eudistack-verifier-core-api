@@ -8,6 +8,7 @@ import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jose.crypto.ECDSAVerifier;
 import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.util.Base64URL;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.vcverifier.component.CryptoComponent;
@@ -74,6 +75,8 @@ public class JWTServiceImpl implements JWTService {
             // Parse the JWT
             SignedJWT signedJWT = SignedJWT.parse(jwt);
             log.debug("signedJwt {}", signedJWT);
+            Base64URL signature = signedJWT.getSignature();
+            System.out.println(signature);
             var hdr = signedJWT.getHeader();
             System.out.println("ALG = " + hdr.getAlgorithm());
             System.out.println("KID = " + hdr.getKeyID());
@@ -85,9 +88,17 @@ public class JWTServiceImpl implements JWTService {
             ECPublicKey eck = (ECPublicKey) publicKey;
             int fieldSize = eck.getParams().getCurve().getField().getFieldSize(); // 256, 384 o 521
             System.out.println("EC key field size = " + fieldSize);
+            System.out.println("Curve A = " + eck.getParams().getCurve().getA());
+            System.out.println("Curve B = " + eck.getParams().getCurve().getB());
             // Create the EC verifier
             JWSVerifier verifier = new ECDSAVerifier((ECPublicKey) publicKey);
             log.debug("verifier {}", verifier);
+            java.security.spec.ECParameterSpec p = eck.getParams();
+            if (p instanceof org.bouncycastle.jce.spec.ECNamedCurveSpec bcSpec) {
+                log.info("EC curve name = {}", bcSpec.getName()); // esperat: secp256r1
+            } else {
+                log.info("EC field size = {}", p.getCurve().getField().getFieldSize());
+            }
 
             // Si tens la JWK o el PEM de la clau pública:
             String pem = convertToPEM(publicKey);
