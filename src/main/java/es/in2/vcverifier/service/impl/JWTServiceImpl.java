@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.ECDSASigner;
 import com.nimbusds.jose.crypto.ECDSAVerifier;
+import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.util.Base64URL;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -16,6 +17,7 @@ import es.in2.vcverifier.exception.JWTClaimMissingException;
 import es.in2.vcverifier.exception.JWTCreationException;
 import es.in2.vcverifier.exception.JWTParsingException;
 import es.in2.vcverifier.exception.JWTVerificationException;
+import es.in2.vcverifier.service.DIDService;
 import es.in2.vcverifier.service.JWTService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +26,7 @@ import org.springframework.stereotype.Service;
 import java.math.BigInteger;
 import java.security.PublicKey;
 import java.security.interfaces.ECPublicKey;
+import java.security.spec.ECPoint;
 import java.text.ParseException;
 import java.util.Base64;
 import java.util.Map;
@@ -37,6 +40,7 @@ public class JWTServiceImpl implements JWTService {
 
     private final CryptoComponent cryptoComponent;
     private final ObjectMapper objectMapper;
+    private final DIDService didService;
 
     @Override
     public String generateJWT(String payload) {
@@ -63,72 +67,91 @@ public class JWTServiceImpl implements JWTService {
 
     @Override
     public void verifyJWTWithECKey(String jwt, PublicKey publicKey) {
-        printPublicKeyAsJwk((ECPublicKey) publicKey);
-        log.debug("verifyJWTWithECKey");
-        log.debug("jwt {}", jwt);
-        log.debug("publicKey {}", publicKey);
-
         try {
-            // Ensure the provided key is of the correct type
+            // 0) Tipus correcte i cast
             if (!(publicKey instanceof ECPublicKey)) {
                 throw new IllegalArgumentException("Invalid key type for EC verification");
             }
+            ECPublicKey ecProvided = (ECPublicKey) publicKey;
+            printPublicKeyAsJwk(ecProvided); // opcional: per debug
 
-            // Parse the JWT
-            SignedJWT signedJWT = SignedJWT.parse(jwt);
-            log.debug("signedJwt {}", signedJWT);
-            Base64URL signature = signedJWT.getSignature();
-            System.out.println(signature);
-            var hdr = signedJWT.getHeader();
+            // 1) Parse JWT + logs bàsics
+            SignedJWT sjwt = SignedJWT.parse(jwt);
+            JWSHeader hdr = sjwt.getHeader();
+            String kid = hdr.getKeyID();
+
             System.out.println("ALG = " + hdr.getAlgorithm());
-            System.out.println("KID = " + hdr.getKeyID());
-            System.out.println("CRIT = " + hdr.getCriticalParams());
-            System.out.println("B64? = " + hdr.isBase64URLEncodePayload());
-            System.out.println("Header JSON = " + hdr.toJSONObject());
-            System.out.println("Signature length (JOSE r||s) = " + signedJWT.getSignature().decode().length);
+            System.out.println("KID = " + kid);
+            System.out.println("Signature length (JOSE r||s) = " + sjwt.getSignature().decode().length);
 
-            ECPublicKey eck = (ECPublicKey) publicKey;
-            int fieldSize = eck.getParams().getCurve().getField().getFieldSize(); // 256, 384 o 521
-            System.out.println("EC key field size = " + fieldSize);
-            System.out.println("Curve A = " + eck.getParams().getCurve().getA());
-            System.out.println("Curve B = " + eck.getParams().getCurve().getB());
-            // Create the EC verifier
-            JWSVerifier verifier = new ECDSAVerifier((ECPublicKey) publicKey);
-            log.debug("verifier {}", verifier);
-            java.security.spec.ECParameterSpec p = eck.getParams();
-            if (p instanceof org.bouncycastle.jce.spec.ECNamedCurveSpec bcSpec) {
-                log.info("EC curve name = {}", bcSpec.getName()); // esperat: secp256r1
-            } else {
-                log.info("EC field size = {}", p.getCurve().getField().getFieldSize());
+            // 2) Si el KID és un did:key, resol la clau i compara x/y
+            if (kid != null && kid.startsWith("did:key:")) {
+                PublicKey kidPk = didService.getPublicKeyFromDid(kid);
+                if (!(kidPk instanceof ECPublicKey)) {
+                    throw new IllegalStateException("DID resolved key is not EC");
+                }
+                ECPublicKey ecFromDid = (ECPublicKey) kidPk;
+
+                // compara corba i punt (x/y)
+                boolean same = sameEcPublicKey(ecFromDid, ecProvided);
+                if (!same) {
+                    throw new JWTVerificationException("Public key mismatch: KID key and provided key differ (X/Y).");
+                }
             }
 
-            // Si tens la JWK o el PEM de la clau pública:
-            String pem = convertToPEM(publicKey);
-            ECKey ecJwk = (ECKey) ECKey.parseFromPEMEncodedObjects(pem);
-            JWSVerifier verifierTwo = new ECDSAVerifier(ecJwk);
-            boolean ok = signedJWT.verify(verifierTwo);
-            System.out.println("Curve = " + ecJwk.getCurve());
-
-
-            // Verify the signature
-            if (!signedJWT.verify(verifier)) {
+            // 3) Verificació ES256 amb la clau proporcionada
+            JWSVerifier verifier = new ECDSAVerifier(ecProvided);
+            if (!sjwt.verify(verifier)) {
                 throw new JWTVerificationException("Invalid JWT signature for EC key");
             }
 
         } catch (Exception e) {
             log.error("Exception during JWT signature verification with EC key", e);
-            throw new JWTVerificationException("JWT signature verification failed due to unexpected error: " + e);
+            throw new JWTVerificationException("JWT signature verification failed due to unexpected error: " + e.getMessage());
         }
     }
 
+
     private static byte[] toUnsignedFixed(BigInteger bi, int sizeBytes) {
-        byte[] raw = bi.toByteArray();
+        byte[] raw = bi.toByteArray();                 // pot venir amb byte de signe
         if (raw.length == sizeBytes) return raw;
         byte[] out = new byte[sizeBytes];
         int srcPos = Math.max(0, raw.length - sizeBytes);
         int len = Math.min(sizeBytes, raw.length);
         System.arraycopy(raw, srcPos, out, sizeBytes - len, len);
         return out;
+    }
+
+    private static int fieldSizeBytes(ECPublicKey k) {
+        return (k.getParams().getCurve().getField().getFieldSize() + 7) / 8;
+    }
+
+    /** Retorna x/y en Base64URL (com en un JWK) per una ECPublicKey. */
+    private static String[] jwkXY(ECPublicKey k) {
+        ECPoint w = k.getW();
+        int size = fieldSizeBytes(k);
+        String xB64u = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(toUnsignedFixed(w.getAffineX(), size));
+        String yB64u = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(toUnsignedFixed(w.getAffineY(), size));
+        return new String[]{xB64u, yB64u};
+    }
+
+    /** Compara dues ECPublicKey: mateixa corba i mateix punt. Logueja detalls. */
+    private static boolean sameEcPublicKey(ECPublicKey a, ECPublicKey b) {
+        int sa = a.getParams().getCurve().getField().getFieldSize();
+        int sb = b.getParams().getCurve().getField().getFieldSize();
+        if (sa != sb) {
+            System.out.println("Curve mismatch: field sizes " + sa + " vs " + sb);
+            return false;
+        }
+        ECPoint wa = a.getW(), wb = b.getW();
+        boolean same = wa.getAffineX().equals(wb.getAffineX()) && wa.getAffineY().equals(wb.getAffineY());
+        String[] A = jwkXY(a), B = jwkXY(b);
+        System.out.println("KEY A JWK = {\"kty\":\"EC\",\"crv\":\"P-" + sa + "\",\"x\":\"" + A[0] + "\",\"y\":\"" + A[1] + "\"}");
+        System.out.println("KEY B JWK = {\"kty\":\"EC\",\"crv\":\"P-" + sb + "\",\"x\":\"" + B[0] + "\",\"y\":\"" + B[1] + "\"}");
+        System.out.println("Same curve bits? " + (sa == sb) + " | Same X/Y? " + same);
+        return same;
     }
 
     private static void printPublicKeyAsJwk(ECPublicKey ec) {
