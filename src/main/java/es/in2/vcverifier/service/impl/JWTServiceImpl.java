@@ -25,6 +25,7 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigInteger;
 import java.security.PublicKey;
+import java.security.Signature;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECPoint;
 import java.text.ParseException;
@@ -99,7 +100,27 @@ public class JWTServiceImpl implements JWTService {
                 }
             }
 
-            // 3) Verificació ES256 amb la clau proporcionada
+            //2.2
+            String token = jwt;                       // el que reps
+            int lastDot = token.lastIndexOf('.');
+            String inputFromToken = token.substring(0, lastDot);   // headerB64u.payloadB64u tal qual
+            String inputFromNimbus = new String(((com.nimbusds.jose.JWSObject) sjwt).getSigningInput(), java.nio.charset.StandardCharsets.US_ASCII);
+
+            System.out.println("same signing input? " + inputFromToken.equals(inputFromNimbus));
+
+
+            // 3. signingInput = headerB64u + "." + payloadB64u (exactament com al token)
+            byte[] signingInput = ((com.nimbusds.jose.JWSObject) sjwt).getSigningInput();
+            // signatura JOSE (P1363 r||s, 64 bytes per ES256)
+            byte[] sig = sjwt.getSignature().decode();
+
+            Signature s = Signature.getInstance("SHA256withECDSAinP1363Format"); // JDK 11+
+            s.initVerify((ECPublicKey) publicKey);
+            s.update(signingInput);
+            boolean okJdk = s.verify(sig);
+            System.out.println("JDK P1363 verify = " + okJdk);
+
+            // 4) Verificació ES256 amb la clau proporcionada
             JWSVerifier verifier = new ECDSAVerifier(ecProvided);
             if (!sjwt.verify(verifier)) {
                 throw new JWTVerificationException("Invalid JWT signature for EC key");
