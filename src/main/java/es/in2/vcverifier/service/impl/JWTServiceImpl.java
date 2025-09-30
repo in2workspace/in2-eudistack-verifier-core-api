@@ -21,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.math.BigInteger;
 import java.security.PublicKey;
 import java.security.interfaces.ECPublicKey;
 import java.text.ParseException;
@@ -62,6 +63,7 @@ public class JWTServiceImpl implements JWTService {
 
     @Override
     public void verifyJWTWithECKey(String jwt, PublicKey publicKey) {
+        printPublicKeyAsJwk((ECPublicKey) publicKey);
         log.debug("verifyJWTWithECKey");
         log.debug("jwt {}", jwt);
         log.debug("publicKey {}", publicKey);
@@ -117,6 +119,26 @@ public class JWTServiceImpl implements JWTService {
             log.error("Exception during JWT signature verification with EC key", e);
             throw new JWTVerificationException("JWT signature verification failed due to unexpected error: " + e);
         }
+    }
+
+    private static byte[] toUnsignedFixed(BigInteger bi, int sizeBytes) {
+        byte[] raw = bi.toByteArray();
+        if (raw.length == sizeBytes) return raw;
+        byte[] out = new byte[sizeBytes];
+        int srcPos = Math.max(0, raw.length - sizeBytes);
+        int len = Math.min(sizeBytes, raw.length);
+        System.arraycopy(raw, srcPos, out, sizeBytes - len, len);
+        return out;
+    }
+
+    private static void printPublicKeyAsJwk(ECPublicKey ec) {
+        int size = (ec.getParams().getCurve().getField().getFieldSize() + 7) / 8; // 32 per P-256
+        var p = ec.getW();
+        String xB64u = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(toUnsignedFixed(p.getAffineX(), size));
+        String yB64u = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(toUnsignedFixed(p.getAffineY(), size));
+        System.out.println("VERIFY KEY JWK = {\"kty\":\"EC\",\"crv\":\"P-256\",\"x\":\""+xB64u+"\",\"y\":\""+yB64u+"\"}");
     }
 
     @Override
