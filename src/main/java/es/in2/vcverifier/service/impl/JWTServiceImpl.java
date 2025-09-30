@@ -68,6 +68,7 @@ public class JWTServiceImpl implements JWTService {
 
     @Override
     public void verifyJWTWithECKey(String jwt, PublicKey publicKey) {
+        log.info("Raw JWT received = {}", jwt);
         try {
             // 0) Tipus correcte i cast
             if (!(publicKey instanceof ECPublicKey)) {
@@ -84,7 +85,9 @@ public class JWTServiceImpl implements JWTService {
             System.out.println("ALG = " + hdr.getAlgorithm());
             System.out.println("KID = " + kid);
             System.out.println("Signature length (JOSE r||s) = " + sjwt.getSignature().decode().length);
-
+            log.info("JWT header  = {}", sjwt.getHeader().toJSONObject());
+            log.info("JWT payload = {}", sjwt.getPayload().toString());
+            log.info("JWT signature (b64u) = {}", sjwt.getSignature().toString());
             // 2) Si el KID és un did:key, resol la clau i compara x/y
             if (kid != null && kid.startsWith("did:key:")) {
                 PublicKey kidPk = didService.getPublicKeyFromDid(kid);
