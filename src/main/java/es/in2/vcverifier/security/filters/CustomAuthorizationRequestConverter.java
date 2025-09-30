@@ -234,6 +234,7 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
                 }
 
                 log.debug("JWT successfully retrieved from request_uri.");
+                log.info("JWT Body = {}", httpResponse.body());
                 return httpResponse.body();
             } catch (IOException | InterruptedException e) {
                 String errorCode = generateNonce();
