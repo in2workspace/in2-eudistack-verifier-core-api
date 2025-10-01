@@ -380,8 +380,10 @@
     let timeValue = parseInt(/*[[${expiration}]]*/ "120");
     /*]]>*/
 </script>
+<!-- SockJS -->
 <script src="https://cdn.jsdelivr.net/sockjs/latest/sockjs.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+<!-- StompJS UMD -->
+<script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.2.0/bundles/stomp.umd.min.js"></script>
 
 <!-- Integrated JavaScript -->
 <script>
@@ -418,19 +420,25 @@
 
     // Function to connect to the WebSocket and handle redirection
     function connectWebSocketForRedirect() {
-        console.log('Connecting to WebSocket for redirect'); // Log for debugging
-        const socket = new SockJS('/qr-socket');
-        const stompClient = Stomp.over(socket);
+        console.log('Connecting to WebSocket for redirect');
 
-        stompClient.connect({}, function () {
-            console.log('Connected to WebSocket'); // Log for debugging
-            // Subscribe to the specific channel based on the state (if this is unique for each session)
-            stompClient.subscribe('/oidc/redirection/' + state, function (message) {
-                console.log('Received redirect message: ', message.body); // Log for debugging
-                // Redirect the user to the received URL
-                window.location.href = message.body;
-            });
+        const client = new StompJs.Client({
+            webSocketFactory: () => new SockJS('/qr-socket'),
+            onConnect: () => {
+                console.log('Connected to WebSocket');
+
+                client.subscribe('/oidc/redirection/' + state, (message) => {
+                    console.log('Received redirect message: ', message.body);
+                    // Redirect the user to the received URL
+                    window.location.href = message.body;
+                });
+            },
+            onStompError: (frame) => {
+                console.error('STOMP error: ', frame.headers['message'], frame.body);
+            }
         });
+
+        client.activate();
     }
 
     // Automatically redirect to the home page after a specified time
