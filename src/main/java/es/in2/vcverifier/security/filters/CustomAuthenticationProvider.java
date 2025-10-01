@@ -289,7 +289,6 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                 throw new InvalidCredentialTypeException("Unknown LEARCredentialEmployee version: " + context);
             }
         } else if (credentialTypes.contains(LEARCredentialType.LEAR_CREDENTIAL_MACHINE.getValue())) {
-            //todo problema sembla aquí
             if (context.equals(LEAR_CREDENTIAL_MACHINE_V2_CONTEXT)){
                 LEARCredentialMachineV2 credential = (LEARCredentialMachineV2) learCredential;
                 Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
