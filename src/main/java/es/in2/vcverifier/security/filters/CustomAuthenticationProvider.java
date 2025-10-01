@@ -87,7 +87,9 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         log.debug("CustomAuthenticationProvider -- handleGrant -- Issue time: {}, Expiration time: {}", issueTime, expirationTime);
 
         JsonNode credentialJson = getJsonCredential(authentication);
+        log.debug("credentialJson: {}", credentialJson);
         LEARCredential credential = getVerifiableCredential(authentication, credentialJson);
+        log.debug("credential: {}", credential);
         String subject = credential.mandateeId();
         log.debug("CustomAuthenticationProvider -- handleGrant -- Credential subject obtained: {}", subject);
 
