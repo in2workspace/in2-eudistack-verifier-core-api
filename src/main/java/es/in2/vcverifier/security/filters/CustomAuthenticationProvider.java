@@ -25,6 +25,7 @@ import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.mandato
 import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.power.PowerV2;
 import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.power.PowerV3;
 import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachineV1;
+import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachineV2;
 import es.in2.vcverifier.model.enums.LEARCredentialType;
 import es.in2.vcverifier.service.JWTService;
 import lombok.RequiredArgsConstructor;
@@ -92,6 +93,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 
         LEARCredential credential = getVerifiableCredential(authentication, credentialJson);
         log.debug("credential: {}", credential);
+
         String subject = credential.mandateeId();
         log.debug("CustomAuthenticationProvider -- handleGrant -- Credential subject obtained: {}", subject);
 
@@ -185,11 +187,11 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     }
 
     private LEARCredential getVerifiableCredential(OAuth2AuthorizationGrantAuthenticationToken authentication, JsonNode verifiableCredential) {
+        List<String> contextList = extractContextFromJson(verifiableCredential);
         if (authentication instanceof OAuth2AuthorizationCodeAuthenticationToken ||
                 authentication instanceof OAuth2RefreshTokenAuthenticationToken) {
 
             // Extract and validate the '@context' field from the JsonNode
-            List<String> contextList = extractContextFromJson(verifiableCredential);
 
             if (contextList.equals(LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT)) {
                 return objectMapper.convertValue(verifiableCredential, LEARCredentialEmployeeV1.class);
@@ -207,7 +209,12 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                         null));
             }
         } else if (authentication instanceof OAuth2ClientCredentialsAuthenticationToken) {
-            return objectMapper.convertValue(verifiableCredential, LEARCredentialMachineV1.class);
+            //todo aquí
+            if (contextList.equals(LEAR_CREDENTIAL_MACHINE_V2_CONTEXT)){
+                return objectMapper.convertValue(verifiableCredential, LEARCredentialMachineV2.class);
+            }else{
+                return objectMapper.convertValue(verifiableCredential, LEARCredentialMachineV1.class);
+            }
         }
         throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_REQUEST);
     }
@@ -269,8 +276,8 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         log.debug("generateAccessTokenWithVc -- credential: {} ", learCredential);
 
         List<String> credentialTypes = learCredential.type();
+        List<String> context = learCredential.context();
         if (credentialTypes.contains(LEARCredentialType.LEAR_CREDENTIAL_EMPLOYEE.getValue())) {
-            List<String> context = learCredential.context();
             if (context.equals(LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT)) {
                 LEARCredentialEmployeeV1 credential = objectMapper.convertValue(learCredential, LEARCredentialEmployeeV1.class);
                 Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
@@ -288,10 +295,17 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
             }
         } else if (credentialTypes.contains(LEARCredentialType.LEAR_CREDENTIAL_MACHINE.getValue())) {
             //todo problema sembla aquí
-            LEARCredentialMachineV1 credential = (LEARCredentialMachineV1) learCredential;
-            Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
-            log.debug("machine credential data after map: {}", credentialData);
-            claimsBuilder.claim("vc", credentialData);
+            if (context.equals(LEAR_CREDENTIAL_MACHINE_V2_CONTEXT)){
+                LEARCredentialMachineV2 credential = (LEARCredentialMachineV2) learCredential;
+                Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
+                log.debug("machine credential data after map: {}", credentialData);
+                claimsBuilder.claim("vc", credentialData);
+            }else{
+                LEARCredentialMachineV1 credential = (LEARCredentialMachineV1) learCredential;
+                Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
+                log.debug("machine credential data after map: {}", credentialData);
+                claimsBuilder.claim("vc", credentialData);
+            }
         } else {
             throw new InvalidCredentialTypeException("Unsupported credential type: " + credentialTypes);
         }
