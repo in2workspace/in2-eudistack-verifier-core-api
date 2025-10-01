@@ -204,7 +204,6 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                         null));
             }
         } else if (authentication instanceof OAuth2ClientCredentialsAuthenticationToken) {
-            //todo aquí
             if (contextList.equals(LEAR_CREDENTIAL_MACHINE_V2_CONTEXT)){
                 return objectMapper.convertValue(verifiableCredential, LEARCredentialMachineV2.class);
             }else{
