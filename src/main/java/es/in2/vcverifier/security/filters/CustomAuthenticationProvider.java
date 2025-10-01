@@ -247,7 +247,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     private String getAudience(OAuth2AuthorizationGrantAuthenticationToken authentication, LEARCredential credential) {
         log.debug("getAudience");
         // Extract the audience based on the type of credential
-        if (credential instanceof LEARCredentialMachineV1) {
+        if (credential instanceof LEARCredentialMachineV1 || credential instanceof LEARCredentialMachineV2) {
             return backendConfig.getUrl();
         } else if (credential instanceof LEARCredentialEmployeeV1 || credential instanceof LEARCredentialEmployeeV2 || credential instanceof LEARCredentialEmployeeV3) {
             // Get the audience from the additional parameters
