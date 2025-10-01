@@ -92,7 +92,15 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         String subject = credential.mandateeId();
         log.debug("CustomAuthenticationProvider -- handleGrant -- Credential subject obtained: {}", subject);
 
-        String audience = getAudience(authentication, credential);
+        log.debug("BEFORE getAudience");
+        String audience;
+        try {
+            audience = getAudience(authentication, credential);
+        } catch (Exception e) {
+            log.error("getAudience failed", e);
+            throw e;
+        }
+        log.debug("AFTER getAudience: {}", audience);
         log.debug("CustomAuthenticationProvider -- handleGrant -- Audience for credential: {}", audience);
 
         String jwtToken = generateAccessTokenWithVc(credential, issueTime, expirationTime, subject, audience);
