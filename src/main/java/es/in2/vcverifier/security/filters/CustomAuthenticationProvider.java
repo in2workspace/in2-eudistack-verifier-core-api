@@ -402,7 +402,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     private String getScope(LEARCredential learCredential) {
         if (learCredential instanceof LEARCredentialEmployeeV1 || learCredential instanceof LEARCredentialEmployeeV2 || learCredential instanceof LEARCredentialEmployeeV3) {
             return "openid learcredential";
-        } else if (learCredential instanceof LEARCredentialMachineV1) {
+        } else if (learCredential instanceof LEARCredentialMachineV1 || learCredential instanceof LEARCredentialMachineV2) {
             return "machine learcredential";
         } else {
             throw new InvalidCredentialTypeException("Credential Type not supported: " + learCredential.getClass().getName());
