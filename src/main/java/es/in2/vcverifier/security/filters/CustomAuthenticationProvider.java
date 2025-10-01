@@ -72,6 +72,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     private Authentication handleGrant(
             OAuth2AuthorizationGrantAuthenticationToken authentication) {
         log.info("Processing authorization grant");
+        log.debug("authentication: {}", authentication);
 
         String clientId = getClientId(authentication);
         log.debug("CustomAuthenticationProvider -- handleGrant -- Client ID obtained: {}", clientId);
@@ -87,7 +88,10 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         log.debug("CustomAuthenticationProvider -- handleGrant -- Issue time: {}, Expiration time: {}", issueTime, expirationTime);
 
         JsonNode credentialJson = getJsonCredential(authentication);
+        log.debug("credentialJson: {}", credentialJson);
+
         LEARCredential credential = getVerifiableCredential(authentication, credentialJson);
+        log.debug("credential: {}", credential);
         String subject = credential.mandateeId();
         log.debug("CustomAuthenticationProvider -- handleGrant -- Credential subject obtained: {}", subject);
 
@@ -262,6 +266,8 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                 .claim(OAuth2ParameterNames.SCOPE, getScope(learCredential))
                 .claim(CLIENT_ID, backendConfig.getUrl());
 
+        log.debug("generateAccessTokenWithVc -- credential: {} ", learCredential);
+
         List<String> credentialTypes = learCredential.type();
         if (credentialTypes.contains(LEARCredentialType.LEAR_CREDENTIAL_EMPLOYEE.getValue())) {
             List<String> context = learCredential.context();
@@ -281,14 +287,17 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                 throw new InvalidCredentialTypeException("Unknown LEARCredentialEmployee version: " + context);
             }
         } else if (credentialTypes.contains(LEARCredentialType.LEAR_CREDENTIAL_MACHINE.getValue())) {
+            //todo problema sembla aquí
             LEARCredentialMachineV1 credential = (LEARCredentialMachineV1) learCredential;
             Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
+            log.debug("machine credential data after map: {}", credentialData);
             claimsBuilder.claim("vc", credentialData);
         } else {
             throw new InvalidCredentialTypeException("Unsupported credential type: " + credentialTypes);
         }
 
         JWTClaimsSet payload = claimsBuilder.build();
+        log.debug("payload: {}", payload);
 
         return jwtService.generateJWT(payload.toString());
     }

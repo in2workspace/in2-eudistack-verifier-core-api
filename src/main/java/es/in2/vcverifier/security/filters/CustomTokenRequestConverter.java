@@ -56,9 +56,11 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
     @Override
     public Authentication convert(HttpServletRequest request) {
         log.info("CustomTokenRequestConverter --> convert -- INIT");
+        log.debug("request: {}", request);
         MultiValueMap<String, String> parameters = getParameters(request);
         // grant_type (REQUIRED)
         String grantType = parameters.getFirst(OAuth2ParameterNames.GRANT_TYPE);
+        log.debug("grantType: {}", grantType);
         assert grantType != null;
         return switch (grantType) {
             case "authorization_code" -> handleAuthorizationCodeGrant(parameters);
@@ -119,9 +121,11 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
         Payload payload = jwtService.getPayloadFromSignedJWT(signedJWT);
         String vpToken = jwtService.getClaimFromPayload(payload,"vp_token");
         String decodedVpToken = new String(Base64.getDecoder().decode(vpToken), StandardCharsets.UTF_8);
+        log.debug("decodedVpToken: {}", decodedVpToken);
 
         // Check if VC is LEARCredentialMachine Type
         JsonNode vc = vpService.getCredentialFromTheVerifiablePresentationAsJsonNode(decodedVpToken);
+        log.debug("vc: {}", vc);
         List<String> contexts = vpService.extractContextFromJson(vc);
         LEARCredentialMachine learCredentialMachine;
         if(contexts.equals(LEAR_CREDENTIAL_MACHINE_V2_CONTEXT)){
@@ -129,6 +133,8 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
         } else {
             learCredentialMachine = objectMapper.convertValue(vc, LEARCredentialMachineV1.class);
         }
+
+        log.debug("machine post objectMapper: {}", learCredentialMachine);
 
         List<String> types = learCredentialMachine.type();
         if (!types.contains(LEARCredentialType.LEAR_CREDENTIAL_MACHINE.getValue())){
