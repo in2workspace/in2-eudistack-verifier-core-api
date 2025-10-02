@@ -423,7 +423,7 @@
         console.log('Connecting to WebSocket for redirect');
 
         const client = new StompJs.Client({
-            webSocketFactory: () => new SockJS('/qr-socket'),
+            webSocketFactory: () => new WebSocket('/qr-socket'),
             onConnect: () => {
                 console.log('Connected to WebSocket');
 
