@@ -44,6 +44,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Map<String, Object> attributes) {
 
             String origin = request.getHeaders().getOrigin();
+            System.out.println("headers: " + request.getHeaders());
             System.out.println("WebSocket handshake attempt from Origin: " + origin);
             System.out.println("Allowed: " + allowedClientsOrigins);
             System.out.println("hiii");
