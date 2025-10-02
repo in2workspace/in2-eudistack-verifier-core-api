@@ -68,7 +68,6 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     private Authentication handleGrant(
             OAuth2AuthorizationGrantAuthenticationToken authentication) {
         log.info("Processing authorization grant");
-        log.debug("authentication: {}", authentication);
 
         String clientId = getClientId(authentication);
         log.debug("CustomAuthenticationProvider -- handleGrant -- Client ID obtained: {}", clientId);
@@ -84,23 +83,14 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         log.debug("CustomAuthenticationProvider -- handleGrant -- Issue time: {}, Expiration time: {}", issueTime, expirationTime);
 
         JsonNode credentialJson = getJsonCredential(authentication);
-        log.debug("credentialJson: {}", credentialJson);
 
         LEARCredential credential = getVerifiableCredential(authentication, credentialJson);
-        log.debug("credential: {}", credential);
 
         String subject = credential.mandateeId();
         log.debug("CustomAuthenticationProvider -- handleGrant -- Credential subject obtained: {}", subject);
 
-        log.debug("BEFORE getAudience");
-        String audience;
-        try {
-            audience = getAudience(authentication, credential);
-        } catch (Exception e) {
-            log.error("getAudience failed", e);
-            throw e;
-        }
-        log.debug("AFTER getAudience: {}", audience);
+        String audience = getAudience(authentication, credential);
+
         log.debug("CustomAuthenticationProvider -- handleGrant -- Audience for credential: {}", audience);
 
         String jwtToken = generateAccessTokenWithVc(credential, issueTime, expirationTime, subject, audience);
@@ -245,7 +235,6 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     }
 
     private String getAudience(OAuth2AuthorizationGrantAuthenticationToken authentication, LEARCredential credential) {
-        log.debug("getAudience");
         // Extract the audience based on the type of credential
         if (credential instanceof LEARCredentialMachineV1 || credential instanceof LEARCredentialMachineV2) {
             return backendConfig.getUrl();
@@ -276,7 +265,6 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                 .claim(OAuth2ParameterNames.SCOPE, getScope(learCredential))
                 .claim(CLIENT_ID, backendConfig.getUrl());
 
-        log.debug("generateAccessTokenWithVc -- credential: {} ", learCredential);
 
         List<String> credentialTypes = learCredential.type();
         List<String> context = learCredential.context();
@@ -300,12 +288,10 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
             if (context.equals(LEAR_CREDENTIAL_MACHINE_V2_CONTEXT)){
                 LEARCredentialMachineV2 credential = (LEARCredentialMachineV2) learCredential;
                 Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
-                log.debug("machine credential data after map: {}", credentialData);
                 claimsBuilder.claim("vc", credentialData);
             }else{
                 LEARCredentialMachineV1 credential = (LEARCredentialMachineV1) learCredential;
                 Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
-                log.debug("machine credential data after map: {}", credentialData);
                 claimsBuilder.claim("vc", credentialData);
             }
         } else {
@@ -313,7 +299,6 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         }
 
         JWTClaimsSet payload = claimsBuilder.build();
-        log.debug("payload: {}", payload);
 
         return jwtService.generateJWT(payload.toString());
     }

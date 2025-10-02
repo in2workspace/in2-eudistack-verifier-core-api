@@ -122,8 +122,6 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
 
         // Check if VC is LEARCredentialMachine Type
         JsonNode vc = vpService.getCredentialFromTheVerifiablePresentationAsJsonNode(decodedVpToken);
-        //todo remove
-        log.debug("vc: {}", vc);
         List<String> contexts = vpService.extractContextFromJson(vc);
         LEARCredentialMachine learCredentialMachine;
         if(contexts.equals(LEAR_CREDENTIAL_MACHINE_V2_CONTEXT)){
