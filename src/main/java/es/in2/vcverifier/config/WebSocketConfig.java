@@ -46,6 +46,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             String origin = request.getHeaders().getOrigin();
             System.out.println("WebSocket handshake attempt from Origin: " + origin);
             System.out.println("Allowed: " + allowedClientsOrigins);
+            System.out.println("hiii");
             byte[] originBytes = request.getHeaders().getOrigin().getBytes(StandardCharsets.UTF_8);
             System.out.println("bytes:" + Arrays.toString(originBytes));
             return true;
