@@ -13,6 +13,8 @@ import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerConfigurer;
 import org.springframework.web.socket.server.HandshakeInterceptor;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 
@@ -45,6 +47,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             String origin = request.getHeaders().getOrigin();
             System.out.println("WebSocket handshake attempt from Origin: " + origin);
             System.out.println("Allowed: " + allowedClientsOrigins);
+            byte[] originBytes = request.getHeaders().getOrigin().getBytes(StandardCharsets.UTF_8);
+            System.out.println(Arrays.toString(originBytes));
             return true;
         }
 
