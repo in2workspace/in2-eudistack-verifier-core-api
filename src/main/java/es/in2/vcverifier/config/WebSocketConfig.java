@@ -19,7 +19,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Registrar el endpoint de WebSocket para que los clientes se conecten
-        registry.addEndpoint("/qr-socket").withSockJS();
+        registry.addEndpoint("/qr-socket")
+                .setAllowedOrigins("https://verifier.evidenceledger.eu")
+                .withSockJS();
     }
     
 }
