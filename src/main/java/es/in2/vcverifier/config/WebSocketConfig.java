@@ -36,7 +36,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         // Registrar el endpoint de WebSocket para que los clientes se conecten
         registry.addEndpoint("/qr-socket")
                 .setAllowedOrigins("https://verifier.evidenceledger.eu")
-                .addInterceptors(new LoggingHandshakeInterceptor());
+                .addInterceptors(new LoggingHandshakeInterceptor())
+                .withSockJS();
     }
 
     private class LoggingHandshakeInterceptor implements HandshakeInterceptor {
