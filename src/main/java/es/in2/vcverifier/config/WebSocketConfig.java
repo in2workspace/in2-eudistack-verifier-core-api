@@ -35,6 +35,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Registrar el endpoint de WebSocket para que los clientes se conecten
         registry.addEndpoint("/qr-socket")
+                .setAllowedOrigins("https://verifier.evidenceledger.eu")
                 .addInterceptors(new LoggingHandshakeInterceptor());
     }
 
@@ -42,7 +43,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
         @Override
         public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Map<String, Object> attributes) {
-
             String origin = request.getHeaders().getOrigin();
             System.out.println("headers: " + request.getHeaders());
             System.out.println("WebSocket handshake attempt from Origin: " + origin);

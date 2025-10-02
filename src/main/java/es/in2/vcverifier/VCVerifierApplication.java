@@ -25,7 +25,6 @@ public class VCVerifierApplication {
                     .serializationInclusion(JsonInclude.Include.NON_NULL)
                     .build();
     public static void main(String[] args) {
-        System.out.println("holaaaa");
         SpringApplication.run(VCVerifierApplication.class, args);
     }
 
