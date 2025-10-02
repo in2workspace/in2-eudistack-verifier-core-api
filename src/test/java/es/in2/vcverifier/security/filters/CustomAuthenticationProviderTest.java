@@ -17,8 +17,10 @@ import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.Mandate
 import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.mandatee.MandateeV1;
 import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.mandatee.MandateeV2;
 import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.power.PowerV2;
+import com.fasterxml.jackson.core.type.TypeReference;
 import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachineV1;
-import es.in2.vcverifier.model.credentials.lear.machine.subject.CredentialSubjectV1;
+import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachineV2;
+import static es.in2.vcverifier.util.Constants.LEAR_CREDENTIAL_MACHINE_V2_CONTEXT;
 import es.in2.vcverifier.service.JWTService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -663,6 +665,112 @@ class CustomAuthenticationProviderTest {
                 .credentialSubjectV2(credentialSubject)
                 .build();
     }
+
+    @Test
+    void authenticate_validClientCredentialsGrant_withMachineCredentialV2_success() {
+        // Arrange
+        String clientId = "test-client-id";
+        Map<String, Object> additionalParameters = new HashMap<>();
+        additionalParameters.put(OAuth2ParameterNames.CLIENT_ID, clientId);
+
+        Map<String, Object> vcMap = new HashMap<>();
+        vcMap.put("type", List.of("VerifiableCredential", "LEARCredentialMachine"));
+        additionalParameters.put("vc", vcMap);
+
+        OAuth2ClientCredentialsAuthenticationToken authenticationToken = mock(OAuth2ClientCredentialsAuthenticationToken.class);
+        when(authenticationToken.getAdditionalParameters()).thenReturn(additionalParameters);
+
+        RegisteredClient registeredClient = mock(RegisteredClient.class);
+        when(registeredClientRepository.findByClientId(clientId)).thenReturn(registeredClient);
+
+        when(backendConfig.getUrl()).thenReturn("https://auth.server");
+
+        // Mock VC JSON i @context = MACHINE_V2
+        JsonNode vcJsonNode = mock(JsonNode.class);
+        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
+        ArrayNode contextNode = JsonNodeFactory.instance.arrayNode();
+        for (String ctx : LEAR_CREDENTIAL_MACHINE_V2_CONTEXT) {
+            contextNode.add(ctx);
+        }
+        when(vcJsonNode.get("@context")).thenReturn(contextNode);
+
+        // Mock credencial V2
+        LEARCredentialMachineV2 machineV2 = mock(LEARCredentialMachineV2.class);
+        when(machineV2.type()).thenReturn(List.of("VerifiableCredential", "LEARCredentialMachine"));
+        when(machineV2.context()).thenReturn(LEAR_CREDENTIAL_MACHINE_V2_CONTEXT);
+        when(objectMapper.convertValue(vcJsonNode, LEARCredentialMachineV2.class)).thenReturn(machineV2);
+
+        // quan es mapegi la credencial a Map per inserir-la a les claims
+        when(objectMapper.convertValue(eq(machineV2), any(TypeReference.class))).thenReturn(Map.of("dummy", "value"));
+
+        when(jwtService.generateJWT(anyString())).thenReturn("mock-jwt-token");
+
+        // Act
+        Authentication result = customAuthenticationProvider.authenticate(authenticationToken);
+
+        // Assert
+        assertNotNull(result);
+        assertInstanceOf(OAuth2AccessTokenAuthenticationToken.class, result);
+
+        OAuth2AccessTokenAuthenticationToken tokenResult = (OAuth2AccessTokenAuthenticationToken) result;
+        assertEquals("mock-jwt-token", tokenResult.getAccessToken().getTokenValue());
+
+        // En client credentials NO hi ha id_token ni refresh
+        assertTrue(tokenResult.getAdditionalParameters().isEmpty());
+
+        verify(jwtService, times(1)).generateJWT(anyString());
+        verifyNoInteractions(cacheStoreForRefreshTokenData);
+        verifyNoInteractions(oAuth2AuthorizationService);
+    }
+
+    @Test
+    void authenticate_validClientCredentialsGrant_withMachineCredentialV1_success() {
+        String clientId = "test-client-id";
+        Map<String, Object> additionalParameters = new HashMap<>();
+        additionalParameters.put(OAuth2ParameterNames.CLIENT_ID, clientId);
+
+        Map<String, Object> vcMap = new HashMap<>();
+        vcMap.put("type", List.of("VerifiableCredential", "LEARCredentialMachine"));
+        additionalParameters.put("vc", vcMap);
+
+        OAuth2ClientCredentialsAuthenticationToken authenticationToken = mock(OAuth2ClientCredentialsAuthenticationToken.class);
+        when(authenticationToken.getAdditionalParameters()).thenReturn(additionalParameters);
+
+        RegisteredClient registeredClient = mock(RegisteredClient.class);
+        when(registeredClientRepository.findByClientId(clientId)).thenReturn(registeredClient);
+
+        when(backendConfig.getUrl()).thenReturn("https://auth.server");
+
+        // @context qualsevol que NO sigui LEAR_CREDENTIAL_MACHINE_V2_CONTEXT
+        JsonNode vcJsonNode = mock(JsonNode.class);
+        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
+        ArrayNode contextNode = JsonNodeFactory.instance.arrayNode();
+        contextNode.add("https://any.other/context"); // diferent de V2
+        when(vcJsonNode.get("@context")).thenReturn(contextNode);
+
+        LEARCredentialMachineV1 machineV1 = mock(LEARCredentialMachineV1.class);
+        when(machineV1.type()).thenReturn(List.of("VerifiableCredential", "LEARCredentialMachine"));
+        // Important: que el context de la credencial retornada tampoc sigui igual a V2
+        when(machineV1.context()).thenReturn(List.of("https://any.other/context"));
+        when(objectMapper.convertValue(vcJsonNode, LEARCredentialMachineV1.class)).thenReturn(machineV1);
+
+        when(objectMapper.convertValue(eq(machineV1), any(TypeReference.class))).thenReturn(Map.of("dummy", "value"));
+        when(jwtService.generateJWT(anyString())).thenReturn("mock-jwt-token");
+
+        Authentication result = customAuthenticationProvider.authenticate(authenticationToken);
+
+        assertNotNull(result);
+        assertInstanceOf(OAuth2AccessTokenAuthenticationToken.class, result);
+        OAuth2AccessTokenAuthenticationToken tokenResult = (OAuth2AccessTokenAuthenticationToken) result;
+        assertEquals("mock-jwt-token", tokenResult.getAccessToken().getTokenValue());
+        assertTrue(tokenResult.getAdditionalParameters().isEmpty());
+
+        verify(jwtService, times(1)).generateJWT(anyString());
+        verifyNoInteractions(cacheStoreForRefreshTokenData);
+        verifyNoInteractions(oAuth2AuthorizationService);
+    }
+
+
 
 //    private LEARCredentialMachineV1 getLEARCredentialMachine(){
 //        MandateeV1 mandatee = MandateeV1.builder().id("mandatee-id").build();
