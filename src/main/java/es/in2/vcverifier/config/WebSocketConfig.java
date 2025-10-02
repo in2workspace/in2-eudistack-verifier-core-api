@@ -2,6 +2,7 @@ package es.in2.vcverifier.config;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.http.server.ServerHttpResponse;
@@ -13,10 +14,14 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 import org.springframework.web.socket.server.HandshakeInterceptor;
 
 import java.util.Map;
+import java.util.Set;
 
 @Configuration
+@RequiredArgsConstructor
 @EnableWebSocketMessageBroker
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
+
+    private final Set<String> allowedClientsOrigins;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
@@ -28,16 +33,18 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Registrar el endpoint de WebSocket para que los clientes se conecten
         registry.addEndpoint("/qr-socket")
+                .setAllowedOrigins()
                 .addInterceptors(new LoggingHandshakeInterceptor());
     }
 
-    private static class LoggingHandshakeInterceptor implements HandshakeInterceptor {
+    private class LoggingHandshakeInterceptor implements HandshakeInterceptor {
 
         @Override
         public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response, WebSocketHandler wsHandler, Map<String, Object> attributes) {
 
             String origin = request.getHeaders().getOrigin();
             System.out.println("WebSocket handshake attempt from Origin: " + origin);
+            System.out.println("Allowed: " + allowedClientsOrigins);
             return true;
         }
 
