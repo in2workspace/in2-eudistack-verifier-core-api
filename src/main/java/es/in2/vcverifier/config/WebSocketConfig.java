@@ -35,7 +35,6 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         // Registrar el endpoint de WebSocket para que los clientes se conecten
         registry.addEndpoint("/qr-socket")
-                .setAllowedOrigins()
                 .addInterceptors(new LoggingHandshakeInterceptor());
     }
 
@@ -48,7 +47,7 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
             System.out.println("WebSocket handshake attempt from Origin: " + origin);
             System.out.println("Allowed: " + allowedClientsOrigins);
             byte[] originBytes = request.getHeaders().getOrigin().getBytes(StandardCharsets.UTF_8);
-            System.out.println(Arrays.toString(originBytes));
+            System.out.println("bytes:" + Arrays.toString(originBytes));
             return true;
         }
 
