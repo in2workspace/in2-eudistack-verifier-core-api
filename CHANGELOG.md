@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Make login QR padding white.
+### Fixed
+- Add WebSockets CORS.
 
 ## [v2.0.0](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.0)
 - New major version to align with the new major version of EUDIStack project.
