@@ -161,6 +161,7 @@ public class JWTServiceImpl implements JWTService {
             JWSSigner signer = new ECDSASigner(ecJWK);
             jwt.sign(signer);
             log.info("JWT generated and signed successfully");
+            log.debug("jwt, {}", jwt.serialize());
             return jwt.serialize();
         } catch (JOSEException e) {
             log.error("JWTServiceImpl -- generateJWT -- Error during JWT creation", e);
