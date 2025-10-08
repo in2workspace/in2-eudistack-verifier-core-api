@@ -9,6 +9,8 @@ public record AuthorizationContext(
         String redirectUri,
         String clientNonce,
         String originalRequestURL,
-        String requestUri
+        String requestUri,
+        String codeChallenge,
+        String codeChallengeMethod
 ) {
 }
