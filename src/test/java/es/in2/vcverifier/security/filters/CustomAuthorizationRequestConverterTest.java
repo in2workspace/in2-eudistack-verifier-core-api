@@ -23,6 +23,7 @@ import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeRequestAuthenticationException;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
@@ -99,6 +100,7 @@ class CustomAuthorizationRequestConverterTest {
         String clientNonce = "test-nonce";
         List<String> authorizationGrantTypes = List.of("authorization_code");
         Set<String> redirectUris = Set.of(redirectUri);
+        stubPkceParamsNull(request);
 
         when(request.getRequestURL()).thenReturn(new StringBuffer("https://client.example.com/authorize"));
         when(request.getQueryString()).thenReturn("client_id=test-client-id&scope=learcredential&state=test-state");
@@ -155,6 +157,7 @@ class CustomAuthorizationRequestConverterTest {
         String clientName = "Test Client";
         String clientNonce = "test-nonce";
         List<String> authorizationGrantTypes = List.of("authorization_code");
+        stubPkceParamsNull(request);
 
         when(request.getRequestURL()).thenReturn(new StringBuffer("https://client.example.com/authorize"));
         when(request.getQueryString()).thenReturn("client_id=test-client-id&scope=learcredential&state=test-state");
@@ -214,6 +217,7 @@ class CustomAuthorizationRequestConverterTest {
         String clientName = "Test Client";
         String clientNonce = "test-nonce";
         List<String> authorizationGrantTypes = List.of("authorization_code");
+        stubPkceParamsNull(request);
 
         when(request.getRequestURL()).thenReturn(new StringBuffer("https://client.example.com/authorize"));
         when(request.getQueryString()).thenReturn("client_id=test-client-id&scope=learcredential&state=test-state");
@@ -388,6 +392,7 @@ class CustomAuthorizationRequestConverterTest {
         String clientName = "Test Client";
         String clientNonce = "test-nonce";
         List<String> authorizationGrantTypes = List.of("authorization_code");
+        stubPkceParamsNull(request);
 
         when(request.getRequestURL()).thenReturn(new StringBuffer("https://client.example.com/authorize"));
         when(request.getQueryString()).thenReturn("client_id=test-client-id&scope=learcredential&state=test-state");
@@ -439,6 +444,7 @@ class CustomAuthorizationRequestConverterTest {
         String clientName = "Test Client";
         String clientNonce = "test-nonce";
         List<String> authorizationGrantTypes = List.of("authorization_code");
+        stubPkceParamsNull(request);
 
         when(request.getRequestURL()).thenReturn(new StringBuffer("https://client.example.com/authorize"));
         when(request.getQueryString()).thenReturn("client_id=test-client-id&scope=learcredential&state=test-state");
@@ -619,5 +625,11 @@ class CustomAuthorizationRequestConverterTest {
             assertTrue(redirectUrl.contains("originalRequestURL="));
         }
     }
+
+    private void stubPkceParamsNull(HttpServletRequest request) {
+        when(request.getParameter(PkceParameterNames.CODE_CHALLENGE)).thenReturn(null);
+        when(request.getParameter(PkceParameterNames.CODE_CHALLENGE_METHOD)).thenReturn(null);
+    }
+
 
 }
