@@ -106,18 +106,24 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
 
         Instant expirationTime = issueTime.plus(Long.parseLong(ACCESS_TOKEN_EXPIRATION_TIME), ChronoUnit.valueOf(ACCESS_TOKEN_EXPIRATION_CHRONO_UNIT));
         // Register the Oauth2Authorization because is needed for verifications
-        OAuth2Authorization authorization = OAuth2Authorization.withRegisteredClient(registeredClient)
+        OAuth2Authorization.Builder authBuilder  = OAuth2Authorization.withRegisteredClient(registeredClient)
                 .id(registeredClient.getId())
                 .principalName(registeredClient.getClientId())
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .token(new OAuth2AuthorizationCode(code, issueTime, expirationTime))
                 .attribute(OAuth2AuthorizationRequest.class.getName(), oAuth2AuthorizationRequest)
-                .attribute(PkceParameterNames.CODE_CHALLENGE, codeChallenge)
-                .attribute(PkceParameterNames.CODE_CHALLENGE_METHOD, codeChallengeMethod)
                 .attribute(OAuth2ParameterNames.REDIRECT_URI, redirectUriUsed)
                 .attribute(OAuth2ParameterNames.CLIENT_ID, registeredClient.getClientId())
-                .attribute(OAuth2ParameterNames.SCOPE, String.join(" ", requestedScopes))
-                .build();
+                .attribute(OAuth2ParameterNames.SCOPE, String.join(" ", requestedScopes));
+
+        if (org.springframework.util.StringUtils.hasText(codeChallenge)) {
+            authBuilder.attribute(PkceParameterNames.CODE_CHALLENGE, codeChallenge);
+        }
+        if (org.springframework.util.StringUtils.hasText(codeChallengeMethod)) {
+            authBuilder.attribute(PkceParameterNames.CODE_CHALLENGE_METHOD, codeChallengeMethod);
+        }
+
+        OAuth2Authorization authorization = authBuilder.build();
 
         log.info("OAuth2Authorization generated");
 
