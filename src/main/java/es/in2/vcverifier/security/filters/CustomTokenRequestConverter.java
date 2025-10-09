@@ -80,10 +80,10 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
         AuthorizationCodeData authorizationCodeData = cacheStoreForAuthorizationCodeData.get(code);
 
         // Remove the code from cache after retrieving the object
-        cacheStoreForAuthorizationCodeData.delete(code);
+        //cacheStoreForAuthorizationCodeData.delete(code);
 
         // Remove the authorization from the initial request
-        oAuth2AuthorizationService.remove(authorizationCodeData.oAuth2Authorization());
+        //oAuth2AuthorizationService.remove(authorizationCodeData.oAuth2Authorization());
 
         // Check state only if it is not null and not blank
         if (state != null && !state.isBlank() && (!authorizationCodeData.state().equals(state))) {
