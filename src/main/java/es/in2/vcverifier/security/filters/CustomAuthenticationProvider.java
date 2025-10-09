@@ -9,6 +9,7 @@ import es.in2.vcverifier.config.BackendConfig;
 import es.in2.vcverifier.config.CacheStore;
 import es.in2.vcverifier.exception.InvalidCredentialTypeException;
 import es.in2.vcverifier.exception.JsonConversionException;
+import es.in2.vcverifier.model.AuthorizationCodeData;
 import es.in2.vcverifier.model.RefreshTokenDataCache;
 import es.in2.vcverifier.model.credentials.lear.LEARCredential;
 import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployee;
@@ -61,6 +62,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     private final ObjectMapper objectMapper;
     private final CacheStore<RefreshTokenDataCache> cacheStoreForRefreshTokenData;
     private final OAuth2AuthorizationService oAuth2AuthorizationService;
+    private final CacheStore<AuthorizationCodeData> cacheStoreForAuthorizationCodeData;
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
@@ -136,6 +138,8 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         log.info("Authorization grant successfully processed");
 
         if (authentication instanceof OAuth2AuthorizationCodeAuthenticationToken authCodeToken) {
+            String code = authCodeToken.getCode();
+            cacheStoreForAuthorizationCodeData.delete(code);
             OAuth2Authorization authToRemove =
                     oAuth2AuthorizationService.findByToken(authCodeToken.getCode(),  new OAuth2TokenType(OAuth2ParameterNames.CODE));
             if (authToRemove != null) {

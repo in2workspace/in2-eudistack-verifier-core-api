@@ -26,7 +26,6 @@ import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
-import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2ClientCredentialsAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2RefreshTokenAuthenticationToken;
@@ -51,7 +50,6 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
     private final ClientAssertionValidationService clientAssertionValidationService;
     private final VpService vpService;
     private final CacheStore<AuthorizationCodeData> cacheStoreForAuthorizationCodeData;
-    private final OAuth2AuthorizationService oAuth2AuthorizationService;
     private final ObjectMapper objectMapper;
     private final CacheStore<RefreshTokenDataCache> refreshTokenDataCacheCacheStore;
 
@@ -78,12 +76,6 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
         String clientId = parameters.getFirst(OAuth2ParameterNames.CLIENT_ID);
 
         AuthorizationCodeData authorizationCodeData = cacheStoreForAuthorizationCodeData.get(code);
-
-        // Remove the code from cache after retrieving the object
-        //cacheStoreForAuthorizationCodeData.delete(code);
-
-        // Remove the authorization from the initial request
-        //oAuth2AuthorizationService.remove(authorizationCodeData.oAuth2Authorization());
 
         // Check state only if it is not null and not blank
         if (state != null && !state.isBlank() && (!authorizationCodeData.state().equals(state))) {
