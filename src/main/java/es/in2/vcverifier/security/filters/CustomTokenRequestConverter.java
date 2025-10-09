@@ -16,6 +16,7 @@ import es.in2.vcverifier.model.enums.LEARCredentialType;
 import es.in2.vcverifier.service.ClientAssertionValidationService;
 import es.in2.vcverifier.service.JWTService;
 import es.in2.vcverifier.service.VpService;
+import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,6 +25,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2ClientCredentialsAuthenticationToken;
@@ -104,6 +106,15 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
         String nonce = authorizationCodeData.clientNonce();
         if (nonce != null && !nonce.isBlank()) {
             additionalParameters.put(NONCE, nonce);
+        }
+
+        String redirectUri  = parameters.getFirst(OAuth2ParameterNames.REDIRECT_URI);
+        String codeVerifier = parameters.getFirst(PkceParameterNames.CODE_VERIFIER);
+        if (StringUtils.isNotBlank(codeVerifier)) {
+            additionalParameters.put(PkceParameterNames.CODE_VERIFIER, codeVerifier);
+        }
+        if (StringUtils.isNotBlank(redirectUri)) {
+            additionalParameters.put(OAuth2ParameterNames.REDIRECT_URI, redirectUri);
         }
 
         // Return the authentication token

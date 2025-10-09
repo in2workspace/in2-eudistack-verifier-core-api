@@ -15,6 +15,9 @@ import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
+import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
+import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationCode;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
@@ -27,9 +30,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Base64;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 
 import static es.in2.vcverifier.util.Constants.*;
 import static org.springframework.security.oauth2.core.oidc.IdTokenClaimNames.NONCE;
@@ -95,6 +96,14 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.UNAUTHORIZED_CLIENT);
         }
 
+        String redirectUriUsed = oAuth2AuthorizationRequest.getRedirectUri();
+        Set<String> requestedScopes = oAuth2AuthorizationRequest.getScopes();
+
+        Map<String, Object> addl = oAuth2AuthorizationRequest.getAdditionalParameters();
+        String codeChallenge       = (String) addl.get(PkceParameterNames.CODE_CHALLENGE);
+        String codeChallengeMethod = (String) addl.get(PkceParameterNames.CODE_CHALLENGE_METHOD);
+
+
         Instant expirationTime = issueTime.plus(Long.parseLong(ACCESS_TOKEN_EXPIRATION_TIME), ChronoUnit.valueOf(ACCESS_TOKEN_EXPIRATION_CHRONO_UNIT));
         // Register the Oauth2Authorization because is needed for verifications
         OAuth2Authorization authorization = OAuth2Authorization.withRegisteredClient(registeredClient)
@@ -103,6 +112,11 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .token(new OAuth2AuthorizationCode(code, issueTime, expirationTime))
                 .attribute(OAuth2AuthorizationRequest.class.getName(), oAuth2AuthorizationRequest)
+                .attribute(PkceParameterNames.CODE_CHALLENGE, codeChallenge)
+                .attribute(PkceParameterNames.CODE_CHALLENGE_METHOD, codeChallengeMethod)
+                .attribute(OAuth2ParameterNames.REDIRECT_URI, redirectUriUsed)
+                .attribute(OAuth2ParameterNames.CLIENT_ID, registeredClient.getClientId())
+                .attribute(OAuth2ParameterNames.SCOPE, String.join(" ", requestedScopes))
                 .build();
 
         log.info("OAuth2Authorization generated");
