@@ -63,7 +63,7 @@ class CustomTokenRequestConverterTest {
     private CustomTokenRequestConverter customTokenRequestConverter;
 
     @Test
-    void convert_authorizationCodeGrant_shouldReturnOAuth2ClientCredentialsAuthenticationToken() {
+    void convert_authorizationCodeGrant_shouldReturnOAuth2AuthorizationCodeAuthenticationToken() {
         HttpServletRequest mockRequest = mock(HttpServletRequest.class);
         Authentication clientPrincipal = mock(Authentication.class);
         SecurityContextHolder.getContext().setAuthentication(clientPrincipal);
@@ -75,10 +75,10 @@ class CustomTokenRequestConverterTest {
         parameters.add(OAuth2ParameterNames.STATE, "state");
 
         when(mockRequest.getParameterMap()).thenReturn(convertToMap(parameters));
+
         AuthorizationCodeData authorizationCodeData = mock(AuthorizationCodeData.class);
         when(cacheStoreForAuthorizationCodeData.get("code")).thenReturn(authorizationCodeData);
         when(authorizationCodeData.state()).thenReturn("state");
-
         JsonNode jsonNodeMock = mock(JsonNode.class);
         when(authorizationCodeData.verifiableCredential()).thenReturn(jsonNodeMock);
 
@@ -87,9 +87,12 @@ class CustomTokenRequestConverterTest {
         assertNotNull(result);
         assertInstanceOf(OAuth2AuthorizationCodeAuthenticationToken.class, result);
 
-        verify(cacheStoreForAuthorizationCodeData).delete("code");
-        verify(oAuth2AuthorizationService).remove(authorizationCodeData.oAuth2Authorization());
+        verify(cacheStoreForAuthorizationCodeData).get("code");
+        verifyNoMoreInteractions(cacheStoreForAuthorizationCodeData);
+
+        verifyNoInteractions(oAuth2AuthorizationService);
     }
+
 
     @Test
     void convert_clientCredentialsGrant_success(){

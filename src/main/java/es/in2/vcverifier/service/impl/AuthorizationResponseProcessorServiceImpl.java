@@ -124,6 +124,7 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
         }
 
         OAuth2Authorization authorization = authBuilder.build();
+        oAuth2AuthorizationService.save(authorization);
 
         log.info("OAuth2Authorization generated");
 
@@ -143,7 +144,7 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
         AuthorizationCodeData authorizationCodeData = authCodeDataBuilder.build();
         cacheStoreForAuthorizationCodeData.add(code, authorizationCodeData);
 
-        oAuth2AuthorizationService.save(authorization);
+
 
         // Build the redirect URL with the code (code) and the state
         String redirectUrl = UriComponentsBuilder.fromHttpUrl(redirectUri)

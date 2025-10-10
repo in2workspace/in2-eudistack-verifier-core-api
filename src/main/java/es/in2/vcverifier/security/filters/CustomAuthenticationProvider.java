@@ -150,41 +150,46 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         return new OAuth2AccessTokenAuthenticationToken(registeredClient, authentication, oAuth2AccessToken, oAuth2RefreshToken, additionalParameters);
     }
 
-    private void validateAuthorizationCodePkceAndBinding(OAuth2AuthorizationCodeAuthenticationToken authCodeToken,
-                                                         String requestedClientId) {
-        final String code = authCodeToken.getCode();
+    private void validateAuthorizationCodePkceAndBinding(
+            OAuth2AuthorizationCodeAuthenticationToken authCodeToken,
+            String requestedClientId) {
+
+        String code = authCodeToken.getCode();
 
         OAuth2Authorization authorization =
-                oAuth2AuthorizationService.findByToken(code,  new OAuth2TokenType(OAuth2ParameterNames.CODE));
+                oAuth2AuthorizationService.findByToken(code, new OAuth2TokenType(OAuth2ParameterNames.CODE));
         if (authorization == null) {
-            log.error("Authorization not found for code {}", code);
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
         }
 
         String storedClientId = authorization.getAttribute(OAuth2ParameterNames.CLIENT_ID);
         String storedRedirect = authorization.getAttribute(OAuth2ParameterNames.REDIRECT_URI);
+
+        String reqRedirect = authCodeToken.getRedirectUri();
+        if (!Objects.equals(storedClientId, requestedClientId)) {
+            throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
+        }
+        if (org.springframework.util.StringUtils.hasText(storedRedirect)) {
+            if (!Objects.equals(storedRedirect, reqRedirect)) {
+                throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
+            }
+        }
+
         String storedChallenge = authorization.getAttribute(PkceParameterNames.CODE_CHALLENGE);
         String storedMethod    = authorization.getAttribute(PkceParameterNames.CODE_CHALLENGE_METHOD);
 
-        Map<String, Object> addl = authCodeToken.getAdditionalParameters();
-        String reqRedirect = authCodeToken.getRedirectUri();
-        if (reqRedirect == null && addl != null) {
-            reqRedirect = (String) addl.get(OAuth2ParameterNames.REDIRECT_URI);
-        }
-        String codeVerifier = addl == null ? null : (String) addl.get(PkceParameterNames.CODE_VERIFIER);
+        RegisteredClient rc = registeredClientRepository.findByClientId(storedClientId);
+        boolean requirePkce = rc != null && rc.getClientSettings() != null && rc.getClientSettings().isRequireProofKey();
 
-        if (!Objects.equals(storedClientId, requestedClientId)) {
-            log.error("client_id binding mismatch. stored={}, requested={}", storedClientId, requestedClientId);
-            throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
+        if (!org.springframework.util.StringUtils.hasText(storedChallenge)) {
+            if (requirePkce) {
+                throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
+            }
+            return;
         }
 
-        if (!Objects.equals(storedRedirect, reqRedirect)) {
-            log.error("redirect_uri binding mismatch. stored={}, requested={}", storedRedirect, reqRedirect);
-            throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
-        }
-
-        if (storedChallenge == null || storedMethod == null) {
-            log.error("Missing PKCE attributes in stored authorization");
+        String codeVerifier = (String) authCodeToken.getAdditionalParameters().get(PkceParameterNames.CODE_VERIFIER);
+        if (!org.springframework.util.StringUtils.hasText(codeVerifier)) {
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
         }
 
@@ -194,23 +199,20 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                         .digest(codeVerifier.getBytes(StandardCharsets.US_ASCII));
                 String computed = Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
                 if (!computed.equals(storedChallenge)) {
-                    log.error("PKCE verification failed (S256)");
                     throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
                 }
             } catch (Exception e) {
-                log.error("Error computing PKCE hash", e);
                 throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
             }
         } else if ("plain".equalsIgnoreCase(storedMethod)) {
-            if (!Objects.equals(codeVerifier, storedChallenge)) {
-                log.error("PKCE verification failed (plain)");
+            if (!codeVerifier.equals(storedChallenge)) {
                 throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
             }
         } else {
-            log.error("Unsupported PKCE method: {}", storedMethod);
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
         }
     }
+
 
 
     private OAuth2RefreshToken getOAuth2RefreshToken(OAuth2AuthorizationGrantAuthenticationToken authentication, Instant issueTime, String clientId, JsonNode credentialJson, RegisteredClient registeredClient) {
