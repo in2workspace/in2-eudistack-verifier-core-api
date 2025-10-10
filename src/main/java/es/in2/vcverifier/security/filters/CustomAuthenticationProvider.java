@@ -85,7 +85,11 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         log.debug("CustomAuthenticationProvider -- handleGrant -- Registered client found: {}", registeredClient);
 
         if (authentication instanceof OAuth2AuthorizationCodeAuthenticationToken authCodeToken) {
-            validateAuthorizationCodePkceAndBinding(authCodeToken, clientId);
+            if (isPublicClientRequiringPkce(registeredClient)) {
+                validateAuthorizationCodePkceAndBinding(authCodeToken, clientId);
+            } else {
+                log.debug("Skipping PKCE validation: client '{}' is confidential or does not require proof key", clientId);
+            }
         }
 
         Instant issueTime = Instant.now();
@@ -149,6 +153,19 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 
         return new OAuth2AccessTokenAuthenticationToken(registeredClient, authentication, oAuth2AccessToken, oAuth2RefreshToken, additionalParameters);
     }
+    private boolean isPublicClientRequiringPkce(RegisteredClient registeredClient) {
+        if (registeredClient == null) {
+            return false;
+        }
+
+        boolean noClientSecret = registeredClient.getClientSecret() == null;
+        boolean requireProofKey = registeredClient.getClientSettings() != null
+                && registeredClient.getClientSettings().isRequireProofKey();
+
+        return noClientSecret || requireProofKey;
+    }
+
+
 
     private void validateAuthorizationCodePkceAndBinding(
             OAuth2AuthorizationCodeAuthenticationToken authCodeToken,
