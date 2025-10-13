@@ -86,8 +86,6 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
                 .scope(scope)
                 .build();
 
-        System.out.println("XIVATO 1: "+ authorizationContext);
-
         RegisteredClient registeredClient = registeredClientRepository.findByClientId(clientId);
 
         if (registeredClient == null) {
@@ -497,8 +495,6 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
         if (codeChallengeMethod != null && !codeChallengeMethod.isBlank()) {
             additionalParameters.put(PkceParameterNames.CODE_CHALLENGE_METHOD, codeChallengeMethod);
         }
-
-        System.out.println("XIVATO 2: "+ additionalParameters);
 
         builder.additionalParameters(additionalParameters);
 

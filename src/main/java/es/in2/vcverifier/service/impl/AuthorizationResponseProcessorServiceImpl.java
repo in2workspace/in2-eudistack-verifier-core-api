@@ -122,8 +122,6 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
             authBuilder.attribute(PkceParameterNames.CODE_CHALLENGE_METHOD, codeChallengeMethod);
         }
 
-        System.out.println("XIVATO 3: "+ authBuilder);
-
         OAuth2Authorization authorization = authBuilder.build();
         oAuth2AuthorizationService.save(authorization);
 
