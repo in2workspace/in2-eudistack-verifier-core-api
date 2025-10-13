@@ -9,6 +9,7 @@ import es.in2.vcverifier.config.CacheStore;
 import es.in2.vcverifier.model.RefreshTokenDataCache;
 import es.in2.vcverifier.model.credentials.DetailedIssuer;
 import es.in2.vcverifier.model.credentials.SimpleIssuer;
+import es.in2.vcverifier.model.credentials.lear.LEARCredential;
 import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV1;
 import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV2;
 import es.in2.vcverifier.model.credentials.lear.employee.subject.CredentialSubjectV2;
@@ -25,26 +26,32 @@ import es.in2.vcverifier.service.JWTService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AccessTokenAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2ClientCredentialsAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
+import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.util.*;
 
 import static es.in2.vcverifier.util.Constants.LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT;
 import static es.in2.vcverifier.util.Constants.LEAR_CREDENTIAL_EMPLOYEE_V2_CONTEXT;
@@ -787,5 +794,87 @@ class CustomAuthenticationProviderTest {
 //                .type(List.of("VerifiableCredential", "LEARCredentialMachine"))
 //                .build();
 //    }
+
+    @Test
+    void authenticate_publicClient_withValidPkce_succeeds() throws Exception {
+        String clientId = "public-client";
+        String audience = "api";
+        String code = "auth-code-1";
+        String verifier = "my_verifier_123";
+        String challenge = s256(verifier);
+
+        Map<String, Object> additional = new HashMap<>();
+        additional.put(OAuth2ParameterNames.CLIENT_ID, clientId);
+        additional.put(OAuth2ParameterNames.AUDIENCE, audience);
+        additional.put(OAuth2ParameterNames.SCOPE, "openid");
+        additional.put("vc", Map.of("@context", LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT));
+        additional.put(PkceParameterNames.CODE_VERIFIER, verifier);
+
+        Authentication clientPrincipal = new TestingAuthenticationToken(clientId, null);
+
+        OAuth2AuthorizationCodeAuthenticationToken authToken =
+                new OAuth2AuthorizationCodeAuthenticationToken(code, clientPrincipal, null, additional);
+
+        RegisteredClient rc = mock(RegisteredClient.class);
+        when(rc.getClientAuthenticationMethods())
+                .thenReturn(Set.of(ClientAuthenticationMethod.NONE));
+        when(rc.getClientSettings())
+                .thenReturn(ClientSettings.builder().requireProofKey(true).build());
+        when(rc.getClientId()).thenReturn(clientId);
+        when(rc.getId()).thenReturn("rc-id");
+        when(registeredClientRepository.findByClientId(clientId)).thenReturn(rc);
+
+        OAuth2Authorization stored = OAuth2Authorization.withRegisteredClient(rc)
+                .id("auth-id")
+                .principalName(clientId)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .attribute(OAuth2ParameterNames.CLIENT_ID, clientId)
+                .attribute(PkceParameterNames.CODE_CHALLENGE, challenge)
+                .attribute(PkceParameterNames.CODE_CHALLENGE_METHOD, "S256")
+                .build();
+        when(oAuth2AuthorizationService.findByToken(eq(code), any(OAuth2TokenType.class)))
+                .thenReturn(stored);
+
+        JsonNode vcJson = mock(JsonNode.class);
+        ArrayNode ctx = JsonNodeFactory.instance.arrayNode();
+        for (String c : LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT) ctx.add(c);
+        when(vcJson.get("@context")).thenReturn(ctx);
+
+        when(objectMapper.convertValue(any(), eq(JsonNode.class))).thenReturn(vcJson);
+
+        LEARCredentialEmployeeV1 vc = getLEARCredentialEmployeeV1();
+
+        when(objectMapper.convertValue(ArgumentMatchers.<LEARCredential>any(), eq(LEARCredentialEmployeeV1.class)))
+                .thenReturn(vc);
+
+        doReturn(Map.of("dummy", "value"))
+                .when(objectMapper)
+                .convertValue(any(LEARCredentialEmployeeV1.class), any(TypeReference.class));
+
+        when(objectMapper.writeValueAsString(any())).thenReturn("{\"credential\":\"value\"}");
+
+        when(backendConfig.getUrl()).thenReturn("https://auth.server");
+
+        when(jwtService.generateJWT(anyString())).thenReturn("jwt-access", "jwt-id");
+
+        Authentication result = customAuthenticationProvider.authenticate(authToken);
+
+        assertNotNull(result);
+        assertInstanceOf(OAuth2AccessTokenAuthenticationToken.class, result);
+        OAuth2AccessTokenAuthenticationToken tr = (OAuth2AccessTokenAuthenticationToken) result;
+        assertEquals("jwt-access", tr.getAccessToken().getTokenValue());
+        assertEquals("jwt-id", tr.getAdditionalParameters().get("id_token"));
+
+        verify(oAuth2AuthorizationService, atLeastOnce()).remove(stored);
+    }
+
+    private static String s256(String verifier) throws Exception {
+        byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(verifier.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+        return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+    }
+
+
+
 
 }
