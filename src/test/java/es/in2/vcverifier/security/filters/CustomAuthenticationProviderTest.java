@@ -971,6 +971,90 @@ class CustomAuthenticationProviderTest {
         verify(oAuth2AuthorizationService, atLeastOnce()).remove(stored);
     }
 
+    @Test
+    void authenticate_publicClient_clientIdMismatch_throwsInvalidGrant() throws Exception {
+
+        String requestedClientId = "public-client";
+        String storedClientId    = "another-client";
+        String code = "auth-code-x";
+        String verifier = "verifier_xyz";
+        String challenge = s256(verifier);
+
+        Map<String, Object> additional = new HashMap<>();
+        additional.put(OAuth2ParameterNames.CLIENT_ID, requestedClientId);
+        additional.put(OAuth2ParameterNames.AUDIENCE, "api");
+        additional.put(OAuth2ParameterNames.SCOPE, "openid");
+        additional.put(PkceParameterNames.CODE_VERIFIER, verifier);
+
+        Authentication clientPrincipal = new TestingAuthenticationToken(requestedClientId, null);
+
+        OAuth2AuthorizationCodeAuthenticationToken authToken =
+                new OAuth2AuthorizationCodeAuthenticationToken(code, clientPrincipal, null, additional);
+
+        RegisteredClient rc = mock(RegisteredClient.class);
+        when(rc.getClientAuthenticationMethods()).thenReturn(Set.of(ClientAuthenticationMethod.NONE));
+        when(rc.getClientSettings()).thenReturn(ClientSettings.builder().requireProofKey(true).build());
+        when(registeredClientRepository.findByClientId(requestedClientId)).thenReturn(rc);
+
+        OAuth2Authorization stored = OAuth2Authorization.withRegisteredClient(rc)
+                .id("auth-id")
+                .principalName(storedClientId)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .attribute(OAuth2ParameterNames.CLIENT_ID, storedClientId)
+                .attribute(PkceParameterNames.CODE_CHALLENGE, challenge)
+                .attribute(PkceParameterNames.CODE_CHALLENGE_METHOD, "S256")
+                .build();
+        when(oAuth2AuthorizationService.findByToken(eq(code), any(OAuth2TokenType.class)))
+                .thenReturn(stored);
+
+        OAuth2AuthenticationException ex = assertThrows(
+                OAuth2AuthenticationException.class,
+                () -> customAuthenticationProvider.authenticate(authToken)
+        );
+        assertEquals(OAuth2ErrorCodes.INVALID_GRANT, ex.getError().getErrorCode());
+    }
+
+    @Test
+    void authenticate_publicClient_pkceVerifierWrong_throwsInvalidGrant() throws Exception {
+        String clientId = "public-client";
+        String code = "auth-code-y";
+
+        String realVerifier   = "the_correct_verifier";
+        String storedChallenge = s256(realVerifier);
+        String wrongVerifier   = "totally_wrong_verifier";
+
+        Map<String, Object> additional = new HashMap<>();
+        additional.put(OAuth2ParameterNames.CLIENT_ID, clientId);
+        additional.put(OAuth2ParameterNames.AUDIENCE, "api");
+        additional.put(OAuth2ParameterNames.SCOPE, "openid");
+        additional.put(PkceParameterNames.CODE_VERIFIER, wrongVerifier);
+
+        Authentication clientPrincipal = new TestingAuthenticationToken(clientId, null);
+        OAuth2AuthorizationCodeAuthenticationToken authToken =
+                new OAuth2AuthorizationCodeAuthenticationToken(code, clientPrincipal, null, additional);
+
+        RegisteredClient rc = mock(RegisteredClient.class);
+        when(rc.getClientAuthenticationMethods()).thenReturn(Set.of(ClientAuthenticationMethod.NONE));
+        when(rc.getClientSettings()).thenReturn(ClientSettings.builder().requireProofKey(true).build());
+        when(registeredClientRepository.findByClientId(clientId)).thenReturn(rc);
+
+        OAuth2Authorization stored = OAuth2Authorization.withRegisteredClient(rc)
+                .id("auth-id")
+                .principalName(clientId)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .attribute(OAuth2ParameterNames.CLIENT_ID, clientId)
+                .attribute(PkceParameterNames.CODE_CHALLENGE, storedChallenge)
+                .attribute(PkceParameterNames.CODE_CHALLENGE_METHOD, "S256")
+                .build();
+        when(oAuth2AuthorizationService.findByToken(eq(code), any(OAuth2TokenType.class)))
+                .thenReturn(stored);
+
+        OAuth2AuthenticationException ex = assertThrows(
+                OAuth2AuthenticationException.class,
+                () -> customAuthenticationProvider.authenticate(authToken)
+        );
+        assertEquals(OAuth2ErrorCodes.INVALID_GRANT, ex.getError().getErrorCode());
+    }
 
     private static String s256(String verifier) throws Exception {
         byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
