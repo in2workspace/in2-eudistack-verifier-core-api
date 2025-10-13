@@ -1,6 +1,5 @@
 package es.in2.vcverifier.security.filters;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -230,7 +229,7 @@ class CustomAuthenticationProviderTest {
     }
 
     @Test
-    void authenticate_validAuthorizationCodeGrant_withEmployeeCredentialV2_success() {
+    void authenticate_validAuthorizationCodeGrant_withEmployeeCredentialV2_success() throws Exception {
         // Arrange
         String clientId = "test-client-id";
         String audience = "test-audience";
@@ -266,11 +265,7 @@ class CustomAuthenticationProviderTest {
         LEARCredentialEmployeeV2 normalizedLearCredentialEmployeeV2 = getLEARCredentialEmployeeV2();
         when(objectMapper.convertValue(vcJsonNode, LEARCredentialEmployeeV2.class)).thenReturn(normalizedLearCredentialEmployeeV2);
 
-        try {
-            when(objectMapper.writeValueAsString(normalizedLearCredentialEmployeeV2)).thenReturn("{\"credential\":\"value\"}");
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        when(objectMapper.writeValueAsString(normalizedLearCredentialEmployeeV2)).thenReturn("{\"credential\":\"value\"}");
 
         when(jwtService.generateJWT(anyString())).thenReturn("mock-jwt-token");
 
@@ -872,7 +867,7 @@ class CustomAuthenticationProviderTest {
     }
 
     @Test
-    void authenticate_publicClient_missingCodeVerifier_throwsInvalidGrant() throws Exception {
+    void authenticate_publicClient_missingCodeVerifier_throwsInvalidGrant() {
         String clientId = "public-client";
         String code = "auth-code-2";
 
