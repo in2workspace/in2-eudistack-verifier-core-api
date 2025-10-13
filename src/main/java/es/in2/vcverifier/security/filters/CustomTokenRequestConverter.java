@@ -16,7 +16,6 @@ import es.in2.vcverifier.model.enums.LEARCredentialType;
 import es.in2.vcverifier.service.ClientAssertionValidationService;
 import es.in2.vcverifier.service.JWTService;
 import es.in2.vcverifier.service.VpService;
-import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -74,6 +73,8 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
         String code = parameters.getFirst(OAuth2ParameterNames.CODE);
         String state = parameters.getFirst(OAuth2ParameterNames.STATE);
         String clientId = parameters.getFirst(OAuth2ParameterNames.CLIENT_ID);
+        // String redirectUri  = parameters.getFirst(OAuth2ParameterNames.REDIRECT_URI); //todo: REVISAR
+        String codeVerifier = parameters.getFirst(PkceParameterNames.CODE_VERIFIER);
 
         AuthorizationCodeData authorizationCodeData = cacheStoreForAuthorizationCodeData.get(code);
 
@@ -100,13 +101,8 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
             additionalParameters.put(NONCE, nonce);
         }
 
-        String redirectUri  = parameters.getFirst(OAuth2ParameterNames.REDIRECT_URI);
-        String codeVerifier = parameters.getFirst(PkceParameterNames.CODE_VERIFIER);
-        if (StringUtils.isNotBlank(codeVerifier)) {
+        if (codeVerifier != null && !codeVerifier.isBlank()) {
             additionalParameters.put(PkceParameterNames.CODE_VERIFIER, codeVerifier);
-        }
-        if (StringUtils.isNotBlank(redirectUri)) {
-            additionalParameters.put(OAuth2ParameterNames.REDIRECT_URI, redirectUri);
         }
 
         // Return the authentication token

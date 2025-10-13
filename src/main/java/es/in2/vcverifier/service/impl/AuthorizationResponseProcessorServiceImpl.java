@@ -15,9 +15,7 @@ import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
-import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
-import org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationCode;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
@@ -30,7 +28,9 @@ import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.Base64;
+import java.util.List;
+import java.util.UUID;
 
 import static es.in2.vcverifier.util.Constants.*;
 import static org.springframework.security.oauth2.core.oidc.IdTokenClaimNames.NONCE;
@@ -96,25 +96,23 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.UNAUTHORIZED_CLIENT);
         }
 
+        // Preparar datos para binding + PKCE (si existiera)
         String redirectUriUsed = oAuth2AuthorizationRequest.getRedirectUri();
-        Set<String> requestedScopes = oAuth2AuthorizationRequest.getScopes();
+        var requestedScopes = oAuth2AuthorizationRequest.getScopes();
 
-        Map<String, Object> addl = oAuth2AuthorizationRequest.getAdditionalParameters();
+        var addl = oAuth2AuthorizationRequest.getAdditionalParameters();
         String codeChallenge       = (String) addl.get(PkceParameterNames.CODE_CHALLENGE);
         String codeChallengeMethod = (String) addl.get(PkceParameterNames.CODE_CHALLENGE_METHOD);
 
 
         Instant expirationTime = issueTime.plus(Long.parseLong(ACCESS_TOKEN_EXPIRATION_TIME), ChronoUnit.valueOf(ACCESS_TOKEN_EXPIRATION_CHRONO_UNIT));
         // Register the Oauth2Authorization because is needed for verifications
-        OAuth2Authorization.Builder authBuilder  = OAuth2Authorization.withRegisteredClient(registeredClient)
+        OAuth2Authorization.Builder authBuilder = OAuth2Authorization.withRegisteredClient(registeredClient)
                 .id(registeredClient.getId())
                 .principalName(registeredClient.getClientId())
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .token(new OAuth2AuthorizationCode(code, issueTime, expirationTime))
-                .attribute(OAuth2AuthorizationRequest.class.getName(), oAuth2AuthorizationRequest)
-                .attribute(OAuth2ParameterNames.REDIRECT_URI, redirectUriUsed)
-                .attribute(OAuth2ParameterNames.CLIENT_ID, registeredClient.getClientId())
-                .attribute(OAuth2ParameterNames.SCOPE, String.join(" ", requestedScopes));
+                .attribute(OAuth2AuthorizationRequest.class.getName(), oAuth2AuthorizationRequest);
 
         if (org.springframework.util.StringUtils.hasText(codeChallenge)) {
             authBuilder.attribute(PkceParameterNames.CODE_CHALLENGE, codeChallenge);
@@ -122,6 +120,8 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
         if (org.springframework.util.StringUtils.hasText(codeChallengeMethod)) {
             authBuilder.attribute(PkceParameterNames.CODE_CHALLENGE_METHOD, codeChallengeMethod);
         }
+
+        System.out.println("XIVATO 3: "+ authBuilder);
 
         OAuth2Authorization authorization = authBuilder.build();
         oAuth2AuthorizationService.save(authorization);
@@ -143,7 +143,6 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
         // Finally build the object
         AuthorizationCodeData authorizationCodeData = authCodeDataBuilder.build();
         cacheStoreForAuthorizationCodeData.add(code, authorizationCodeData);
-
 
 
         // Build the redirect URL with the code (code) and the state
@@ -196,5 +195,3 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
     }
 
 }
-
-

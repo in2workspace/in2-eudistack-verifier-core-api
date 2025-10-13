@@ -73,19 +73,20 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
         String scope = request.getParameter(OAuth2ParameterNames.SCOPE);
         String redirectUri = request.getParameter(OAuth2ParameterNames.REDIRECT_URI);
         String clientNonce = request.getParameter(NONCE);
-        String codeChallenge      = request.getParameter(PkceParameterNames.CODE_CHALLENGE);
-        String codeChallengeMethod= request.getParameter(PkceParameterNames.CODE_CHALLENGE_METHOD);
-
+        String codeChallenge = request.getParameter(PkceParameterNames.CODE_CHALLENGE);
+        String codeChallengeMethod = request.getParameter(PkceParameterNames.CODE_CHALLENGE_METHOD);
         AuthorizationContext authorizationContext = AuthorizationContext.builder()
                 .requestUri(requestUri)
                 .state(state)
                 .originalRequestURL(originalRequestURL)
                 .redirectUri(redirectUri)
                 .clientNonce(clientNonce)
-                .scope(scope)
                 .codeChallenge(codeChallenge)
                 .codeChallengeMethod(codeChallengeMethod)
+                .scope(scope)
                 .build();
+
+        System.out.println("XIVATO 1: "+ authorizationContext);
 
         RegisteredClient registeredClient = registeredClientRepository.findByClientId(clientId);
 
@@ -488,12 +489,17 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
         if (nonce != null && !nonce.isBlank()) {
             additionalParameters.put(NONCE, nonce);
         }
-        if (authorizationContext.codeChallenge() != null && !authorizationContext.codeChallenge().isBlank()) {
-            additionalParameters.put(PkceParameterNames.CODE_CHALLENGE, authorizationContext.codeChallenge());
+        String codeChallenge = authorizationContext.codeChallenge();
+        if (codeChallenge != null && !codeChallenge.isBlank()) {
+            additionalParameters.put(PkceParameterNames.CODE_CHALLENGE, codeChallenge);
         }
-        if (authorizationContext.codeChallengeMethod() != null && !authorizationContext.codeChallengeMethod().isBlank()) {
-            additionalParameters.put(PkceParameterNames.CODE_CHALLENGE_METHOD, authorizationContext.codeChallengeMethod());
+        String codeChallengeMethod = authorizationContext.codeChallengeMethod();
+        if (codeChallengeMethod != null && !codeChallengeMethod.isBlank()) {
+            additionalParameters.put(PkceParameterNames.CODE_CHALLENGE_METHOD, codeChallengeMethod);
         }
+
+        System.out.println("XIVATO 2: "+ additionalParameters);
+
         builder.additionalParameters(additionalParameters);
 
         // Build the request

@@ -9,7 +9,6 @@ import es.in2.vcverifier.config.BackendConfig;
 import es.in2.vcverifier.config.CacheStore;
 import es.in2.vcverifier.exception.InvalidCredentialTypeException;
 import es.in2.vcverifier.exception.JsonConversionException;
-import es.in2.vcverifier.model.AuthorizationCodeData;
 import es.in2.vcverifier.model.RefreshTokenDataCache;
 import es.in2.vcverifier.model.credentials.lear.LEARCredential;
 import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployee;
@@ -35,15 +34,12 @@ import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
-
-import java.security.MessageDigest;
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.Objects;
 import org.springframework.security.oauth2.server.authorization.authentication.*;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.Principal;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -62,7 +58,6 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     private final ObjectMapper objectMapper;
     private final CacheStore<RefreshTokenDataCache> cacheStoreForRefreshTokenData;
     private final OAuth2AuthorizationService oAuth2AuthorizationService;
-    private final CacheStore<AuthorizationCodeData> cacheStoreForAuthorizationCodeData;
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
@@ -85,10 +80,10 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         log.debug("CustomAuthenticationProvider -- handleGrant -- Registered client found: {}", registeredClient);
 
         if (authentication instanceof OAuth2AuthorizationCodeAuthenticationToken authCodeToken) {
-            if (isPublicClientRequiringPkce(registeredClient)) {
+            if (isPublicClient(registeredClient)) {            // <-- solo clientes públicos
                 validateAuthorizationCodePkceAndBinding(authCodeToken, clientId);
             } else {
-                log.debug("Skipping PKCE validation: client '{}' is confidential or does not require proof key", clientId);
+                log.debug("Omitting redirect+PKCE validation for confidential client '{}'", clientId);
             }
         }
 
@@ -142,30 +137,22 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         log.info("Authorization grant successfully processed");
 
         if (authentication instanceof OAuth2AuthorizationCodeAuthenticationToken authCodeToken) {
-            String code = authCodeToken.getCode();
-            cacheStoreForAuthorizationCodeData.delete(code);
             OAuth2Authorization authToRemove =
-                    oAuth2AuthorizationService.findByToken(authCodeToken.getCode(),  new OAuth2TokenType(OAuth2ParameterNames.CODE));
+                    oAuth2AuthorizationService.findByToken(authCodeToken.getCode(),
+                            new OAuth2TokenType(OAuth2ParameterNames.CODE));
             if (authToRemove != null) {
                 oAuth2AuthorizationService.remove(authToRemove);
             }
         }
-
         return new OAuth2AccessTokenAuthenticationToken(registeredClient, authentication, oAuth2AccessToken, oAuth2RefreshToken, additionalParameters);
     }
-    private boolean isPublicClientRequiringPkce(RegisteredClient registeredClient) {
-        if (registeredClient == null) {
-            return false;
-        }
 
-        boolean noClientSecret = registeredClient.getClientSecret() == null;
-        boolean requireProofKey = registeredClient.getClientSettings() != null
-                && registeredClient.getClientSettings().isRequireProofKey();
-
-        return noClientSecret || requireProofKey;
+    private boolean isPublicClient(RegisteredClient rc) {
+        return rc != null
+                && rc.getClientAuthenticationMethods().size() == 1
+                && rc.getClientAuthenticationMethods().stream()
+                .anyMatch(m -> m.getValue().equalsIgnoreCase("none"));
     }
-
-
 
     private void validateAuthorizationCodePkceAndBinding(
             OAuth2AuthorizationCodeAuthenticationToken authCodeToken,
@@ -182,23 +169,29 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         String storedClientId = authorization.getAttribute(OAuth2ParameterNames.CLIENT_ID);
         String storedRedirect = authorization.getAttribute(OAuth2ParameterNames.REDIRECT_URI);
 
-        String reqRedirect = authCodeToken.getRedirectUri();
+        // Binding de client_id
         if (!Objects.equals(storedClientId, requestedClientId)) {
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
         }
-        if (org.springframework.util.StringUtils.hasText(storedRedirect)) {
+
+        // Binding de redirect_uri (si se guardó)
+        String reqRedirect = authCodeToken.getRedirectUri();
+        if (storedRedirect != null && !storedRedirect.isBlank()) {
             if (!Objects.equals(storedRedirect, reqRedirect)) {
                 throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
             }
         }
 
+        // PKCE
         String storedChallenge = authorization.getAttribute(PkceParameterNames.CODE_CHALLENGE);
         String storedMethod    = authorization.getAttribute(PkceParameterNames.CODE_CHALLENGE_METHOD);
 
         RegisteredClient rc = registeredClientRepository.findByClientId(storedClientId);
-        boolean requirePkce = rc != null && rc.getClientSettings() != null && rc.getClientSettings().isRequireProofKey();
+        boolean requirePkce = rc != null
+                && rc.getClientSettings() != null
+                && rc.getClientSettings().isRequireProofKey();
 
-        if (!org.springframework.util.StringUtils.hasText(storedChallenge)) {
+        if (storedChallenge == null || storedChallenge.isBlank()) {
             if (requirePkce) {
                 throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
             }
@@ -206,7 +199,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         }
 
         String codeVerifier = (String) authCodeToken.getAdditionalParameters().get(PkceParameterNames.CODE_VERIFIER);
-        if (!org.springframework.util.StringUtils.hasText(codeVerifier)) {
+        if (codeVerifier == null || codeVerifier.isBlank()) {
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
         }
 
@@ -229,7 +222,6 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
         }
     }
-
 
 
     private OAuth2RefreshToken getOAuth2RefreshToken(OAuth2AuthorizationGrantAuthenticationToken authentication, Instant issueTime, String clientId, JsonNode credentialJson, RegisteredClient registeredClient) {
