@@ -868,6 +868,110 @@ class CustomAuthenticationProviderTest {
         verify(oAuth2AuthorizationService, atLeastOnce()).remove(stored);
     }
 
+    @Test
+    void authenticate_publicClient_missingCodeVerifier_throwsInvalidGrant() throws Exception {
+        String clientId = "public-client";
+        String code = "auth-code-2";
+
+        Map<String, Object> additional = new HashMap<>();
+        additional.put(OAuth2ParameterNames.CLIENT_ID, clientId);
+        additional.put(OAuth2ParameterNames.AUDIENCE, "api");
+        additional.put(OAuth2ParameterNames.SCOPE, "openid");
+        additional.put("vc", Map.of("@context", LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT));
+
+        Authentication clientPrincipal = new TestingAuthenticationToken(clientId, null);
+
+        OAuth2AuthorizationCodeAuthenticationToken authToken =
+                new OAuth2AuthorizationCodeAuthenticationToken(code, clientPrincipal, null, additional);
+
+        RegisteredClient rc = mock(RegisteredClient.class);
+        when(rc.getClientAuthenticationMethods())
+                .thenReturn(Set.of(ClientAuthenticationMethod.NONE));
+        when(rc.getClientSettings())
+                .thenReturn(ClientSettings.builder().requireProofKey(true).build());
+        when(registeredClientRepository.findByClientId(clientId)).thenReturn(rc);
+
+        OAuth2Authorization stored = OAuth2Authorization.withRegisteredClient(rc)
+                .id("auth-id")
+                .principalName(clientId)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .attribute(OAuth2ParameterNames.CLIENT_ID, clientId)
+                .attribute(PkceParameterNames.CODE_CHALLENGE, "whatever")
+                .attribute(PkceParameterNames.CODE_CHALLENGE_METHOD, "S256")
+                .build();
+        when(oAuth2AuthorizationService.findByToken(eq(code), any(OAuth2TokenType.class))).thenReturn(stored);
+
+        ArrayNode ctx = JsonNodeFactory.instance.arrayNode();
+        for (String c : LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT) ctx.add(c);
+
+        OAuth2AuthenticationException ex =
+                assertThrows(OAuth2AuthenticationException.class,
+                        () -> customAuthenticationProvider.authenticate(authToken));
+
+        assertEquals(OAuth2ErrorCodes.INVALID_GRANT, ex.getError().getErrorCode());
+    }
+
+    @Test
+    void authenticate_confidentialClient_withoutPkce_validationIsSkipped_andSucceeds() throws Exception {
+        String clientId = "conf-client";
+        String audience = "api";
+        String code = "auth-code-3";
+
+        Map<String, Object> additional = new HashMap<>();
+        additional.put(OAuth2ParameterNames.CLIENT_ID, clientId);
+        additional.put(OAuth2ParameterNames.AUDIENCE, audience); // <-- FALTABA
+        additional.put(OAuth2ParameterNames.SCOPE, "openid");
+        additional.put("vc", Map.of("@context", LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT));
+        Authentication clientPrincipal = new TestingAuthenticationToken(clientId, null);
+
+        OAuth2AuthorizationCodeAuthenticationToken authToken =
+                new OAuth2AuthorizationCodeAuthenticationToken(code, clientPrincipal, null, additional);
+
+        RegisteredClient rc = mock(RegisteredClient.class);
+        when(rc.getClientAuthenticationMethods())
+                .thenReturn(Set.of(ClientAuthenticationMethod.CLIENT_SECRET_JWT));
+        when(rc.getClientSettings())
+                .thenReturn(ClientSettings.builder().requireProofKey(false).build());
+        when(rc.getClientId()).thenReturn(clientId);
+        when(rc.getId()).thenReturn("rc-id");
+        when(registeredClientRepository.findByClientId(clientId)).thenReturn(rc);
+
+        OAuth2Authorization stored = OAuth2Authorization.withRegisteredClient(rc)
+                .id("auth-id")
+                .principalName(clientId)
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .attribute(OAuth2ParameterNames.CLIENT_ID, clientId)
+                .build();
+        when(oAuth2AuthorizationService.findByToken(eq(code), any(OAuth2TokenType.class))).thenReturn(stored);
+
+        JsonNode vcJson = mock(JsonNode.class);
+        ArrayNode ctx = JsonNodeFactory.instance.arrayNode();
+        for (String c : LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT) ctx.add(c);
+        when(vcJson.get("@context")).thenReturn(ctx);
+
+        when(objectMapper.convertValue(any(), eq(JsonNode.class))).thenReturn(vcJson);
+
+        LEARCredentialEmployeeV1 vc = getLEARCredentialEmployeeV1();
+        when(objectMapper.convertValue(ArgumentMatchers.<LEARCredential>any(), eq(LEARCredentialEmployeeV1.class))).thenReturn(vc);
+        when(objectMapper.convertValue(any(LEARCredentialEmployeeV1.class), any(TypeReference.class)))
+                .thenReturn(Map.of("dummy","value"));
+
+        when(objectMapper.writeValueAsString(any())).thenReturn("{\"credential\":\"value\"}");
+        when(backendConfig.getUrl()).thenReturn("https://auth.server");
+        when(jwtService.generateJWT(anyString())).thenReturn("jwt-access", "jwt-id");
+
+        Authentication result = customAuthenticationProvider.authenticate(authToken);
+
+        assertNotNull(result);
+        assertInstanceOf(OAuth2AccessTokenAuthenticationToken.class, result);
+        OAuth2AccessTokenAuthenticationToken tr = (OAuth2AccessTokenAuthenticationToken) result;
+        assertEquals("jwt-access", tr.getAccessToken().getTokenValue());
+        assertEquals("jwt-id", tr.getAdditionalParameters().get("id_token"));
+
+        verify(oAuth2AuthorizationService, atLeastOnce()).remove(stored);
+    }
+
+
     private static String s256(String verifier) throws Exception {
         byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
                 .digest(verifier.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
