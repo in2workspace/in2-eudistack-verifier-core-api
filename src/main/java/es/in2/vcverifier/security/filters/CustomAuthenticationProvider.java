@@ -80,7 +80,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         log.debug("CustomAuthenticationProvider -- handleGrant -- Registered client found: {}", registeredClient);
 
         if (authentication instanceof OAuth2AuthorizationCodeAuthenticationToken authCodeToken) {
-            if (isPublicClient(registeredClient)) {            // <-- solo clientes públicos
+            if (isPublicClient(registeredClient)) {
                 validateAuthorizationCodePkceAndBinding(authCodeToken, clientId);
             } else {
                 log.debug("Omitting redirect+PKCE validation for confidential client '{}'", clientId);
@@ -167,19 +167,9 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         }
 
         String storedClientId = authorization.getAttribute(OAuth2ParameterNames.CLIENT_ID);
-        String storedRedirect = authorization.getAttribute(OAuth2ParameterNames.REDIRECT_URI);
 
-        // Binding de client_id
         if (!Objects.equals(storedClientId, requestedClientId)) {
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
-        }
-
-        // Binding de redirect_uri (si se guardó)
-        String reqRedirect = authCodeToken.getRedirectUri();
-        if (storedRedirect != null && !storedRedirect.isBlank()) {
-            if (!Objects.equals(storedRedirect, reqRedirect)) {
-                throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
-            }
         }
 
         // PKCE
