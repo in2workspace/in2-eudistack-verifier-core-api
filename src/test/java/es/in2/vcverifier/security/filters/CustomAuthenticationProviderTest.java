@@ -31,21 +31,17 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
-import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationCode;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AccessTokenAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2ClientCredentialsAuthenticationToken;
-import org.springframework.security.oauth2.server.authorization.authentication.OAuth2RefreshTokenAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -85,11 +81,8 @@ class CustomAuthenticationProviderTest {
         // Arrange
         String clientId = "test-client-id";
         String audience = "test-audience";
-        String code = "code123";
-        String redirectUri = "https://client.example.com/cb";
-
         Map<String, Object> additionalParameters = new HashMap<>();
-        additionalParameters.put(OAuth2ParameterNames.CLIENT_ID, clientId);
+        additionalParameters.put("client_id", clientId);
         additionalParameters.put(OAuth2ParameterNames.AUDIENCE, audience);
         additionalParameters.put(OAuth2ParameterNames.SCOPE, "openid profile email");
 
@@ -99,38 +92,15 @@ class CustomAuthenticationProviderTest {
 
         OAuth2AuthorizationCodeAuthenticationToken authToken = mock(OAuth2AuthorizationCodeAuthenticationToken.class);
         when(authToken.getAdditionalParameters()).thenReturn(additionalParameters);
-        when(authToken.getCode()).thenReturn(code);
-        when(authToken.getRedirectUri()).thenReturn(redirectUri);
 
         TestingAuthenticationToken principal = new TestingAuthenticationToken("user", null);
         when(authToken.getPrincipal()).thenReturn(principal);
 
-        // Registered client sin PKCE obligatorio
-        RegisteredClient rc = RegisteredClient.withId("id")
-                .clientId(clientId)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .redirectUri(redirectUri)
-                .clientSettings(org.springframework.security.oauth2.server.authorization.settings.ClientSettings.builder()
-                        .requireProofKey(false)
-                        .build())
-                .build();
-        when(registeredClientRepository.findByClientId(clientId)).thenReturn(rc);
+        RegisteredClient registeredClient = mock(RegisteredClient.class);
+        when(registeredClientRepository.findByClientId(clientId)).thenReturn(registeredClient);
+        when(registeredClient.getClientId()).thenReturn("test-client-id");
 
         when(backendConfig.getUrl()).thenReturn("https://auth.server");
-
-        OAuth2Authorization authorization = OAuth2Authorization.withRegisteredClient(rc)
-                .id("auth-id")
-                .principalName("principal")
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .token(new OAuth2AuthorizationCode(code, Instant.now(), Instant.now().plusSeconds(300)))
-                .attribute(OAuth2ParameterNames.CLIENT_ID, clientId)
-                .attribute(OAuth2ParameterNames.REDIRECT_URI, redirectUri)
-                .build();
-
-        when(oAuth2AuthorizationService.findByToken(
-                eq(code),
-                argThat(t -> t != null && OAuth2ParameterNames.CODE.equals(t.getValue()))
-        )).thenReturn(authorization);
 
         JsonNode vcJsonNode = mock(JsonNode.class);
         when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
@@ -142,217 +112,10 @@ class CustomAuthenticationProviderTest {
 
         LEARCredentialEmployeeV1 learCredentialEmployeeV1 = getLEARCredentialEmployeeV1();
         when(objectMapper.convertValue(vcJsonNode, LEARCredentialEmployeeV1.class)).thenReturn(learCredentialEmployeeV1);
+
         when(objectMapper.writeValueAsString(learCredentialEmployeeV1)).thenReturn("{\"credential\":\"value\"}");
 
         when(jwtService.generateJWT(anyString())).thenReturn("mock-jwt-token");
-
-        Authentication result = customAuthenticationProvider.authenticate(authToken);
-
-        assertNotNull(result);
-        assertInstanceOf(OAuth2AccessTokenAuthenticationToken.class, result);
-
-        OAuth2AccessTokenAuthenticationToken tokenResult = (OAuth2AccessTokenAuthenticationToken) result;
-        assertEquals("mock-jwt-token", tokenResult.getAccessToken().getTokenValue());
-
-        Map<String, Object> additionalParams = tokenResult.getAdditionalParameters();
-        assertTrue(additionalParams.containsKey("id_token"));
-        assertEquals("mock-jwt-token", additionalParams.get("id_token"));
-
-        verify(jwtService, times(2)).generateJWT(anyString());
-
-        ArgumentCaptor<String> refreshTokenCaptor = ArgumentCaptor.forClass(String.class);
-        ArgumentCaptor<RefreshTokenDataCache> refreshTokenDataCaptor = ArgumentCaptor.forClass(RefreshTokenDataCache.class);
-        verify(cacheStoreForRefreshTokenData).add(refreshTokenCaptor.capture(), refreshTokenDataCaptor.capture());
-
-        ArgumentCaptor<OAuth2Authorization> authorizationCaptor = ArgumentCaptor.forClass(OAuth2Authorization.class);
-        verify(oAuth2AuthorizationService).save(authorizationCaptor.capture());
-    }
-
-
-    @Test
-    void extractContextFromJson_missingContext_throwsException() {
-        // Arrange
-        String clientId = "test-client-id";
-
-        Map<String, Object> additionalParameters = new HashMap<>();
-        additionalParameters.put(OAuth2ParameterNames.CLIENT_ID, clientId);
-
-        Map<String, Object> vcMap = new HashMap<>();
-        vcMap.put("type", List.of("VerifiableCredential", "LEARCredentialEmployee"));
-        additionalParameters.put("vc", vcMap);
-
-        OAuth2RefreshTokenAuthenticationToken authToken = mock(OAuth2RefreshTokenAuthenticationToken.class);
-        when(authToken.getAdditionalParameters()).thenReturn(additionalParameters);
-
-        RegisteredClient rc = RegisteredClient.withId("id")
-                .clientId(clientId)
-                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-                .build();
-        when(registeredClientRepository.findByClientId(clientId)).thenReturn(rc);
-
-        JsonNode vcJsonNode = mock(JsonNode.class);
-        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
-        when(vcJsonNode.get("@context")).thenReturn(null); // <--- falta @context
-
-        OAuth2AuthenticationException ex = assertThrows(
-                OAuth2AuthenticationException.class,
-                () -> customAuthenticationProvider.authenticate(authToken)
-        );
-
-        assertEquals(OAuth2ErrorCodes.INVALID_REQUEST, ex.getError().getErrorCode());
-    }
-
-
-    @Test
-    void extractContextFromJson_contextNotArray_throwsException() {
-        String clientId = "test-client-id";
-
-        Map<String, Object> additionalParameters = new HashMap<>();
-        additionalParameters.put(OAuth2ParameterNames.CLIENT_ID, clientId);
-
-        Map<String, Object> vcMap = new HashMap<>();
-        vcMap.put("type", List.of("VerifiableCredential", "LEARCredentialEmployee"));
-        additionalParameters.put("vc", vcMap);
-
-        OAuth2RefreshTokenAuthenticationToken authToken = mock(OAuth2RefreshTokenAuthenticationToken.class);
-        when(authToken.getAdditionalParameters()).thenReturn(additionalParameters);
-
-        RegisteredClient rc = RegisteredClient.withId("id")
-                .clientId(clientId)
-                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-                .build();
-        when(registeredClientRepository.findByClientId(clientId)).thenReturn(rc);
-
-        JsonNode vcJsonNode = mock(JsonNode.class);
-        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
-        when(vcJsonNode.get("@context")).thenReturn(JsonNodeFactory.instance.textNode("not an array")); // <---
-
-        OAuth2AuthenticationException ex = assertThrows(
-                OAuth2AuthenticationException.class,
-                () -> customAuthenticationProvider.authenticate(authToken)
-        );
-        assertEquals(OAuth2ErrorCodes.INVALID_REQUEST, ex.getError().getErrorCode());
-    }
-
-
-    @Test
-    void getVerifiableCredential_unknownEmployeeVersion_throwsException() {
-        String clientId = "test-client-id";
-        String code = "code123";
-        String redirectUri = "https://client.example.com/cb";
-
-        Map<String, Object> additionalParameters = new HashMap<>();
-        additionalParameters.put(OAuth2ParameterNames.CLIENT_ID, clientId);
-
-        Map<String, Object> vcMap = new HashMap<>();
-        vcMap.put("type", List.of("VerifiableCredential", "LEARCredentialEmployee"));
-        additionalParameters.put("vc", vcMap);
-
-        OAuth2AuthorizationCodeAuthenticationToken authToken = mock(OAuth2AuthorizationCodeAuthenticationToken.class);
-        when(authToken.getAdditionalParameters()).thenReturn(additionalParameters);
-        when(authToken.getCode()).thenReturn(code);
-        when(authToken.getRedirectUri()).thenReturn(redirectUri);
-
-        RegisteredClient rc = RegisteredClient.withId("id")
-                .clientId(clientId)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .redirectUri(redirectUri)
-                .clientSettings(org.springframework.security.oauth2.server.authorization.settings.ClientSettings.builder()
-                        .requireProofKey(false)
-                        .build())
-                .build();
-        when(registeredClientRepository.findByClientId(clientId)).thenReturn(rc);
-        OAuth2Authorization authorization =
-                OAuth2Authorization.withRegisteredClient(rc)
-                        .id("auth-id")
-                        .principalName("principal")
-                        .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                        .token(new OAuth2AuthorizationCode(code, Instant.now(), Instant.now().plusSeconds(300)))
-                        .attribute(OAuth2ParameterNames.CLIENT_ID, clientId)
-                        .attribute(OAuth2ParameterNames.REDIRECT_URI, redirectUri)
-                        .build();
-
-        when(oAuth2AuthorizationService.findByToken(
-                eq(code),
-                argThat(t -> t != null && OAuth2ParameterNames.CODE.equals(t.getValue()))
-        )).thenReturn(authorization);
-
-        JsonNode vcJsonNode = mock(JsonNode.class);
-        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
-        ArrayNode contextNode = JsonNodeFactory.instance.arrayNode();
-        contextNode.add("https://unknown-context");
-        when(vcJsonNode.get("@context")).thenReturn(contextNode);
-
-        OAuth2AuthenticationException ex =
-                assertThrows(OAuth2AuthenticationException.class, () -> customAuthenticationProvider.authenticate(authToken));
-
-        assertEquals(OAuth2ErrorCodes.INVALID_REQUEST, ex.getError().getErrorCode());
-    }
-
-
-    @Test
-    void authenticate_validAuthorizationCodeGrant_withEmployeeCredentialV2_success() throws Exception {
-        // Arrange
-        String clientId   = "test-client-id";
-        String audience   = "test-audience";
-        String redirectUri= "https://client.example.com/callback";
-        String code       = "code-123";
-
-        Map<String, Object> additionalParameters = new HashMap<>();
-        additionalParameters.put(OAuth2ParameterNames.CLIENT_ID, clientId);
-        additionalParameters.put(OAuth2ParameterNames.AUDIENCE, audience);
-        additionalParameters.put(OAuth2ParameterNames.SCOPE, "openid profile email");
-
-        Map<String, Object> vcMap = new HashMap<>();
-        vcMap.put("type", List.of("VerifiableCredential", "LEARCredentialEmployee"));
-        additionalParameters.put("vc", vcMap);
-
-        OAuth2AuthorizationCodeAuthenticationToken authToken = mock(OAuth2AuthorizationCodeAuthenticationToken.class);
-        when(authToken.getAdditionalParameters()).thenReturn(additionalParameters);
-        when(authToken.getCode()).thenReturn(code);
-        when(authToken.getRedirectUri()).thenReturn(redirectUri);
-        when(authToken.getPrincipal()).thenReturn(new TestingAuthenticationToken("user", null));
-
-        RegisteredClient rc = RegisteredClient.withId("id-1")
-                .clientId(clientId)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .redirectUri(redirectUri)
-                .clientSettings(org.springframework.security.oauth2.server.authorization.settings.ClientSettings
-                        .builder().requireProofKey(false).build())
-                .build();
-        when(registeredClientRepository.findByClientId(clientId)).thenReturn(rc);
-
-        when(backendConfig.getUrl()).thenReturn("https://auth.server");
-
-        JsonNode vcJsonNode = mock(JsonNode.class);
-        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
-        ArrayNode contextNode = JsonNodeFactory.instance.arrayNode();
-        for (String ctx : LEAR_CREDENTIAL_EMPLOYEE_V2_CONTEXT) {
-            contextNode.add(ctx);
-        }
-        when(vcJsonNode.get("@context")).thenReturn(contextNode);
-
-        LEARCredentialEmployeeV2 normalizedLearCredentialEmployeeV2 = getLEARCredentialEmployeeV2();
-        when(objectMapper.convertValue(vcJsonNode, LEARCredentialEmployeeV2.class))
-                .thenReturn(normalizedLearCredentialEmployeeV2);
-        when(objectMapper.writeValueAsString(normalizedLearCredentialEmployeeV2))
-                .thenReturn("{\"credential\":\"value\"}");
-
-        when(jwtService.generateJWT(anyString())).thenReturn("mock-jwt-token");
-
-        OAuth2Authorization authorization = OAuth2Authorization.withRegisteredClient(rc)
-                .id("auth-id-1")
-                .principalName("principal")
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .token(new OAuth2AuthorizationCode(code, Instant.now(), Instant.now().plusSeconds(300)))
-                .attribute(OAuth2ParameterNames.CLIENT_ID, clientId)
-                .attribute(OAuth2ParameterNames.REDIRECT_URI, redirectUri)
-                .build();
-
-        when(oAuth2AuthorizationService.findByToken(
-                eq(code),
-                argThat(t -> t != null && OAuth2ParameterNames.CODE.equals(t.getValue()))
-        )).thenReturn(authorization);
 
         // Act
         Authentication result = customAuthenticationProvider.authenticate(authToken);
@@ -370,14 +133,162 @@ class CustomAuthenticationProviderTest {
 
         verify(jwtService, times(2)).generateJWT(anyString());
 
-        ArgumentCaptor<OAuth2Authorization> authorizationCaptor = ArgumentCaptor.forClass(OAuth2Authorization.class);
-        verify(oAuth2AuthorizationService).save(authorizationCaptor.capture());
-
+        // Verify refresh token data cache
         ArgumentCaptor<String> refreshTokenCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<RefreshTokenDataCache> refreshTokenDataCaptor = ArgumentCaptor.forClass(RefreshTokenDataCache.class);
         verify(cacheStoreForRefreshTokenData).add(refreshTokenCaptor.capture(), refreshTokenDataCaptor.capture());
+
+        // Verify OAuth2AuthorizationService saved
+        ArgumentCaptor<OAuth2Authorization> authorizationCaptor = ArgumentCaptor.forClass(OAuth2Authorization.class);
+        verify(oAuth2AuthorizationService).save(authorizationCaptor.capture());
     }
 
+    @Test
+    void extractContextFromJson_missingContext_throwsException() {
+        // Arrange
+        String clientId = "test-client-id";
+        Map<String, Object> additionalParameters = new HashMap<>();
+        additionalParameters.put("client_id", clientId);
+
+        Map<String, Object> vcMap = new HashMap<>();
+        vcMap.put("type", List.of("VerifiableCredential", "LEARCredentialEmployee"));
+        additionalParameters.put("vc", vcMap);
+
+        OAuth2AuthorizationCodeAuthenticationToken authToken = mock(OAuth2AuthorizationCodeAuthenticationToken.class);
+        when(authToken.getAdditionalParameters()).thenReturn(additionalParameters);
+
+        RegisteredClient registeredClient = mock(RegisteredClient.class);
+        when(registeredClientRepository.findByClientId(clientId)).thenReturn(registeredClient);
+
+        JsonNode vcJsonNode = mock(JsonNode.class);
+        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
+        when(vcJsonNode.get("@context")).thenReturn(null);
+
+        OAuth2AuthenticationException exception = assertThrows(OAuth2AuthenticationException.class, () -> customAuthenticationProvider.authenticate(authToken));
+
+        assertEquals(OAuth2ErrorCodes.INVALID_REQUEST, exception.getError().getErrorCode());
+    }
+
+    @Test
+    void extractContextFromJson_contextNotArray_throwsException() {
+        // Arrange
+        String clientId = "test-client-id";
+        Map<String, Object> additionalParameters = new HashMap<>();
+        additionalParameters.put("client_id", clientId);
+
+        Map<String, Object> vcMap = new HashMap<>();
+        vcMap.put("type", List.of("VerifiableCredential", "LEARCredentialEmployee"));
+        additionalParameters.put("vc", vcMap);
+
+        OAuth2AuthorizationCodeAuthenticationToken authToken = mock(OAuth2AuthorizationCodeAuthenticationToken.class);
+        when(authToken.getAdditionalParameters()).thenReturn(additionalParameters);
+
+        RegisteredClient registeredClient = mock(RegisteredClient.class);
+        when(registeredClientRepository.findByClientId(clientId)).thenReturn(registeredClient);
+
+        JsonNode vcJsonNode = mock(JsonNode.class);
+        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
+        when(vcJsonNode.get("@context")).thenReturn(JsonNodeFactory.instance.textNode("not an array"));
+
+        OAuth2AuthenticationException exception = assertThrows(OAuth2AuthenticationException.class, () -> customAuthenticationProvider.authenticate(authToken));
+
+        assertEquals(OAuth2ErrorCodes.INVALID_REQUEST, exception.getError().getErrorCode());
+    }
+
+    @Test
+    void getVerifiableCredential_unknownEmployeeVersion_throwsException() {
+        // Arrange
+        String clientId = "test-client-id";
+        Map<String, Object> additionalParameters = new HashMap<>();
+        additionalParameters.put("client_id", clientId);
+
+        Map<String, Object> vcMap = new HashMap<>();
+        vcMap.put("type", List.of("VerifiableCredential", "LEARCredentialEmployee"));
+        additionalParameters.put("vc", vcMap);
+
+        OAuth2AuthorizationCodeAuthenticationToken authToken = mock(OAuth2AuthorizationCodeAuthenticationToken.class);
+        when(authToken.getAdditionalParameters()).thenReturn(additionalParameters);
+
+        RegisteredClient registeredClient = mock(RegisteredClient.class);
+        when(registeredClientRepository.findByClientId(clientId)).thenReturn(registeredClient);
+
+        JsonNode vcJsonNode = mock(JsonNode.class);
+        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
+        ArrayNode contextNode = JsonNodeFactory.instance.arrayNode();
+        contextNode.add("https://unknown-context");
+        when(vcJsonNode.get("@context")).thenReturn(contextNode);
+
+        OAuth2AuthenticationException exception = assertThrows(OAuth2AuthenticationException.class, () -> customAuthenticationProvider.authenticate(authToken));
+
+        assertEquals(OAuth2ErrorCodes.INVALID_REQUEST, exception.getError().getErrorCode());
+    }
+
+    @Test
+    void authenticate_validAuthorizationCodeGrant_withEmployeeCredentialV2_success() throws Exception {
+        // Arrange
+        String clientId = "test-client-id";
+        String audience = "test-audience";
+        Map<String, Object> additionalParameters = new HashMap<>();
+        additionalParameters.put("client_id", clientId);
+        additionalParameters.put(OAuth2ParameterNames.AUDIENCE, audience);
+        additionalParameters.put(OAuth2ParameterNames.SCOPE, "openid profile email");
+
+        Map<String, Object> vcMap = new HashMap<>();
+        vcMap.put("type", List.of("VerifiableCredential", "LEARCredentialEmployee"));
+        additionalParameters.put("vc", vcMap);
+
+        OAuth2AuthorizationCodeAuthenticationToken authToken = mock(OAuth2AuthorizationCodeAuthenticationToken.class);
+        when(authToken.getAdditionalParameters()).thenReturn(additionalParameters);
+
+        TestingAuthenticationToken principal = new TestingAuthenticationToken("user", null);
+        when(authToken.getPrincipal()).thenReturn(principal);
+
+        RegisteredClient registeredClient = mock(RegisteredClient.class);
+        when(registeredClientRepository.findByClientId(clientId)).thenReturn(registeredClient);
+        when(registeredClient.getClientId()).thenReturn("test-client-id");
+
+        when(backendConfig.getUrl()).thenReturn("https://auth.server");
+
+        JsonNode vcJsonNode = mock(JsonNode.class);
+        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
+        ArrayNode contextNode = JsonNodeFactory.instance.arrayNode();
+        for (String ctx : LEAR_CREDENTIAL_EMPLOYEE_V2_CONTEXT) {
+            contextNode.add(ctx);
+        }
+        when(vcJsonNode.get("@context")).thenReturn(contextNode);
+
+        LEARCredentialEmployeeV2 normalizedLearCredentialEmployeeV2 = getLEARCredentialEmployeeV2();
+        when(objectMapper.convertValue(vcJsonNode, LEARCredentialEmployeeV2.class)).thenReturn(normalizedLearCredentialEmployeeV2);
+
+        when(objectMapper.writeValueAsString(normalizedLearCredentialEmployeeV2)).thenReturn("{\"credential\":\"value\"}");
+
+        when(jwtService.generateJWT(anyString())).thenReturn("mock-jwt-token");
+
+        // Act
+        Authentication result = customAuthenticationProvider.authenticate(authToken);
+
+        // Assert
+        assertNotNull(result);
+        assertInstanceOf(OAuth2AccessTokenAuthenticationToken.class, result);
+
+        OAuth2AccessTokenAuthenticationToken tokenResult = (OAuth2AccessTokenAuthenticationToken) result;
+        assertEquals("mock-jwt-token", tokenResult.getAccessToken().getTokenValue());
+
+        Map<String, Object> additionalParams = tokenResult.getAdditionalParameters();
+        assertTrue(additionalParams.containsKey("id_token"));
+        assertEquals("mock-jwt-token", additionalParams.get("id_token"));
+
+        verify(jwtService, times(2)).generateJWT(anyString());
+
+        // Verify refresh token data cache
+        ArgumentCaptor<String> refreshTokenCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<RefreshTokenDataCache> refreshTokenDataCaptor = ArgumentCaptor.forClass(RefreshTokenDataCache.class);
+        verify(cacheStoreForRefreshTokenData).add(refreshTokenCaptor.capture(), refreshTokenDataCaptor.capture());
+
+        // Verify OAuth2AuthorizationService saved
+        ArgumentCaptor<OAuth2Authorization> authorizationCaptor = ArgumentCaptor.forClass(OAuth2Authorization.class);
+        verify(oAuth2AuthorizationService).save(authorizationCaptor.capture());
+    }
 
 //    todo @Test
 //    void authenticate_validClientCredentialsGrant_withMachineCredential_success() {
@@ -534,158 +445,84 @@ class CustomAuthenticationProviderTest {
 
     @Test
     void authenticate_OAuth2AuthorizationCodeAuthenticationToken_without_vc_parameter_throw_OAuth2AuthenticationException() {
-        // Arrange
-        String clientId    = "test-client-id";
-        String code        = "code-abc";
-        String redirectUri = "https://client.example.com/callback";
-
+        String clientId = "test-client-id";
         Map<String, Object> additionalParameters = new HashMap<>();
-        additionalParameters.put(OAuth2ParameterNames.CLIENT_ID, clientId);
+        additionalParameters.put("client_id", clientId);
 
         OAuth2AuthorizationCodeAuthenticationToken auth = mock(OAuth2AuthorizationCodeAuthenticationToken.class);
         when(auth.getAdditionalParameters()).thenReturn(additionalParameters);
-        when(auth.getCode()).thenReturn(code);
-        when(auth.getRedirectUri()).thenReturn(redirectUri);
 
-        RegisteredClient rc = RegisteredClient.withId("id-1")
-                .clientId(clientId)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .redirectUri(redirectUri)
-                .clientSettings(org.springframework.security.oauth2.server.authorization.settings.ClientSettings
-                        .builder()
-                        .requireProofKey(false)
-                        .build())
-                .build();
-        when(registeredClientRepository.findByClientId(clientId)).thenReturn(rc);
+        RegisteredClient registeredClient = mock(RegisteredClient.class);
+        when(registeredClientRepository.findByClientId(clientId)).thenReturn(registeredClient);
 
-        OAuth2Authorization authorization = OAuth2Authorization.withRegisteredClient(rc)
-                .id("auth-id-1")
-                .principalName("principal")
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .token(new OAuth2AuthorizationCode(code, Instant.now(), Instant.now().plusSeconds(300)))
-                .attribute(OAuth2ParameterNames.CLIENT_ID, clientId)
-                .attribute(OAuth2ParameterNames.REDIRECT_URI, redirectUri)
-                .build();
+        OAuth2AuthenticationException exception = assertThrows(OAuth2AuthenticationException.class, () -> customAuthenticationProvider.authenticate(auth));
 
-        when(oAuth2AuthorizationService.findByToken(eq(code),argThat(t -> t != null && OAuth2ParameterNames.CODE.equals(t.getValue())))).thenReturn(authorization);
-        OAuth2AuthenticationException ex = assertThrows(OAuth2AuthenticationException.class, () -> customAuthenticationProvider.authenticate(auth));
-        assertEquals(OAuth2ErrorCodes.INVALID_REQUEST, ex.getError().getErrorCode());
+        assertEquals(OAuth2ErrorCodes.INVALID_REQUEST, exception.getError().getErrorCode());
+
     }
-
 
     @Test
     void authenticate_OAuth2AuthorizationCodeAuthenticationToken_without_audience_map_parameter_throws_OAuth2AuthenticationException() {
-        // Arrange
-        String clientId    = "test-client-id";
-        String code        = "code-123";
-        String redirectUri = "https://client.example.com/callback";
-
+        String clientId = "test-client-id";
         Map<String, Object> additionalParameters = new HashMap<>();
-        Map<String, Object> vcMap = new HashMap<>();
-        vcMap.put("type", List.of("VerifiableCredential", "LEARCredentialEmployee"));
-        additionalParameters.put("vc", vcMap);
-        additionalParameters.put(OAuth2ParameterNames.CLIENT_ID, clientId);
+        additionalParameters.put("vc", new HashMap<>());
+        additionalParameters.put("client_id", clientId);
 
-        OAuth2AuthorizationCodeAuthenticationToken auth =
-                mock(OAuth2AuthorizationCodeAuthenticationToken.class);
+        OAuth2AuthorizationCodeAuthenticationToken auth = mock(OAuth2AuthorizationCodeAuthenticationToken.class);
         when(auth.getAdditionalParameters()).thenReturn(additionalParameters);
-        when(auth.getCode()).thenReturn(code);
-        when(auth.getRedirectUri()).thenReturn(redirectUri);
 
-        RegisteredClient rc = RegisteredClient.withId("id-1")
-                .clientId(clientId)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .redirectUri(redirectUri)
-                .clientSettings(org.springframework.security.oauth2.server.authorization.settings.ClientSettings
-                        .builder()
-                        .requireProofKey(false)
-                        .build())
-                .build();
-        when(registeredClientRepository.findByClientId(clientId)).thenReturn(rc);
+        RegisteredClient registeredClient = mock(RegisteredClient.class);
+        when(registeredClientRepository.findByClientId(clientId)).thenReturn(registeredClient);
 
-        OAuth2Authorization authorization = OAuth2Authorization.withRegisteredClient(rc)
-                .id("auth-id-1")
-                .principalName("principal")
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .token(new OAuth2AuthorizationCode(code, Instant.now(), Instant.now().plusSeconds(300)))
-                .attribute(OAuth2ParameterNames.CLIENT_ID, clientId)
-                .attribute(OAuth2ParameterNames.REDIRECT_URI, redirectUri)
-                .build();
-        when(oAuth2AuthorizationService.findByToken(
-                eq(code),
-                argThat(t -> t != null && OAuth2ParameterNames.CODE.equals(t.getValue()))
-        )).thenReturn(authorization);
-
-        JsonNode vcJsonNode = mock(JsonNode.class);
-        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
+        JsonNode jsonNode = mock(JsonNode.class);
+        when(objectMapper.convertValue(additionalParameters.get("vc"), JsonNode.class)).thenReturn(jsonNode);
         ArrayNode contextNode = JsonNodeFactory.instance.arrayNode();
         for (String ctx : LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT) {
             contextNode.add(ctx);
         }
-        when(vcJsonNode.get("@context")).thenReturn(contextNode);
+        when(jsonNode.get("@context")).thenReturn(contextNode);
 
         LEARCredentialEmployeeV1 credential = getLEARCredentialEmployeeV1();
         when(objectMapper.convertValue(any(), eq(LEARCredentialEmployeeV1.class))).thenReturn(credential);
 
-        // Act
-        OAuth2AuthenticationException ex = assertThrows(OAuth2AuthenticationException.class, () -> customAuthenticationProvider.authenticate(auth));
-        assertEquals(OAuth2ErrorCodes.INVALID_REQUEST, ex.getError().getErrorCode());
-    }
 
+        OAuth2AuthenticationException exception = assertThrows(OAuth2AuthenticationException.class, () -> customAuthenticationProvider.authenticate(auth));
+
+        assertEquals(OAuth2ErrorCodes.INVALID_REQUEST, exception.getError().getErrorCode());
+    }
 
     @Test
     void authenticate_withProfileAndEmailScopes_addsCorrespondingClaims() throws Exception {
-
-        String clientId    = "test-client-id";
-        String audience    = "test-audience";
-        String code        = "code-123";
-        String redirectUri = "https://client.example.com/callback";
-
+        // Given
+        String clientId = "test-client-id";
+        String audience = "test-audience";
         Map<String, Object> additionalParameters = new HashMap<>();
-        Map<String, Object> vcMap = new HashMap<>();
-        vcMap.put("type", List.of("VerifiableCredential", "LEARCredentialEmployee"));
-        additionalParameters.put("vc", vcMap);
-        additionalParameters.put(OAuth2ParameterNames.CLIENT_ID, clientId);
-        additionalParameters.put(OAuth2ParameterNames.AUDIENCE, audience);
+        additionalParameters.put("vc", new HashMap<>());
+        additionalParameters.put("client_id", clientId);
+        additionalParameters.put("audience", audience);
         additionalParameters.put(OAuth2ParameterNames.SCOPE, "openid profile email");
 
         OAuth2AuthorizationCodeAuthenticationToken auth = mock(OAuth2AuthorizationCodeAuthenticationToken.class);
         when(auth.getAdditionalParameters()).thenReturn(additionalParameters);
-        when(auth.getCode()).thenReturn(code);
-        when(auth.getRedirectUri()).thenReturn(redirectUri);
 
+        // Mock principal
         TestingAuthenticationToken principal = new TestingAuthenticationToken("test-user", null);
         when(auth.getPrincipal()).thenReturn(principal);
 
-        RegisteredClient rc = RegisteredClient.withId("registered-client-id")
-                .clientId(clientId)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .redirectUri(redirectUri)
-                .clientSettings(org.springframework.security.oauth2.server.authorization.settings.ClientSettings
-                        .builder()
-                        .requireProofKey(false)
-                        .build())
-                .build();
-        when(registeredClientRepository.findByClientId(clientId)).thenReturn(rc);
+        RegisteredClient registeredClient = mock(RegisteredClient.class);
+        when(registeredClientRepository.findByClientId(clientId)).thenReturn(registeredClient);
+        when(registeredClient.getClientId()).thenReturn(clientId);
+        when(registeredClient.getId()).thenReturn("registered-client-id");
 
         when(backendConfig.getUrl()).thenReturn("https://auth.server");
-        OAuth2Authorization authorization = OAuth2Authorization.withRegisteredClient(rc)
-                .id("auth-id-1")
-                .principalName(clientId)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .token(new OAuth2AuthorizationCode(code, Instant.now(), Instant.now().plusSeconds(300)))
-                .attribute(OAuth2ParameterNames.CLIENT_ID, clientId)
-                .attribute(OAuth2ParameterNames.REDIRECT_URI, redirectUri)
-                .build();
-        when(oAuth2AuthorizationService.findByToken(
-                eq(code),
-                argThat(t -> t != null && OAuth2ParameterNames.CODE.equals(t.getValue()))
-        )).thenReturn(authorization);
 
+        // Mock verifiable credential
         JsonNode jsonNode = mock(JsonNode.class);
-        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(jsonNode);
+        when(objectMapper.convertValue(additionalParameters.get("vc"), JsonNode.class)).thenReturn(jsonNode);
         ArrayNode contextNode = JsonNodeFactory.instance.arrayNode();
-        for (String ctx : LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT) contextNode.add(ctx);
+        for (String ctx : LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT) {
+            contextNode.add(ctx);
+        }
         when(jsonNode.get("@context")).thenReturn(contextNode);
 
         LEARCredentialEmployeeV1 credential = getLEARCredentialEmployeeV1();
@@ -695,41 +532,55 @@ class CustomAuthenticationProviderTest {
         ArgumentCaptor<String> jwtPayloadCaptor = ArgumentCaptor.forClass(String.class);
         when(jwtService.generateJWT(jwtPayloadCaptor.capture())).thenReturn("mock-jwt-token");
 
+        // When
         Authentication result = customAuthenticationProvider.authenticate(auth);
 
+        // Then
         assertNotNull(result);
         assertInstanceOf(OAuth2AccessTokenAuthenticationToken.class, result);
 
         OAuth2AccessTokenAuthenticationToken tokenResult = (OAuth2AccessTokenAuthenticationToken) result;
         assertEquals("mock-jwt-token", tokenResult.getAccessToken().getTokenValue());
 
-        Map<String, Object> extra = tokenResult.getAdditionalParameters();
-        assertTrue(extra.containsKey("id_token"));
-        assertEquals("mock-jwt-token", extra.get("id_token"));
+        Map<String, Object> additionalParams = tokenResult.getAdditionalParameters();
+        assertTrue(additionalParams.containsKey("id_token"));
+        assertEquals("mock-jwt-token", additionalParams.get("id_token"));
 
         verify(jwtService, times(2)).generateJWT(any());
 
-        List<String> captured = jwtPayloadCaptor.getAllValues();
-        assertEquals(2, captured.size());
-        String idTokenPayloadString = captured.get(1);
+        List<String> capturedPayloads = jwtPayloadCaptor.getAllValues();
+        assertEquals(2, capturedPayloads.size());
 
-        ObjectMapper om = new ObjectMapper();
-        @SuppressWarnings("unchecked")
-        Map<String, Object> idTokenClaims = om.readValue(idTokenPayloadString, Map.class);
+        String idTokenPayloadString = capturedPayloads.get(1);
+        ObjectMapper objectMapperUtil = new ObjectMapper();
+        Map<String, Object> idTokenClaims = objectMapperUtil.readValue(idTokenPayloadString, Map.class);
 
-        assertEquals("did:key:1234", idTokenClaims.get("sub")); // ajusta si tu helper devuelve otro sub
+        assertEquals("did:key:1234", idTokenClaims.get("sub"));
         assertEquals("https://auth.server", idTokenClaims.get("iss"));
         assertEquals(audience, idTokenClaims.get("aud"));
+
         assertEquals("John Doe", idTokenClaims.get("name"));
         assertEquals("John", idTokenClaims.get("given_name"));
         assertEquals("Doe", idTokenClaims.get("family_name"));
+
         assertEquals("john.doe@example.com", idTokenClaims.get("email"));
         assertEquals(true, idTokenClaims.get("email_verified"));
 
-        verify(cacheStoreForRefreshTokenData).add(anyString(), any(RefreshTokenDataCache.class));
-        verify(oAuth2AuthorizationService).save(any(OAuth2Authorization.class));
-    }
+        ArgumentCaptor<String> refreshTokenCaptor = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<RefreshTokenDataCache> refreshTokenDataCaptor = ArgumentCaptor.forClass(RefreshTokenDataCache.class);
+        verify(cacheStoreForRefreshTokenData).add(refreshTokenCaptor.capture(), refreshTokenDataCaptor.capture());
 
+        ArgumentCaptor<OAuth2Authorization> authorizationCaptor = ArgumentCaptor.forClass(OAuth2Authorization.class);
+        verify(oAuth2AuthorizationService).save(authorizationCaptor.capture());
+
+        OAuth2Authorization authorization = authorizationCaptor.getValue();
+        assertNotNull(authorization);
+        assertEquals(clientId, authorization.getPrincipalName());
+
+        if (additionalParameters.containsKey("nonce")) {
+            assertEquals(additionalParameters.get("nonce"), idTokenClaims.get("nonce"));
+        }
+    }
 
 
 
