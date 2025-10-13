@@ -80,8 +80,8 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         log.debug("CustomAuthenticationProvider -- handleGrant -- Registered client found: {}", registeredClient);
 
         if (authentication instanceof OAuth2AuthorizationCodeAuthenticationToken authCodeToken) {
-            if (isPublicClient(registeredClient)) {
-                validateAuthorizationCodePkceAndBinding(authCodeToken, clientId);
+            if (isPublicPkceClient(registeredClient)) {
+                validateAuthorizationCodePkce(authCodeToken, clientId);
             } else {
                 log.debug("Omitting redirect+PKCE validation for confidential client '{}'", clientId);
             }
@@ -149,27 +149,25 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         return new OAuth2AccessTokenAuthenticationToken(registeredClient, authentication, oAuth2AccessToken, oAuth2RefreshToken, additionalParameters);
     }
 
-    private boolean isPublicClient(RegisteredClient rc) {
-        return rc != null
-                && rc.getClientAuthenticationMethods().size() == 1
-                && rc.getClientAuthenticationMethods().stream()
-                .anyMatch(m -> m.getValue().equalsIgnoreCase("none"));
+    private boolean isPublicPkceClient(RegisteredClient rc) {
+        if (rc == null) return false;
+        boolean isPublic = rc.getClientAuthenticationMethods().size() == 1
+                && rc.getClientAuthenticationMethods().contains(ClientAuthenticationMethod.NONE);
+        boolean requirePkce = rc.getClientSettings() != null && rc.getClientSettings().isRequireProofKey();
+        return isPublic && requirePkce;
     }
 
-    private void validateAuthorizationCodePkceAndBinding(
-            OAuth2AuthorizationCodeAuthenticationToken authCodeToken,
-            String requestedClientId) {
+
+    private void validateAuthorizationCodePkce(OAuth2AuthorizationCodeAuthenticationToken authCodeToken,String requestedClientId) {
 
         String code = authCodeToken.getCode();
 
         System.out.println("XIVATO1");
 
-        OAuth2Authorization authorization =
-                oAuth2AuthorizationService.findByToken(code, new OAuth2TokenType(OAuth2ParameterNames.CODE));
+        OAuth2Authorization authorization = oAuth2AuthorizationService.findByToken(code, new OAuth2TokenType(OAuth2ParameterNames.CODE));
         if (authorization == null) {
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
         }
-
         System.out.println("XIVATO2");
 
         String storedClientId = authorization.getAttribute(OAuth2ParameterNames.CLIENT_ID);

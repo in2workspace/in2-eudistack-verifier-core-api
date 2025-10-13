@@ -15,6 +15,7 @@ import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
+import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationCode;
@@ -96,9 +97,6 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.UNAUTHORIZED_CLIENT);
         }
 
-        // Preparar datos para binding + PKCE (si existiera)
-        String redirectUriUsed = oAuth2AuthorizationRequest.getRedirectUri();
-        var requestedScopes = oAuth2AuthorizationRequest.getScopes();
 
         var addl = oAuth2AuthorizationRequest.getAdditionalParameters();
         String codeChallenge       = (String) addl.get(PkceParameterNames.CODE_CHALLENGE);
@@ -112,6 +110,9 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
                 .principalName(registeredClient.getClientId())
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .token(new OAuth2AuthorizationCode(code, issueTime, expirationTime))
+                .attribute(OAuth2ParameterNames.CLIENT_ID, registeredClient.getClientId())
+                .attribute(OAuth2ParameterNames.REDIRECT_URI, oAuth2AuthorizationRequest.getRedirectUri())
+                .attribute(OAuth2ParameterNames.SCOPE, String.join(" ", oAuth2AuthorizationRequest.getScopes()))
                 .attribute(OAuth2AuthorizationRequest.class.getName(), oAuth2AuthorizationRequest);
 
         if (org.springframework.util.StringUtils.hasText(codeChallenge)) {
