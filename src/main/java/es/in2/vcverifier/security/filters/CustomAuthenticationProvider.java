@@ -156,60 +156,58 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     }
 
 
-    private void validateAuthorizationCodePkce(OAuth2AuthorizationCodeAuthenticationToken authCodeToken,String requestedClientId) {
-
-        String code = authCodeToken.getCode();
+    private void validateAuthorizationCodePkce(OAuth2AuthorizationCodeAuthenticationToken authCodeToken, String requestedClientId) {
+        final String code = authCodeToken.getCode();
 
         OAuth2Authorization authorization = oAuth2AuthorizationService.findByToken(code, new OAuth2TokenType(OAuth2ParameterNames.CODE));
-        if (authorization == null) {
-            throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
-        }
+        if (authorization == null) invalidGrant();
 
         String storedClientId = authorization.getAttribute(OAuth2ParameterNames.CLIENT_ID);
+        if (!Objects.equals(storedClientId, requestedClientId)) invalidGrant();
 
-        if (!Objects.equals(storedClientId, requestedClientId)) {
-            throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
-        }
-
-        // PKCE
         String storedChallenge = authorization.getAttribute(PkceParameterNames.CODE_CHALLENGE);
         String storedMethod    = authorization.getAttribute(PkceParameterNames.CODE_CHALLENGE_METHOD);
 
-        RegisteredClient rc = registeredClientRepository.findByClientId(storedClientId);
-        boolean requirePkce = rc != null && rc.getClientSettings() != null && rc.getClientSettings().isRequireProofKey();
+        boolean requirePkce = Optional.ofNullable(registeredClientRepository.findByClientId(storedClientId))
+                .map(RegisteredClient::getClientSettings)
+                .map(cs -> cs.isRequireProofKey())
+                .orElse(false);
 
-        if (storedChallenge == null || storedChallenge.isBlank()) {
-            if (requirePkce) {
-                throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
-            }
+        if (!org.springframework.util.StringUtils.hasText(storedChallenge)) {
+            if (requirePkce) invalidGrant();
             return;
         }
 
         String codeVerifier = (String) authCodeToken.getAdditionalParameters().get(PkceParameterNames.CODE_VERIFIER);
-        if (codeVerifier == null || codeVerifier.isBlank()) {
-            throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
+        if (!org.springframework.util.StringUtils.hasText(codeVerifier)) invalidGrant();
+
+        String method = (storedMethod == null ? "S256" : storedMethod).toUpperCase(Locale.ROOT);
+        switch (method) {
+            case "S256" -> {
+                String computed = s256(codeVerifier);
+                if (!computed.equals(storedChallenge)) invalidGrant();
+            }
+            case "PLAIN" -> {
+                if (!codeVerifier.equals(storedChallenge)) invalidGrant();
+            }
+            default -> invalidGrant();
         }
+    }
 
-        if ("S256".equalsIgnoreCase(storedMethod)) {
-            try {
-                byte[] digest = MessageDigest.getInstance("SHA-256")
-                        .digest(codeVerifier.getBytes(StandardCharsets.US_ASCII));
-                String computed = Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
-                if (!computed.equals(storedChallenge)) {
-                    throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
-                }
-            } catch (Exception e) {
-                throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
-            }
+    private static void invalidGrant() {
+        throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
+    }
 
-        } else if ("plain".equalsIgnoreCase(storedMethod)) {
-            if (!codeVerifier.equals(storedChallenge)) {
-                throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
-            }
-        } else {
+    private static String s256(String verifier) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(verifier.getBytes(StandardCharsets.US_ASCII));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+        } catch (Exception e) {
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
         }
     }
+
 
 
     private OAuth2RefreshToken getOAuth2RefreshToken(OAuth2AuthorizationGrantAuthenticationToken authentication, Instant issueTime, String clientId, JsonNode credentialJson, RegisteredClient registeredClient) {

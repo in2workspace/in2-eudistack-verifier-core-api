@@ -1,5 +1,6 @@
 package es.in2.vcverifier.security.filters;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -49,8 +50,6 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.*;
 
 import static es.in2.vcverifier.util.Constants.LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT;
@@ -231,7 +230,7 @@ class CustomAuthenticationProviderTest {
     }
 
     @Test
-    void authenticate_validAuthorizationCodeGrant_withEmployeeCredentialV2_success() throws Exception {
+    void authenticate_validAuthorizationCodeGrant_withEmployeeCredentialV2_success() {
         // Arrange
         String clientId = "test-client-id";
         String audience = "test-audience";
@@ -267,7 +266,11 @@ class CustomAuthenticationProviderTest {
         LEARCredentialEmployeeV2 normalizedLearCredentialEmployeeV2 = getLEARCredentialEmployeeV2();
         when(objectMapper.convertValue(vcJsonNode, LEARCredentialEmployeeV2.class)).thenReturn(normalizedLearCredentialEmployeeV2);
 
-        when(objectMapper.writeValueAsString(normalizedLearCredentialEmployeeV2)).thenReturn("{\"credential\":\"value\"}");
+        try {
+            when(objectMapper.writeValueAsString(normalizedLearCredentialEmployeeV2)).thenReturn("{\"credential\":\"value\"}");
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException(e);
+        }
 
         when(jwtService.generateJWT(anyString())).thenReturn("mock-jwt-token");
 
