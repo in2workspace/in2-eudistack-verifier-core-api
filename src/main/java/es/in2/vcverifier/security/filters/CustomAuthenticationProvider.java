@@ -87,6 +87,8 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
             }
         }
 
+        System.out.println("XIVATO10");
+
         Instant issueTime = Instant.now();
         Instant expirationTime = issueTime.plus(
                 Long.parseLong(ACCESS_TOKEN_EXPIRATION_TIME),
@@ -160,17 +162,23 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 
         String code = authCodeToken.getCode();
 
+        System.out.println("XIVATO1");
+
         OAuth2Authorization authorization =
                 oAuth2AuthorizationService.findByToken(code, new OAuth2TokenType(OAuth2ParameterNames.CODE));
         if (authorization == null) {
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
         }
 
+        System.out.println("XIVATO2");
+
         String storedClientId = authorization.getAttribute(OAuth2ParameterNames.CLIENT_ID);
 
         if (!Objects.equals(storedClientId, requestedClientId)) {
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
         }
+
+        System.out.println("XIVATO3");
 
         // PKCE
         String storedChallenge = authorization.getAttribute(PkceParameterNames.CODE_CHALLENGE);
@@ -181,17 +189,22 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                 && rc.getClientSettings() != null
                 && rc.getClientSettings().isRequireProofKey();
 
+        System.out.println("XIVATO4");
+
         if (storedChallenge == null || storedChallenge.isBlank()) {
             if (requirePkce) {
                 throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
             }
             return;
         }
+        System.out.println("XIVATO5");
 
         String codeVerifier = (String) authCodeToken.getAdditionalParameters().get(PkceParameterNames.CODE_VERIFIER);
         if (codeVerifier == null || codeVerifier.isBlank()) {
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
         }
+
+        System.out.println("XIVATO6");
 
         if ("S256".equalsIgnoreCase(storedMethod)) {
             try {
@@ -204,6 +217,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
             } catch (Exception e) {
                 throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
             }
+            System.out.println("XIVATO7");
         } else if ("plain".equalsIgnoreCase(storedMethod)) {
             if (!codeVerifier.equals(storedChallenge)) {
                 throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
@@ -211,6 +225,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         } else {
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
         }
+        System.out.println("XIVATO8");
     }
 
 
