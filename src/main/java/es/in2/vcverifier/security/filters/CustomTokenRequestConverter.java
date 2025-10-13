@@ -73,7 +73,7 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
         String code = parameters.getFirst(OAuth2ParameterNames.CODE);
         String state = parameters.getFirst(OAuth2ParameterNames.STATE);
         String clientId = parameters.getFirst(OAuth2ParameterNames.CLIENT_ID);
-        // String redirectUri  = parameters.getFirst(OAuth2ParameterNames.REDIRECT_URI); //todo: REVISAR
+        String redirectUri  = parameters.getFirst(OAuth2ParameterNames.REDIRECT_URI); //todo: REVISAR
         String codeVerifier = parameters.getFirst(PkceParameterNames.CODE_VERIFIER);
 
         AuthorizationCodeData authorizationCodeData = cacheStoreForAuthorizationCodeData.get(code);
@@ -106,7 +106,7 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
         }
 
         // Return the authentication token
-        return new OAuth2AuthorizationCodeAuthenticationToken(code, clientPrincipal, null, additionalParameters);
+        return new OAuth2AuthorizationCodeAuthenticationToken(code, clientPrincipal, redirectUri, additionalParameters);
     }
 
     private Authentication handleClientCredentialsGrant(MultiValueMap<String, String> parameters) {
