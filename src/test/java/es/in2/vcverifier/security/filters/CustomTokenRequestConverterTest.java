@@ -86,9 +86,6 @@ class CustomTokenRequestConverterTest {
 
         assertNotNull(result);
         assertInstanceOf(OAuth2AuthorizationCodeAuthenticationToken.class, result);
-
-        verify(cacheStoreForAuthorizationCodeData).delete("code");
-        verify(oAuth2AuthorizationService).remove(authorizationCodeData.oAuth2Authorization());
     }
 
     @Test

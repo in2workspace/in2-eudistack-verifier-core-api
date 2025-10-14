@@ -20,6 +20,7 @@ import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeRequestAuthenticationException;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
@@ -72,12 +73,16 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
         String scope = request.getParameter(OAuth2ParameterNames.SCOPE);
         String redirectUri = request.getParameter(OAuth2ParameterNames.REDIRECT_URI);
         String clientNonce = request.getParameter(NONCE);
+        String codeChallenge = request.getParameter(PkceParameterNames.CODE_CHALLENGE);
+        String codeChallengeMethod = request.getParameter(PkceParameterNames.CODE_CHALLENGE_METHOD);
         AuthorizationContext authorizationContext = AuthorizationContext.builder()
                 .requestUri(requestUri)
                 .state(state)
                 .originalRequestURL(originalRequestURL)
                 .redirectUri(redirectUri)
                 .clientNonce(clientNonce)
+                .codeChallenge(codeChallenge)
+                .codeChallengeMethod(codeChallengeMethod)
                 .scope(scope)
                 .build();
 
@@ -482,9 +487,16 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
         if (nonce != null && !nonce.isBlank()) {
             additionalParameters.put(NONCE, nonce);
         }
+        String codeChallenge = authorizationContext.codeChallenge();
+        if (codeChallenge != null && !codeChallenge.isBlank()) {
+            additionalParameters.put(PkceParameterNames.CODE_CHALLENGE, codeChallenge);
+        }
+        String codeChallengeMethod = authorizationContext.codeChallengeMethod();
+        if (codeChallengeMethod != null && !codeChallengeMethod.isBlank()) {
+            additionalParameters.put(PkceParameterNames.CODE_CHALLENGE_METHOD, codeChallengeMethod);
+        }
+
         builder.additionalParameters(additionalParameters);
-
-
 
         // Build the request
         OAuth2AuthorizationRequest oAuth2AuthorizationRequest = builder.build();

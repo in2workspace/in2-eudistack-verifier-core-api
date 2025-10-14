@@ -30,12 +30,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.core.*;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.authentication.*;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.Principal;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -74,6 +78,14 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 
         RegisteredClient registeredClient = getRegisteredClient(clientId);
         log.debug("CustomAuthenticationProvider -- handleGrant -- Registered client found: {}", registeredClient);
+
+        if (authentication instanceof OAuth2AuthorizationCodeAuthenticationToken authCodeToken) {
+            if (isPublicPkceClient(registeredClient)) {
+                validateAuthorizationCodePkce(authCodeToken, clientId);
+            } else {
+                log.debug("Omitting redirect+PKCE validation for confidential client '{}'", clientId);
+            }
+        }
 
         Instant issueTime = Instant.now();
         Instant expirationTime = issueTime.plus(
@@ -123,8 +135,80 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         }
 
         log.info("Authorization grant successfully processed");
+
+        if (authentication instanceof OAuth2AuthorizationCodeAuthenticationToken authCodeToken) {
+            OAuth2Authorization authToRemove =
+                    oAuth2AuthorizationService.findByToken(authCodeToken.getCode(),
+                            new OAuth2TokenType(OAuth2ParameterNames.CODE));
+            if (authToRemove != null) {
+                oAuth2AuthorizationService.remove(authToRemove);
+            }
+        }
         return new OAuth2AccessTokenAuthenticationToken(registeredClient, authentication, oAuth2AccessToken, oAuth2RefreshToken, additionalParameters);
     }
+
+    private boolean isPublicPkceClient(RegisteredClient rc) {
+        if (rc == null) return false;
+        boolean isPublic = rc.getClientAuthenticationMethods().size() == 1
+                && rc.getClientAuthenticationMethods().contains(ClientAuthenticationMethod.NONE);
+        boolean requirePkce = rc.getClientSettings() != null && rc.getClientSettings().isRequireProofKey();
+        return isPublic && requirePkce;
+    }
+
+
+    private void validateAuthorizationCodePkce(OAuth2AuthorizationCodeAuthenticationToken authCodeToken, String requestedClientId) {
+        final String code = authCodeToken.getCode();
+
+        OAuth2Authorization authorization = oAuth2AuthorizationService.findByToken(code, new OAuth2TokenType(OAuth2ParameterNames.CODE));
+        if (authorization == null) invalidGrant();
+
+        String storedClientId = authorization.getAttribute(OAuth2ParameterNames.CLIENT_ID);
+        if (!Objects.equals(storedClientId, requestedClientId)) invalidGrant();
+
+        String storedChallenge = authorization.getAttribute(PkceParameterNames.CODE_CHALLENGE);
+        String storedMethod    = authorization.getAttribute(PkceParameterNames.CODE_CHALLENGE_METHOD);
+
+        boolean requirePkce = Optional.ofNullable(registeredClientRepository.findByClientId(storedClientId))
+                .map(RegisteredClient::getClientSettings)
+                .map(cs -> cs.isRequireProofKey())
+                .orElse(false);
+
+        if (!org.springframework.util.StringUtils.hasText(storedChallenge)) {
+            if (requirePkce) invalidGrant();
+            return;
+        }
+
+        String codeVerifier = (String) authCodeToken.getAdditionalParameters().get(PkceParameterNames.CODE_VERIFIER);
+        if (!org.springframework.util.StringUtils.hasText(codeVerifier)) invalidGrant();
+
+        String method = (storedMethod == null ? "S256" : storedMethod).toUpperCase(Locale.ROOT);
+        switch (method) {
+            case "S256" -> {
+                String computed = s256(codeVerifier);
+                if (!computed.equals(storedChallenge)) invalidGrant();
+            }
+            case "PLAIN" -> {
+                if (!codeVerifier.equals(storedChallenge)) invalidGrant();
+            }
+            default -> invalidGrant();
+        }
+    }
+
+    private static void invalidGrant() {
+        throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
+    }
+
+    private static String s256(String verifier) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(verifier.getBytes(StandardCharsets.US_ASCII));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+        } catch (Exception e) {
+            throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
+        }
+    }
+
+
 
     private OAuth2RefreshToken getOAuth2RefreshToken(OAuth2AuthorizationGrantAuthenticationToken authentication, Instant issueTime, String clientId, JsonNode credentialJson, RegisteredClient registeredClient) {
         OAuth2RefreshToken oAuth2RefreshToken;
