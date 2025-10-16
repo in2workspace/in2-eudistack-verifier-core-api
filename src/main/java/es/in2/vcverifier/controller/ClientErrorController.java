@@ -35,7 +35,7 @@ public class ClientErrorController {
         model.addAttribute("secondaryContrast", frontendConfig.getSecondaryContrastColor());
         model.addAttribute("faviconSrc", frontendConfig.getFaviconSrc());
         // Return the view name
-        return "client-authentication-error";
+        return "client-authentication-error-" + frontendConfig.getDefaultLang();
     }
 
 }
