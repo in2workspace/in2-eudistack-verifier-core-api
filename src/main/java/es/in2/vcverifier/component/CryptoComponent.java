@@ -7,6 +7,7 @@ import com.nimbusds.jose.jwk.KeyUse;
 import es.in2.vcverifier.config.BackendConfig;
 import es.in2.vcverifier.exception.ECKeyCreationException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.bouncycastle.jce.ECNamedCurveTable;
 import org.bouncycastle.jce.spec.ECParameterSpec;
 import org.bouncycastle.jce.spec.ECPrivateKeySpec;
@@ -21,6 +22,7 @@ import java.security.interfaces.ECPublicKey;
 
 @Configuration
 @RequiredArgsConstructor
+@Slf4j
 public class CryptoComponent {
 
     private final BackendConfig backendConfig;
@@ -46,9 +48,16 @@ public class CryptoComponent {
             // Create the private key spec for secp256r1
             ECPrivateKeySpec privateKeySpec = new ECPrivateKeySpec(privateKeyInt, ecSpec);
             ECPrivateKey privateKey = (ECPrivateKey) keyFactory.generatePrivate(privateKeySpec);
+
+            log.debug("privateKey: {}", privateKey);
             // Generate the public key spec from the private key and curve parameters
             ECPublicKeySpec publicKeySpec = new ECPublicKeySpec(ecSpec.getG().multiply(privateKeyInt), ecSpec);
             ECPublicKey publicKey = (ECPublicKey) keyFactory.generatePublic(publicKeySpec);
+
+            log.debug("publicKey: {}", publicKey);
+            log.debug("Did key: {}", backendConfig.getDidKey());
+
+
             // Build the ECKey using secp256r1 curve (P-256)
             return new ECKey.Builder(Curve.P_256, publicKey)
                     .privateKey(privateKey)
