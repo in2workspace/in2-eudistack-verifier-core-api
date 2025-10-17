@@ -5,6 +5,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [v2.0.0](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.0)
+### Added
+- Get default language from configuration, use it to translate HTML templates.
+
+## [v2.0.0](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.0)
 - New major version to align with the new major version of EUDIStack project.
 
 ## [v1.3.11](https://github.com/in2workspace/in2-verifier-api/releases/tag/v1.3.10)
