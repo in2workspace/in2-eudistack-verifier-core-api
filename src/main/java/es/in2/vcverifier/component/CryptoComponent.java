@@ -48,20 +48,15 @@ public class CryptoComponent {
             // Create the private key spec for secp256r1
             ECPrivateKeySpec privateKeySpec = new ECPrivateKeySpec(privateKeyInt, ecSpec);
             ECPrivateKey privateKey = (ECPrivateKey) keyFactory.generatePrivate(privateKeySpec);
+
+            log.debug("privateKey: {}", privateKey);
             // Generate the public key spec from the private key and curve parameters
             ECPublicKeySpec publicKeySpec = new ECPublicKeySpec(ecSpec.getG().multiply(privateKeyInt), ecSpec);
             ECPublicKey publicKey = (ECPublicKey) keyFactory.generatePublic(publicKeySpec);
 
-            java.security.spec.ECPoint w = publicKey.getW();
-            String xHex = w.getAffineX().toString(16);
-            String yHex = w.getAffineY().toString(16);
-            String priv = backendConfig.getPrivateKey();
-            String masked = priv != null && priv.length()>8 ? "****" + priv.substring(priv.length()-8) : "****";
+            log.debug("publicKey: {}", publicKey);
+            log.debug("Did key: {}", backendConfig.getDidKey());
 
-            log.debug("DID key: {}", backendConfig.getDidKey());
-            log.debug("Public X (hex): 0x{}", xHex);
-            log.debug("Public Y (hex): 0x{}", yHex);
-            log.debug("Private (masked): {}", masked);
 
             // Build the ECKey using secp256r1 curve (P-256)
             return new ECKey.Builder(Curve.P_256, publicKey)
