@@ -74,6 +74,8 @@ verifier:
     logoSrc:
     # Placeholder for favicon source path (OPTIONAL)
     faviconSrc:
+    # Default language for visible texts (OPTIONAL)
+    defaultLang: en
   backend:
     # Placeholder for backend URL (REQUIRED)
     url:

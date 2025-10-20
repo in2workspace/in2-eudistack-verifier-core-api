@@ -55,6 +55,7 @@ class LoginQrControllerTest {
         when(frontendConfig.getSecondaryContrastColor()).thenReturn("#000000");
         when(frontendConfig.getLogoSrc()).thenReturn("img/no-image.png");
         when(frontendConfig.getFaviconSrc()).thenReturn("img/favicon.ico");
+        when(frontendConfig.getDefaultLang()).thenReturn("en");
 
         try (MockedStatic<QRCode> qrCodeMock = Mockito.mockStatic(QRCode.class)) {
             QRCode qrCodeInstance = mock(QRCode.class);
@@ -66,7 +67,7 @@ class LoginQrControllerTest {
             String viewName = loginQrController.showQrLogin(authRequest, state, model, homeUri);
 
             // Then
-            assertEquals("login", viewName);
+            assertEquals("login-en", viewName);
 
             verify(model).addAttribute("qrImage", "data:image/png;base64," + Base64.getEncoder().encodeToString(qrBytes));
             verify(model).addAttribute("authRequest", authRequest);

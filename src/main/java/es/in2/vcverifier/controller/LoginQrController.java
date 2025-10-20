@@ -49,7 +49,7 @@ public class LoginQrController {
         } catch (Exception e) {
             throw new QRCodeGenerationException(e.getMessage());
         }
-        return "login";
+        return "login-" + frontendConfig.getDefaultLang();
     }
 
     private String generateQRCodeImageBase64(String barcodeText) {

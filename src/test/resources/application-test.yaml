@@ -11,6 +11,7 @@ verifier:
       primaryContrast: "#FFFFFF"
       secondary: "#00ADD3"
       secondaryContrast: "#000000"
+    defaultLang: "en"
   backend:
     # Placeholder for backend URL (REQUIRED)
     url: "https://raw.githubusercontent.com"

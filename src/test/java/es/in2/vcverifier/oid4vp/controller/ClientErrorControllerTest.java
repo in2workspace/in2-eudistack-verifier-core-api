@@ -29,6 +29,7 @@ class ClientErrorControllerTest {
     private static final String SECONDARY_COLOR = "#00ADD3";
     private static final String SECONDARY_CONTRAST_COLOR = "#000000";
     private static final String FAVICON_SRC = "faviconSrcValue";
+    private static final String DEFAULT_LANG = "en";
 
 
     @Test
@@ -47,12 +48,13 @@ class ClientErrorControllerTest {
         when(frontendConfig.getSecondaryColor()).thenReturn(SECONDARY_COLOR);
         when(frontendConfig.getSecondaryContrastColor()).thenReturn(SECONDARY_CONTRAST_COLOR);
         when(frontendConfig.getFaviconSrc()).thenReturn(FAVICON_SRC);
+        when(frontendConfig.getDefaultLang()).thenReturn(DEFAULT_LANG);
 
         // Act
         String viewName = clientErrorController.showErrorPage(errorCode, errorMessage, clientUrl, originalRequestURL ,model);
 
         // Assert
-        assertEquals("client-authentication-error", viewName);
+        assertEquals("client-authentication-error-en", viewName);
 
         verify(model).addAttribute("errorCode", errorCode);
         verify(model).addAttribute("errorMessage", errorMessage);
@@ -75,12 +77,13 @@ class ClientErrorControllerTest {
         String clientUrl = "https://client.example.com";
         String originalRequestURL = "https://original.example.com";
         when(frontendConfig.getSupportUrl()).thenReturn(null);
+        when(frontendConfig.getDefaultLang()).thenReturn(DEFAULT_LANG);
 
         // Act
         String viewName = clientErrorController.showErrorPage(errorCode, errorMessage, clientUrl, originalRequestURL, model);
 
         // Assert
-        assertEquals("client-authentication-error", viewName);
+        assertEquals("client-authentication-error-en", viewName);
 
         verify(model).addAttribute("errorCode", errorCode);
         verify(model).addAttribute("errorMessage", errorMessage);
@@ -95,12 +98,13 @@ class ClientErrorControllerTest {
         String supportUri = "https://support.example.com";
 
         when(frontendConfig.getSupportUrl()).thenReturn(supportUri);
+        when(frontendConfig.getDefaultLang()).thenReturn(DEFAULT_LANG);
 
         // Act
         String viewName = clientErrorController.showErrorPage(null, null, null, null,model);
 
         // Assert
-        assertEquals("client-authentication-error", viewName);
+        assertEquals("client-authentication-error-en", viewName);
 
         verify(model).addAttribute("errorCode", null);
         verify(model).addAttribute("errorMessage", null);
