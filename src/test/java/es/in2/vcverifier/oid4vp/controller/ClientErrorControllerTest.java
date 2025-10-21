@@ -32,7 +32,6 @@ class ClientErrorControllerTest {
     private static final String SECONDARY_COLOR = "#00ADD3";
     private static final String SECONDARY_CONTRAST_COLOR = "#000000";
     private static final String FAVICON_SRC = "faviconSrcValue";
-    private static final String DEFAULT_LANG = "en";
 
     @Test
     void showErrorPage_withValidParameters_shouldReturnViewNameAndAddAttributesToModel() {
@@ -42,7 +41,7 @@ class ClientErrorControllerTest {
         String clientUrl = "https://client.example.com";
         String supportUri = "https://support.example.com";
         String originalRequestURL = "https://original.example.com";
-        Locale locale = Locale.forLanguageTag("es"); // not used by controller, fallback uses defaultLang
+        Locale locale = Locale.forLanguageTag("es");
 
         when(frontendConfig.getSupportUrl()).thenReturn(supportUri);
         when(frontendConfig.getPrimaryColor()).thenReturn(PRIMARY_COLOR);
@@ -50,7 +49,6 @@ class ClientErrorControllerTest {
         when(frontendConfig.getSecondaryColor()).thenReturn(SECONDARY_COLOR);
         when(frontendConfig.getSecondaryContrastColor()).thenReturn(SECONDARY_CONTRAST_COLOR);
         when(frontendConfig.getFaviconSrc()).thenReturn(FAVICON_SRC);
-        when(frontendConfig.getDefaultLang()).thenReturn(DEFAULT_LANG);
 
         // Act
         String viewName = clientErrorController.showErrorPage(
@@ -58,7 +56,7 @@ class ClientErrorControllerTest {
         );
 
         // Assert
-        assertEquals("client-authentication-error-en", viewName);
+        assertEquals("client-authentication-error-es", viewName);
 
         verify(model).addAttribute("errorCode", errorCode);
         verify(model).addAttribute("errorMessage", errorMessage);
@@ -85,7 +83,6 @@ class ClientErrorControllerTest {
         Locale locale = Locale.forLanguageTag("en");
 
         when(frontendConfig.getSupportUrl()).thenReturn(null);
-        when(frontendConfig.getDefaultLang()).thenReturn(DEFAULT_LANG);
 
         // Act
         String viewName = clientErrorController.showErrorPage(
@@ -109,7 +106,6 @@ class ClientErrorControllerTest {
         Locale locale = Locale.forLanguageTag("fr");
 
         when(frontendConfig.getSupportUrl()).thenReturn(supportUri);
-        when(frontendConfig.getDefaultLang()).thenReturn(DEFAULT_LANG);
 
         // Act
         String viewName = clientErrorController.showErrorPage(
@@ -117,7 +113,7 @@ class ClientErrorControllerTest {
         );
 
         // Assert
-        assertEquals("client-authentication-error-en", viewName);
+        assertEquals("client-authentication-error-fr", viewName);
 
         verify(model).addAttribute("errorCode", null);
         verify(model).addAttribute("errorMessage", null);

@@ -12,7 +12,7 @@ import org.springframework.ui.Model;
 
 import java.util.Locale;
 
-@Slf4j
+
 @Controller
 @RequiredArgsConstructor
 public class ClientErrorController {
@@ -40,9 +40,8 @@ public class ClientErrorController {
         model.addAttribute("secondaryContrast", frontendConfig.getSecondaryContrastColor());
         model.addAttribute("faviconSrc", frontendConfig.getFaviconSrc());
         // Return the view name
-        log.info("Browser requested locale: {}", locale);
         String language = locale.getLanguage().toLowerCase();
-        return "client-authentication-error-" + frontendConfig.getDefaultLang();
+        return "client-authentication-error-" + language;
     }
 
 }
