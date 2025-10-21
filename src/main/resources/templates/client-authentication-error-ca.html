@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<html xmlns:th="http://www.thymeleaf.org" lang="ca">
 <head>
     <meta charset="UTF-8">
-    <title>Error de autenticación</title>
+    <title>Error d'autenticació</title>
     <link href="https://fonts.googleapis.com/css2?family=Blinker:wght@100;200;300;400;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="icon" th:href="@{/img/{file}(file=${faviconSrc})}" type="image/png">
@@ -112,7 +112,7 @@
 
         .copy-icon {
             margin: 0;
-            font-size: 1.3rem; /* Slightly larger icon size */
+            font-size: 1.3rem;
         }
 
         .help {
@@ -133,20 +133,20 @@
 </head>
 <body>
 <div class="container">
-    <div class="title">Error de Autenticación</div>
+    <div class="title">Error d'autenticació</div>
     <div class="error-message" th:text="${errorMessage}">
-        El alcance solicitado no contiene 'learcredential'. Actualmente, solo admitimos este alcance y 'email', 'profile' como opcionales.
+        L'abast sol·licitat no conté 'learcredential'. Actualment només admetem aquest abast i 'email', 'profile' com a opcionals.
     </div>
     <div class="info-box">
         <div class="info-box-content">
             <div class="info-box-item">
-                <p><strong>Código de Error</strong>: <span th:text="${errorCode}">627d4af8-2ea8-4069-b3c2-b3fdaae3958d</span></p>
+                <p><strong>Codi d'error</strong>: <span th:text="${errorCode}">627d4af8-2ea8-4069-b3c2-b3fdaae3958d</span></p>
             </div>
             <div class="info-box-item">
-                <p><strong>Cliente</strong>: <span th:text="${clientUrl}">a2ef4ab9-737d-485f-85bb-278764e7088b</span></p>
+                <p><strong>Client</strong>: <span th:text="${clientUrl}">a2ef4ab9-737d-485f-85bb-278764e7088b</span></p>
             </div>
             <div class="info-box-item">
-                <p><strong>Solicitud Original</strong>: <span class="shortened-url" th:utext="${originalRequestURL}">http://localhost:9000/oidc/authorize?...</span></p>
+                <p><strong>Sol·licitud original</strong>: <span class="shortened-url" th:utext="${originalRequestURL}">http://localhost:9000/oidc/authorize?...</span></p>
             </div>
         </div>
         <div class="copy-button" onclick="copyInfoBoxToClipboard()">
@@ -154,7 +154,7 @@
         </div>
     </div>
     <div class="help">
-        ¿Necesitas ayuda? <a th:href="${supportUri}">Contáctanos</a> y proporciónanos la información anterior para que podamos asistirte.
+        Necessites ajuda? <a th:href="${supportUri}">Contacta'ns</a> i proporciona'ns la informació anterior perquè et puguem ajudar.
     </div>
 </div>
 
@@ -171,7 +171,7 @@
         const clientUrl = document.querySelector('.info-box-item:nth-child(2) span').innerText;
 
         // Concatenating all the information to copy
-        const fullText = `Código de Error: ${errorCode}\nCliente: ${clientUrl}\nSolicitud Original: ${originalUrl}`;
+        const fullText = `Codi d'error: ${errorCode}\nClient: ${clientUrl}\nSol·licitud original: ${originalUrl}`;
 
         // Copy to clipboard
         navigator.clipboard.writeText(fullText).then(() => {

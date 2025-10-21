@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<html lang="ca" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="utf-8" />
-    <title>Verificador de Credenciales</title>
+    <title>Verificador de Credencials</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#919597">
 
@@ -322,35 +322,35 @@
 </head>
 <body>
 <div class="header">
-    <img th:src="@{/img/{file}(file=${logoSrc})}" alt="Logotipo" th:attr="onclick='window.location.href = \'' + ${homeUri} + '\''" style="cursor: pointer;">
+    <img th:src="@{/img/{file}(file=${logoSrc})}" alt="Logotip" th:attr="onclick='window.location.href = \'' + ${homeUri} + '\''" style="cursor: pointer;">
 </div>
 <div class="page">
     <div class="container">
         <div class="registration-card">
-            <h3>Tu organización debe estar registrada en el Marketplace antes de iniciar sesión.</h3>
+            <h3>La teva organització ha d’estar registrada al Marketplace abans d’iniciar sessió.</h3>
             <button th:attr="onclick='window.location.href = \'' + ${onboardingUri} + '\''">
-                Registro
+                Registre
             </button>
         </div>
         <div class="card qr-card">
             <div class="qr-card-content">
                 <div class="instructions">
-                    <h1 class="instructions-title">Instrucciones de inicio de sesión:</h1>
+                    <h1 class="instructions-title">Instruccions d’inici de sessió:</h1>
                     <ol>
-                        <li>Debes iniciar sesión en una EUDI Wallet o en una <a th:href="${walletUri}">DOME Wallet</a> utilizando tu teléfono móvil.</li>
-                        <li>Escanea el código QR.</li>
-                        <li>Selecciona la credencial LEAR obtenida tras el proceso de registro.</li>
+                        <li>Has d’iniciar sessió en una EUDI Wallet o en una <a th:href="${walletUri}">DOME Wallet</a> utilitzant el teu telèfon mòbil.</li>
+                        <li>Escaneja el codi QR.</li>
+                        <li>Selecciona la credencial LEAR obtinguda després del procés de registre.</li>
                     </ol>
                 </div>
                 <div class="qr-container">
                     <div id="qr-frame" class="qr-frame">
-                        <img id="qr-code" class="qr-image" th:src="${qrImage}" alt="Código QR">
+                        <img id="qr-code" class="qr-image" th:src="${qrImage}" alt="Codi QR">
                     </div>
                     <div id="qr-title" class="qr-title additional-element">
-                        Escanea el código QR con tu EUDI Wallet o DOME Wallet para iniciar sesión
+                        Escaneja el codi QR amb la teva EUDI Wallet o DOME Wallet per iniciar sessió
                     </div>
                     <div id="same-device-title" class="additional-element" style="display: none;">
-                        <h3>Inicio de sesión desde el mismo dispositivo</h3>
+                        <h3>Inici de sessió des del mateix dispositiu</h3>
                     </div>
                     <button id="dome-wallet-button" class="action-button" style="display: none;">
                         <i class="fa-solid fa-wallet"></i>
@@ -360,15 +360,29 @@
             </div>
         </div>
         <div class="support-card">
-            <span>¿Tienes problemas para iniciar sesión?</span>
+            <span>Tens problemes per iniciar sessió?</span>
             <div class="help-container">
                 <i class="fa-solid fa-wrench"></i>
-                <span class="help">Obtén ayuda del <a th:href="${supportUri}">servicio de soporte</a></span>
+                <span class="help">Obtén ajuda del <a th:href="${supportUri}">servei de suport</a></span>
             </div>
         </div>
     </div>
 </div>
 <!-- Pass Java variables to JavaScript -->
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    let homeUri = /*[[${homeUri}]]*/ "";
+    let authRequest = /*[[${authRequest}]]*/ "";
+    let state = /*[[${state}]]*/ "";
+    let timeUnit = /*[[${cronUnit}]]*/ "SECONDS";
+    let timeValue = parseInt(/*[[${expiration}]]*/ "120");
+    /*]]>*/
+</script>
+<script src="https://cdn.jsdelivr.net/sockjs/latest/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+<!-- Integrated JavaScript -->
+
 <script th:inline="javascript">
     /*<![CDATA[*/
     let homeUri = /*[[${homeUri}]]*/ "";
