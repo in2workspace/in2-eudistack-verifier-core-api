@@ -6,7 +6,6 @@ import static es.in2.vcverifier.util.Constants.LOGIN_TIMEOUT_CHRONO_UNIT;
 import es.in2.vcverifier.config.FrontendConfig;
 import es.in2.vcverifier.exception.QRCodeGenerationException;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import net.glxn.qrgen.javase.QRCode;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Controller;
