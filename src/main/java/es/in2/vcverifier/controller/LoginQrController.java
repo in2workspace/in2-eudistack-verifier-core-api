@@ -19,7 +19,6 @@ import java.io.ByteArrayOutputStream;
 import java.util.Base64;
 import java.util.Locale;
 
-@Slf4j
 @Controller
 @RequiredArgsConstructor
 public class LoginQrController {
@@ -53,7 +52,6 @@ public class LoginQrController {
         } catch (Exception e) {
             throw new QRCodeGenerationException(e.getMessage());
         }
-        log.info("Browser requested locale: {}", locale);
         String language = locale.getLanguage().toLowerCase();
         return "login-" + language;
     }

@@ -10,7 +10,6 @@ import java.util.List;
 import java.util.Locale;
 import org.springframework.web.servlet.LocaleResolver;
 
-@Slf4j
 @Configuration
 public class I18nConfig implements WebMvcConfigurer {
     @Bean
@@ -21,8 +20,6 @@ public class I18nConfig implements WebMvcConfigurer {
                 Locale.forLanguageTag("es"),
                 Locale.forLanguageTag("ca")
         ));
-
-        log.info("FrontendConfig defaultLang: {}", frontendConfig.getDefaultLang());
 
         r.setDefaultLocale(Locale.forLanguageTag(frontendConfig.getDefaultLang()));
         return r;
