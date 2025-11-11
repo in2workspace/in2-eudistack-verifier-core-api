@@ -337,7 +337,7 @@
                 <div class="instructions">
                     <h1 class="instructions-title">Instruccions d’inici de sessió:</h1>
                     <ol>
-                        <li>Has d’iniciar sessió en una EUDI Wallet o en una <a th:href="${walletUri}">DOME Wallet</a> utilitzant el teu telèfon mòbil.</li>
+                        <li>Has d’iniciar sessió en una EUDI Wallet o en el nostre<a th:href="${walletUri}">Wallet Digital</a> utilitzant el teu telèfon mòbil.</li>
                         <li>Escaneja el codi QR.</li>
                         <li>Selecciona la credencial LEAR obtinguda després del procés de registre.</li>
                     </ol>
@@ -347,14 +347,14 @@
                         <img id="qr-code" class="qr-image" th:src="${qrImage}" alt="Codi QR">
                     </div>
                     <div id="qr-title" class="qr-title additional-element">
-                        Escaneja el codi QR amb la teva EUDI Wallet o DOME Wallet per iniciar sessió
+                        Escaneja el codi QR amb la teva EUDI Wallet o Wallet Digital per iniciar sessió
                     </div>
                     <div id="same-device-title" class="additional-element" style="display: none;">
                         <h3>Inici de sessió des del mateix dispositiu</h3>
                     </div>
-                    <button id="dome-wallet-button" class="action-button" style="display: none;">
+                    <button id="tenant-wallet-button" class="action-button" style="display: none;">
                         <i class="fa-solid fa-wallet"></i>
-                        DOME Wallet
+                        Wallet Digital
                     </button>
                 </div>
             </div>
@@ -403,7 +403,7 @@
         document.getElementById('qr-title').style.display = 'none';
         document.getElementById('qr-code').style.display = 'none';
         document.getElementById('same-device-title').style.display = 'block';
-        document.getElementById('dome-wallet-button').style.display = 'flex';
+        document.getElementById('tenant-wallet-button').style.display = 'flex';
     }
 
     // Function to switch to QR login flow
@@ -412,13 +412,13 @@
         document.getElementById('qr-title').style.display = 'block';
         document.getElementById('qr-code').style.display = 'block';
         document.getElementById('same-device-title').style.display = 'none';
-        document.getElementById('dome-wallet-button').style.display = 'none';
+        document.getElementById('tenant-wallet-button').style.display = 'none';
     }
 
     // Function to configure the wallet button with the authRequest URL
     function configureAuthRequest() {
         console.log('Configuring auth request'); // Log for debugging
-        const walletButton = document.getElementById('dome-wallet-button');
+        const walletButton = document.getElementById('tenant-wallet-button');
         if (authRequest) {
             let walletUri = authRequest.replace("openid4vp://", "https://wallet.dome-marketplace.org");
             walletButton.onclick = () => {
