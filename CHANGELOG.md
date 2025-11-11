@@ -8,7 +8,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - Remove hardcoded visible "DOME" references in UI.
 
-
 ## [v2.0.3](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.3)
 ### Changed
 - For frontend pages, set language from Accept-Language header before using default language.
