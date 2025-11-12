@@ -9,6 +9,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.ui.Model;
 
+import java.util.Locale;
+
+
 @Controller
 @RequiredArgsConstructor
 public class ClientErrorController {
@@ -21,6 +24,7 @@ public class ClientErrorController {
                                 @RequestParam("errorMessage") String errorMessage,
                                 @RequestParam("clientUrl") String clientUrl,
                                 @RequestParam("originalRequestURL") String originalRequestURL,
+                                Locale locale,
                                 Model model) {
         // Add attributes to the model
         model.addAttribute("errorCode", errorCode);
@@ -34,8 +38,10 @@ public class ClientErrorController {
         model.addAttribute("secondary", frontendConfig.getSecondaryColor());
         model.addAttribute("secondaryContrast", frontendConfig.getSecondaryContrastColor());
         model.addAttribute("faviconSrc", frontendConfig.getFaviconSrc());
+
         // Return the view name
-        return "client-authentication-error";
+        String language = locale.getLanguage().toLowerCase();
+        return "client-authentication-error-" + language;
     }
 
 }

@@ -46,6 +46,8 @@ public class FrontendConfig {
         return defaultIfBlank(properties.faviconSrc(), "dome_logo_favicon.png");
     }
 
+    public String getDefaultLang() { return defaultIfBlank(properties.defaultLang(), "en"); }
+
     private String defaultIfBlank(String value, String defaultValue) {
         return (value == null || value.trim().isEmpty()) ? defaultValue : value;
     }

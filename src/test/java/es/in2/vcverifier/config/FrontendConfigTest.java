@@ -37,6 +37,7 @@ class FrontendConfigImplTest {
         assertThat(frontendConfig.getSecondaryColor()).isEqualTo("#14274A");
         assertThat(frontendConfig.getSecondaryContrastColor()).isEqualTo("#00ADD3");
         assertThat(frontendConfig.getFaviconSrc()).isEqualTo("dome_logo_favicon.png");
+        assertThat(frontendConfig.getDefaultLang()).isEqualTo("en");
     }
 
     @Test
@@ -48,6 +49,7 @@ class FrontendConfigImplTest {
         when(frontendProperties.colors()).thenReturn(colors);
         when(frontendProperties.logoSrc()).thenReturn("custom_logo.png");
         when(frontendProperties.faviconSrc()).thenReturn("custom_favicon.ico");
+        when(frontendProperties.defaultLang()).thenReturn("en");
         when(colors.primary()).thenReturn("#123456");
         when(colors.primaryContrast()).thenReturn("#654321");
         when(colors.secondary()).thenReturn("#abcdef");
@@ -58,6 +60,7 @@ class FrontendConfigImplTest {
         assertThat(frontendConfig.getSecondaryColor()).isEqualTo("#abcdef");
         assertThat(frontendConfig.getSecondaryContrastColor()).isEqualTo("#fedcba");
         assertThat(frontendConfig.getFaviconSrc()).isEqualTo("custom_favicon.ico");
+        assertThat(frontendConfig.getDefaultLang()).isEqualTo("en");
         assertThat(frontendConfig.getLogoSrc()).isEqualTo("custom_logo.png");
     }
 

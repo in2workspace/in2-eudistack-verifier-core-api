@@ -16,15 +16,11 @@ import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV
 import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV2;
 import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV3;
 import es.in2.vcverifier.model.credentials.lear.employee.subject.CredentialSubjectV2;
-import es.in2.vcverifier.model.credentials.lear.employee.subject.CredentialSubjectV3;
 import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.MandateV2;
-import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.MandateV3;
 import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.mandatee.MandateeV2;
-import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.mandatee.MandateeV3;
-import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.mandator.MandatorV3;
 import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.power.PowerV2;
-import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.power.PowerV3;
 import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachineV1;
+import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachineV2;
 import es.in2.vcverifier.model.enums.LEARCredentialType;
 import es.in2.vcverifier.service.JWTService;
 import lombok.RequiredArgsConstructor;
@@ -34,12 +30,16 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.core.*;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
+import org.springframework.security.oauth2.server.authorization.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.authentication.*;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.security.Principal;
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -79,6 +79,14 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         RegisteredClient registeredClient = getRegisteredClient(clientId);
         log.debug("CustomAuthenticationProvider -- handleGrant -- Registered client found: {}", registeredClient);
 
+        if (authentication instanceof OAuth2AuthorizationCodeAuthenticationToken authCodeToken) {
+            if (isPublicPkceClient(registeredClient)) {
+                validateAuthorizationCodePkce(authCodeToken, clientId);
+            } else {
+                log.debug("Omitting redirect+PKCE validation for confidential client '{}'", clientId);
+            }
+        }
+
         Instant issueTime = Instant.now();
         Instant expirationTime = issueTime.plus(
                 Long.parseLong(ACCESS_TOKEN_EXPIRATION_TIME),
@@ -87,11 +95,14 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         log.debug("CustomAuthenticationProvider -- handleGrant -- Issue time: {}, Expiration time: {}", issueTime, expirationTime);
 
         JsonNode credentialJson = getJsonCredential(authentication);
+
         LEARCredential credential = getVerifiableCredential(authentication, credentialJson);
+
         String subject = credential.mandateeId();
         log.debug("CustomAuthenticationProvider -- handleGrant -- Credential subject obtained: {}", subject);
 
         String audience = getAudience(authentication, credential);
+
         log.debug("CustomAuthenticationProvider -- handleGrant -- Audience for credential: {}", audience);
 
         String jwtToken = generateAccessTokenWithVc(credential, issueTime, expirationTime, subject, audience);
@@ -124,8 +135,80 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         }
 
         log.info("Authorization grant successfully processed");
+
+        if (authentication instanceof OAuth2AuthorizationCodeAuthenticationToken authCodeToken) {
+            OAuth2Authorization authToRemove =
+                    oAuth2AuthorizationService.findByToken(authCodeToken.getCode(),
+                            new OAuth2TokenType(OAuth2ParameterNames.CODE));
+            if (authToRemove != null) {
+                oAuth2AuthorizationService.remove(authToRemove);
+            }
+        }
         return new OAuth2AccessTokenAuthenticationToken(registeredClient, authentication, oAuth2AccessToken, oAuth2RefreshToken, additionalParameters);
     }
+
+    private boolean isPublicPkceClient(RegisteredClient rc) {
+        if (rc == null) return false;
+        boolean isPublic = rc.getClientAuthenticationMethods().size() == 1
+                && rc.getClientAuthenticationMethods().contains(ClientAuthenticationMethod.NONE);
+        boolean requirePkce = rc.getClientSettings() != null && rc.getClientSettings().isRequireProofKey();
+        return isPublic && requirePkce;
+    }
+
+
+    private void validateAuthorizationCodePkce(OAuth2AuthorizationCodeAuthenticationToken authCodeToken, String requestedClientId) {
+        final String code = authCodeToken.getCode();
+
+        OAuth2Authorization authorization = oAuth2AuthorizationService.findByToken(code, new OAuth2TokenType(OAuth2ParameterNames.CODE));
+        if (authorization == null) invalidGrant();
+
+        String storedClientId = authorization.getAttribute(OAuth2ParameterNames.CLIENT_ID);
+        if (!Objects.equals(storedClientId, requestedClientId)) invalidGrant();
+
+        String storedChallenge = authorization.getAttribute(PkceParameterNames.CODE_CHALLENGE);
+        String storedMethod    = authorization.getAttribute(PkceParameterNames.CODE_CHALLENGE_METHOD);
+
+        boolean requirePkce = Optional.ofNullable(registeredClientRepository.findByClientId(storedClientId))
+                .map(RegisteredClient::getClientSettings)
+                .map(cs -> cs.isRequireProofKey())
+                .orElse(false);
+
+        if (!org.springframework.util.StringUtils.hasText(storedChallenge)) {
+            if (requirePkce) invalidGrant();
+            return;
+        }
+
+        String codeVerifier = (String) authCodeToken.getAdditionalParameters().get(PkceParameterNames.CODE_VERIFIER);
+        if (!org.springframework.util.StringUtils.hasText(codeVerifier)) invalidGrant();
+
+        String method = (storedMethod == null ? "S256" : storedMethod).toUpperCase(Locale.ROOT);
+        switch (method) {
+            case "S256" -> {
+                String computed = s256(codeVerifier);
+                if (!computed.equals(storedChallenge)) invalidGrant();
+            }
+            case "PLAIN" -> {
+                if (!codeVerifier.equals(storedChallenge)) invalidGrant();
+            }
+            default -> invalidGrant();
+        }
+    }
+
+    private static void invalidGrant() {
+        throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
+    }
+
+    private static String s256(String verifier) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256")
+                    .digest(verifier.getBytes(StandardCharsets.US_ASCII));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
+        } catch (Exception e) {
+            throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_GRANT);
+        }
+    }
+
+
 
     private OAuth2RefreshToken getOAuth2RefreshToken(OAuth2AuthorizationGrantAuthenticationToken authentication, Instant issueTime, String clientId, JsonNode credentialJson, RegisteredClient registeredClient) {
         OAuth2RefreshToken oAuth2RefreshToken;
@@ -181,11 +264,11 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     }
 
     private LEARCredential getVerifiableCredential(OAuth2AuthorizationGrantAuthenticationToken authentication, JsonNode verifiableCredential) {
+        List<String> contextList = extractContextFromJson(verifiableCredential);
         if (authentication instanceof OAuth2AuthorizationCodeAuthenticationToken ||
                 authentication instanceof OAuth2RefreshTokenAuthenticationToken) {
 
             // Extract and validate the '@context' field from the JsonNode
-            List<String> contextList = extractContextFromJson(verifiableCredential);
 
             if (contextList.equals(LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT)) {
                 return objectMapper.convertValue(verifiableCredential, LEARCredentialEmployeeV1.class);
@@ -203,7 +286,11 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                         null));
             }
         } else if (authentication instanceof OAuth2ClientCredentialsAuthenticationToken) {
-            return objectMapper.convertValue(verifiableCredential, LEARCredentialMachineV1.class);
+            if (contextList.equals(LEAR_CREDENTIAL_MACHINE_V2_CONTEXT)){
+                return objectMapper.convertValue(verifiableCredential, LEARCredentialMachineV2.class);
+            }else{
+                return objectMapper.convertValue(verifiableCredential, LEARCredentialMachineV1.class);
+            }
         }
         throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_REQUEST);
     }
@@ -233,7 +320,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 
     private String getAudience(OAuth2AuthorizationGrantAuthenticationToken authentication, LEARCredential credential) {
         // Extract the audience based on the type of credential
-        if (credential instanceof LEARCredentialMachineV1) {
+        if (credential instanceof LEARCredentialMachineV1 || credential instanceof LEARCredentialMachineV2) {
             return backendConfig.getUrl();
         } else if (credential instanceof LEARCredentialEmployeeV1 || credential instanceof LEARCredentialEmployeeV2 || credential instanceof LEARCredentialEmployeeV3) {
             // Get the audience from the additional parameters
@@ -262,9 +349,10 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                 .claim(OAuth2ParameterNames.SCOPE, getScope(learCredential))
                 .claim(CLIENT_ID, backendConfig.getUrl());
 
+
         List<String> credentialTypes = learCredential.type();
+        List<String> context = learCredential.context();
         if (credentialTypes.contains(LEARCredentialType.LEAR_CREDENTIAL_EMPLOYEE.getValue())) {
-            List<String> context = learCredential.context();
             if (context.equals(LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT)) {
                 LEARCredentialEmployeeV1 credential = objectMapper.convertValue(learCredential, LEARCredentialEmployeeV1.class);
                 Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
@@ -281,9 +369,15 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                 throw new InvalidCredentialTypeException("Unknown LEARCredentialEmployee version: " + context);
             }
         } else if (credentialTypes.contains(LEARCredentialType.LEAR_CREDENTIAL_MACHINE.getValue())) {
-            LEARCredentialMachineV1 credential = (LEARCredentialMachineV1) learCredential;
-            Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
-            claimsBuilder.claim("vc", credentialData);
+            if (context.equals(LEAR_CREDENTIAL_MACHINE_V2_CONTEXT)){
+                LEARCredentialMachineV2 credential = (LEARCredentialMachineV2) learCredential;
+                Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
+                claimsBuilder.claim("vc", credentialData);
+            }else{
+                LEARCredentialMachineV1 credential = (LEARCredentialMachineV1) learCredential;
+                Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
+                claimsBuilder.claim("vc", credentialData);
+            }
         } else {
             throw new InvalidCredentialTypeException("Unsupported credential type: " + credentialTypes);
         }
@@ -363,12 +457,12 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     private Map<String, Object> extractClaimsFromVerifiableCredential(LEARCredential learCredential) {
         Map<String, Object> claims = new HashMap<>();
         if (learCredential instanceof LEARCredentialEmployee learCredentialEmployee) {
-                String name = learCredentialEmployee.mandateeFirstName() + " " + learCredentialEmployee.mandateeLastName();
-                claims.put("name", name);
-                claims.put("given_name", learCredentialEmployee.mandateeFirstName());
-                claims.put("family_name", learCredentialEmployee.mandateeLastName());
-                claims.put("email", learCredentialEmployee.mandateeEmail());
-                claims.put("email_verified", true);
+            String name = learCredentialEmployee.mandateeFirstName() + " " + learCredentialEmployee.mandateeLastName();
+            claims.put("name", name);
+            claims.put("given_name", learCredentialEmployee.mandateeFirstName());
+            claims.put("family_name", learCredentialEmployee.mandateeLastName());
+            claims.put("email", learCredentialEmployee.mandateeEmail());
+            claims.put("email_verified", true);
         }
         return claims;
     }
@@ -377,7 +471,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     private String getScope(LEARCredential learCredential) {
         if (learCredential instanceof LEARCredentialEmployeeV1 || learCredential instanceof LEARCredentialEmployeeV2 || learCredential instanceof LEARCredentialEmployeeV3) {
             return "openid learcredential";
-        } else if (learCredential instanceof LEARCredentialMachineV1) {
+        } else if (learCredential instanceof LEARCredentialMachineV1 || learCredential instanceof LEARCredentialMachineV2) {
             return "machine learcredential";
         } else {
             throw new InvalidCredentialTypeException("Credential Type not supported: " + learCredential.getClass().getName());

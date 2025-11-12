@@ -48,6 +48,10 @@ class FrontendPropertiesTest {
         assertThat(frontendProperties.faviconSrc())
                 .as("Favicon source should be 'favicon.ico'")
                 .isEqualTo("favicon.ico");
+
+        assertThat(frontendProperties.defaultLang())
+                .as("Default lang should be en")
+                .isEqualTo("en");
     }
 
     @EnableConfigurationProperties(FrontendProperties.class)

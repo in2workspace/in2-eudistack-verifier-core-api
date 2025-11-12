@@ -15,6 +15,8 @@ import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
+import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
+import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationCode;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
@@ -95,15 +97,33 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.UNAUTHORIZED_CLIENT);
         }
 
+
+        var addl = oAuth2AuthorizationRequest.getAdditionalParameters();
+        String codeChallenge       = (String) addl.get(PkceParameterNames.CODE_CHALLENGE);
+        String codeChallengeMethod = (String) addl.get(PkceParameterNames.CODE_CHALLENGE_METHOD);
+
+
         Instant expirationTime = issueTime.plus(Long.parseLong(ACCESS_TOKEN_EXPIRATION_TIME), ChronoUnit.valueOf(ACCESS_TOKEN_EXPIRATION_CHRONO_UNIT));
         // Register the Oauth2Authorization because is needed for verifications
-        OAuth2Authorization authorization = OAuth2Authorization.withRegisteredClient(registeredClient)
+        OAuth2Authorization.Builder authBuilder = OAuth2Authorization.withRegisteredClient(registeredClient)
                 .id(registeredClient.getId())
                 .principalName(registeredClient.getClientId())
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .token(new OAuth2AuthorizationCode(code, issueTime, expirationTime))
-                .attribute(OAuth2AuthorizationRequest.class.getName(), oAuth2AuthorizationRequest)
-                .build();
+                .attribute(OAuth2ParameterNames.CLIENT_ID, registeredClient.getClientId())
+                .attribute(OAuth2ParameterNames.REDIRECT_URI, oAuth2AuthorizationRequest.getRedirectUri())
+                .attribute(OAuth2ParameterNames.SCOPE, String.join(" ", oAuth2AuthorizationRequest.getScopes()))
+                .attribute(OAuth2AuthorizationRequest.class.getName(), oAuth2AuthorizationRequest);
+
+        if (org.springframework.util.StringUtils.hasText(codeChallenge)) {
+            authBuilder.attribute(PkceParameterNames.CODE_CHALLENGE, codeChallenge);
+        }
+        if (org.springframework.util.StringUtils.hasText(codeChallengeMethod)) {
+            authBuilder.attribute(PkceParameterNames.CODE_CHALLENGE_METHOD, codeChallengeMethod);
+        }
+
+        OAuth2Authorization authorization = authBuilder.build();
+        oAuth2AuthorizationService.save(authorization);
 
         log.info("OAuth2Authorization generated");
 
@@ -123,7 +143,6 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
         AuthorizationCodeData authorizationCodeData = authCodeDataBuilder.build();
         cacheStoreForAuthorizationCodeData.add(code, authorizationCodeData);
 
-        oAuth2AuthorizationService.save(authorization);
 
         // Build the redirect URL with the code (code) and the state
         String redirectUrl = UriComponentsBuilder.fromHttpUrl(redirectUri)
@@ -175,5 +194,3 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
     }
 
 }
-
-

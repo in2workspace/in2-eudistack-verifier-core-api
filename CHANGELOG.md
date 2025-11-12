@@ -4,12 +4,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v2.0.1](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.1)
+## [v2.0.5](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.5)
 ### Added
 - Add Altia logo and favicon.
 
 ### Changed
 - Make login QR padding white.
+
+## [v2.0.4](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.4)
+### Removed
+- Remove hardcoded visible "DOME" references in UI.
+
+## [v2.0.3](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.3)
+### Changed
+- For frontend pages, set language from Accept-Language header before using default language.
+
+## [v2.0.2](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.2)
+### Added
+- Get default language from configuration, use it to translate HTML templates.
+
+## [v2.0.1](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.1)
+- ### Added
+- Implement Authorization Code Flow with PKCE
 
 ## [v2.0.0](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.0)
 - New major version to align with the new major version of EUDIStack project.

@@ -1,8 +1,8 @@
 <!doctype html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="ca" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="utf-8" />
-    <title>Credential Verifier</title>
+    <title>Verificador de Credencials</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#919597">
 
@@ -12,7 +12,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Blinker:wght@100;200;300;400;600;700;800;900&display=swap" rel="stylesheet">
-    
+
     <!-- Favicon -->
     <link rel="icon" th:href="@{/img/{file}(file=${faviconSrc})}" type="image/png">
 
@@ -148,7 +148,7 @@
 
         .qr-image {
             display: block;
-            max-width: 100%; 
+            max-width: 100%;
             padding: 8px;
             box-sizing: border-box;
         }
@@ -158,7 +158,7 @@
         }
 
         .qr-container button {
-            background-color: var(--fore-color-primary); 
+            background-color: var(--fore-color-primary);
             border: none;
             border-radius: 8px;
             padding: 10px 20px;
@@ -186,7 +186,7 @@
             gap: 15px;
             font-size: 18px;
         }
-        
+
         .help a{
                 font-size: 20px;
                 color: var(--fore-color-primary);
@@ -221,7 +221,7 @@
         .qr-card img {
             max-width: 100%;
             height: auto;
-            background-color: var(white);
+            background-color: var(--fore-color-primary);
         }
 
         .instructions {
@@ -244,7 +244,7 @@
                 margin:0;
                 padding: 0;
                 list-style-position:outside;
-                
+
 
                 li{
                     margin-bottom: 12px;
@@ -301,7 +301,7 @@
             .support-card{
                 flex-direction: column;
             }
-            
+
         }
 
         @media (max-width: 480px) {
@@ -322,55 +322,67 @@
 </head>
 <body>
 <div class="header">
-    <img th:src="@{/img/{file}(file=${logoSrc})}" alt="White Logo" th:attr="onclick='window.location.href = \'' + ${homeUri} + '\''" style="cursor: pointer;">
+    <img th:src="@{/img/{file}(file=${logoSrc})}" alt="Logotip" th:attr="onclick='window.location.href = \'' + ${homeUri} + '\''" style="cursor: pointer;">
 </div>
 <div class="page">
     <div class="container">
-            <div class="registration-card">
-                <h3>Your organization must be registered in the marketplace before you log in.</h3>
-                <button th:attr="onclick='window.location.href = \'' + ${onboardingUri} + '\''">
-                        Onboarding
-                </button>
-            </div>
-            <div class="card qr-card">
-                <div class="qr-card-content">
-                    <div class="instructions">
-                        <h1 class="instructions-title">Login instructions:</h1>
-                        <ol>
-                            <li>You must log in to an EUDI Wallet or to a <a
-                                    th:href="${walletUri}">Wallet</a> using your smartphone.</li>
-                            <li>Scan the QR code.</li>
-                            <li>Select the LEAR credential obtained after registration process.</li>
-                        </ol>
+        <div class="registration-card">
+            <h3>La teva organització ha d’estar registrada al Marketplace abans d’iniciar sessió.</h3>
+            <button th:attr="onclick='window.location.href = \'' + ${onboardingUri} + '\''">
+                Registre
+            </button>
+        </div>
+        <div class="card qr-card">
+            <div class="qr-card-content">
+                <div class="instructions">
+                    <h1 class="instructions-title">Instruccions d’inici de sessió:</h1>
+                    <ol>
+                        <li>Has d’iniciar sessió en un EUDI Wallet o en el nostre<a th:href="${walletUri}">Wallet Digital</a> utilitzant el teu telèfon mòbil.</li>
+                        <li>Escaneja el codi QR.</li>
+                        <li>Selecciona la credencial LEAR obtinguda després del procés de registre.</li>
+                    </ol>
+                </div>
+                <div class="qr-container">
+                    <div id="qr-frame" class="qr-frame">
+                        <img id="qr-code" class="qr-image" th:src="${qrImage}" alt="Codi QR">
                     </div>
-                    <div class="qr-container">
-                        <div id="qr-frame" class="qr-frame">
-                            <img id="qr-code" class="qr-image" th:src="${qrImage}" alt="QR Code">
-                        </div>
-                        <div id="qr-title" class="qr-title additional-element">
-                            Scan the QR with your wallet to log in
-                        </div>
-                        <div id="same-device-title" class="additional-element" style="display: none;">
-                            <h3>Login from the same device</h3>
-                        </div>
-                        <button id="dome-wallet-button" class="action-button" style="display: none;">
-                            <i class="fa-solid fa-wallet"></i>
-                            Wallet
-                        </button>
+                    <div id="qr-title" class="qr-title additional-element">
+                        Escaneja el codi QR amb un EUDI Wallet o el nostre Wallet Digital per iniciar sessió
                     </div>
+                    <div id="same-device-title" class="additional-element" style="display: none;">
+                        <h3>Inici de sessió des del mateix dispositiu</h3>
+                    </div>
+                    <button id="tenant-wallet-button" class="action-button" style="display: none;">
+                        <i class="fa-solid fa-wallet"></i>
+                        Wallet Digital
+                    </button>
                 </div>
             </div>
-            <div class="support-card">
-                <span>Having trouble logging in?</span>
-                <div class="help-container">
-                    <i class="fa-solid fa-wrench"></i>
-                    <span class="help">Get help from <a th:href="${supportUri}">customer support</a></span>
-                </div>
+        </div>
+        <div class="support-card">
+            <span>Tens problemes per iniciar sessió?</span>
+            <div class="help-container">
+                <i class="fa-solid fa-wrench"></i>
+                <span class="help">Obtén ajuda del <a th:href="${supportUri}">servei de suport</a></span>
             </div>
+        </div>
     </div>
 </div>
-
 <!-- Pass Java variables to JavaScript -->
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    let homeUri = /*[[${homeUri}]]*/ "";
+    let authRequest = /*[[${authRequest}]]*/ "";
+    let state = /*[[${state}]]*/ "";
+    let timeUnit = /*[[${cronUnit}]]*/ "SECONDS";
+    let timeValue = parseInt(/*[[${expiration}]]*/ "120");
+    /*]]>*/
+</script>
+<script src="https://cdn.jsdelivr.net/sockjs/latest/sockjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+<!-- Integrated JavaScript -->
+
 <script th:inline="javascript">
     /*<![CDATA[*/
     let homeUri = /*[[${homeUri}]]*/ "";
@@ -391,7 +403,7 @@
         document.getElementById('qr-title').style.display = 'none';
         document.getElementById('qr-code').style.display = 'none';
         document.getElementById('same-device-title').style.display = 'block';
-        document.getElementById('dome-wallet-button').style.display = 'flex';
+        document.getElementById('tenant-wallet-button').style.display = 'flex';
     }
 
     // Function to switch to QR login flow
@@ -400,13 +412,13 @@
         document.getElementById('qr-title').style.display = 'block';
         document.getElementById('qr-code').style.display = 'block';
         document.getElementById('same-device-title').style.display = 'none';
-        document.getElementById('dome-wallet-button').style.display = 'none';
+        document.getElementById('tenant-wallet-button').style.display = 'none';
     }
 
     // Function to configure the wallet button with the authRequest URL
     function configureAuthRequest() {
         console.log('Configuring auth request'); // Log for debugging
-        const walletButton = document.getElementById('dome-wallet-button');
+        const walletButton = document.getElementById('tenant-wallet-button');
         if (authRequest) {
             let walletUri = authRequest.replace("openid4vp://", "https://wallet.dome-marketplace.org");
             walletButton.onclick = () => {
