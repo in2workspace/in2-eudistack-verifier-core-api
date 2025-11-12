@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.io.ByteArrayOutputStream;
 import java.util.Base64;
+import java.util.Locale;
 
 @Controller
 @RequiredArgsConstructor
@@ -25,7 +26,7 @@ public class LoginQrController {
 
     @GetMapping("/login")
     @ResponseStatus(HttpStatus.OK)
-    public String showQrLogin(@RequestParam("authRequest") String authRequest, @RequestParam("state") String state, Model model, @RequestParam("homeUri") String homeUri) {
+    public String showQrLogin(@RequestParam("authRequest") String authRequest, @RequestParam("state") String state, Model model, Locale locale,  @RequestParam("homeUri") String homeUri) {
         try {
             // Generar la imagen QR en base64
             String qrImageBase64 = generateQRCodeImageBase64(authRequest);
@@ -46,10 +47,12 @@ public class LoginQrController {
             model.addAttribute("faviconSrc", frontendConfig.getFaviconSrc());
             model.addAttribute("expiration", LOGIN_TIMEOUT);
             model.addAttribute("cronUnit", LOGIN_TIMEOUT_CHRONO_UNIT);
+
         } catch (Exception e) {
             throw new QRCodeGenerationException(e.getMessage());
         }
-        return "login";
+        String language = locale.getLanguage().toLowerCase();
+        return "login-" + language;
     }
 
     private String generateQRCodeImageBase64(String barcodeText) {

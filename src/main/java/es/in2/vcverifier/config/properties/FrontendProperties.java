@@ -13,7 +13,8 @@ public record FrontendProperties(
         @NotNull @NestedConfigurationProperty Urls urls,
         @NestedConfigurationProperty Colors colors,
         @NotBlank String logoSrc,
-        String faviconSrc) {
+        String faviconSrc,
+        String defaultLang) {
 
     public record Urls(
             @NotBlank @URL String onboarding,

@@ -1,13 +1,18 @@
 package es.in2.vcverifier.resolver;
 
+import es.in2.vcverifier.config.FrontendConfig;
+import es.in2.vcverifier.config.I18nConfig;
 import es.in2.vcverifier.controller.ResolverController;
 import es.in2.vcverifier.service.DIDService;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.ComponentScan;
+import org.springframework.context.annotation.FilterType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigInteger;
@@ -21,7 +26,13 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-@WebMvcTest(ResolverController.class)
+@WebMvcTest(
+        controllers = ResolverController.class,
+        excludeFilters = @ComponentScan.Filter(
+                type = FilterType.ASSIGNABLE_TYPE,
+                classes = I18nConfig.class
+        )
+)
 @AutoConfigureMockMvc(addFilters = false)  // Disable security filters for the test
 class ResolverControllerTest {
 
@@ -30,6 +41,14 @@ class ResolverControllerTest {
 
     @MockBean
     private DIDService didService;
+
+    @MockBean
+    private FrontendConfig frontendConfig;
+
+    @BeforeEach
+    void setUp() {
+        when(frontendConfig.getDefaultLang()).thenReturn("en");
+    }
 
     @Test
     void testResolveDid() throws Exception {

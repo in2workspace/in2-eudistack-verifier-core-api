@@ -24,6 +24,7 @@ import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
+import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
@@ -449,4 +450,112 @@ class AuthorizationResponseProcessorServiceImplTest {
         return signedJWT.serialize();
 
     }
+
+    @Test
+    void processAuthResponse_withPkce_setsCodeChallengeAttributes() throws Exception {
+
+        String state  = "state-pkce";
+        String nonce  = "nonce-pkce";
+        String chall  = "abcDEF123_-";
+        String method = "S256";
+        String vpToken = createVpToken(nonce);
+
+        long timeout = Long.parseLong(LOGIN_TIMEOUT);
+        Map<String, Object> addl = Map.of(
+                NONCE, nonce,
+                EXPIRATION, Instant.now().plusSeconds(timeout).getEpochSecond(),
+                PkceParameterNames.CODE_CHALLENGE, chall,
+                PkceParameterNames.CODE_CHALLENGE_METHOD, method
+        );
+
+        OAuth2AuthorizationRequest req = OAuth2AuthorizationRequest.authorizationCode()
+                .authorizationUri("https://auth.example.com")
+                .clientId("client-id")
+                .redirectUri("https://client.example.com/callback")
+                .state(state)
+                .additionalParameters(addl)
+                .scope("read")
+                .build();
+
+        RegisteredClient rc = RegisteredClient.withId("client-id")
+                .clientId("client-id")
+                .clientSecret("secret")
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .redirectUri("https://client.example.com/callback")
+                .scope("read")
+                .build();
+
+        when(cacheStoreForOAuth2AuthorizationRequest.get(state)).thenReturn(req);
+        doNothing().when(cacheStoreForOAuth2AuthorizationRequest).delete(state);
+        when(cacheForNonceByState.get(state)).thenReturn(nonce);
+
+        doNothing().when(vpService).validateVerifiablePresentation(anyString());
+        when(vpService.getCredentialFromTheVerifiablePresentationAsJsonNode(anyString())).thenReturn(null);
+
+        when(registeredClientRepository.findByClientId("client-id")).thenReturn(rc);
+
+        ArgumentCaptor<OAuth2Authorization> authCap = ArgumentCaptor.forClass(OAuth2Authorization.class);
+        doNothing().when(oAuth2AuthorizationService).save(authCap.capture());
+
+        authorizationResponseProcessorService.processAuthResponse(state, vpToken);
+
+        OAuth2Authorization saved = authCap.getValue();
+        assertNotNull(saved);
+
+        assertEquals(chall,  saved.getAttribute(PkceParameterNames.CODE_CHALLENGE));
+        assertEquals(method, saved.getAttribute(PkceParameterNames.CODE_CHALLENGE_METHOD));
+
+        verify(messagingTemplate).convertAndSend(startsWith("/oidc/redirection/" + state), contains("code="));
+    }
+
+    @Test
+    void processAuthResponse_withoutPkce_doesNotSetPkceAttributes() throws Exception {
+        String state = "state-no-pkce";
+        String nonce = "nonce-no-pkce";
+        String vpToken = createVpToken(nonce);
+
+        long timeout = Long.parseLong(LOGIN_TIMEOUT);
+        Map<String, Object> addl = Map.of(
+                NONCE, nonce,
+                EXPIRATION, Instant.now().plusSeconds(timeout).getEpochSecond(),
+                PkceParameterNames.CODE_CHALLENGE, "   "
+        );
+
+        OAuth2AuthorizationRequest req = OAuth2AuthorizationRequest.authorizationCode()
+                .authorizationUri("https://auth.example.com")
+                .clientId("client-id")
+                .redirectUri("https://client.example.com/callback")
+                .state(state)
+                .additionalParameters(addl)
+                .scope("read")
+                .build();
+
+        RegisteredClient rc = RegisteredClient.withId("client-id")
+                .clientId("client-id")
+                .clientSecret("secret")
+                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
+                .redirectUri("https://client.example.com/callback")
+                .scope("read")
+                .build();
+
+        when(cacheStoreForOAuth2AuthorizationRequest.get(state)).thenReturn(req);
+        doNothing().when(cacheStoreForOAuth2AuthorizationRequest).delete(state);
+        when(cacheForNonceByState.get(state)).thenReturn(nonce);
+
+        doNothing().when(vpService).validateVerifiablePresentation(anyString());
+        when(vpService.getCredentialFromTheVerifiablePresentationAsJsonNode(anyString())).thenReturn(null);
+
+        when(registeredClientRepository.findByClientId("client-id")).thenReturn(rc);
+
+        ArgumentCaptor<OAuth2Authorization> authCap = ArgumentCaptor.forClass(OAuth2Authorization.class);
+        doNothing().when(oAuth2AuthorizationService).save(authCap.capture());
+
+        authorizationResponseProcessorService.processAuthResponse(state, vpToken);
+
+        OAuth2Authorization saved = authCap.getValue();
+        assertNotNull(saved);
+        assertNull(saved.getAttribute(PkceParameterNames.CODE_CHALLENGE));
+        assertNull(saved.getAttribute(PkceParameterNames.CODE_CHALLENGE_METHOD));
+    }
+
 }

@@ -24,7 +24,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
-import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
+import org.springframework.security.oauth2.core.endpoint.PkceParameterNames;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2ClientCredentialsAuthenticationToken;
 import org.springframework.security.oauth2.server.authorization.authentication.OAuth2RefreshTokenAuthenticationToken;
@@ -49,7 +49,6 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
     private final ClientAssertionValidationService clientAssertionValidationService;
     private final VpService vpService;
     private final CacheStore<AuthorizationCodeData> cacheStoreForAuthorizationCodeData;
-    private final OAuth2AuthorizationService oAuth2AuthorizationService;
     private final ObjectMapper objectMapper;
     private final CacheStore<RefreshTokenDataCache> refreshTokenDataCacheCacheStore;
 
@@ -74,14 +73,10 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
         String code = parameters.getFirst(OAuth2ParameterNames.CODE);
         String state = parameters.getFirst(OAuth2ParameterNames.STATE);
         String clientId = parameters.getFirst(OAuth2ParameterNames.CLIENT_ID);
+        String redirectUri  = parameters.getFirst(OAuth2ParameterNames.REDIRECT_URI);
+        String codeVerifier = parameters.getFirst(PkceParameterNames.CODE_VERIFIER);
 
         AuthorizationCodeData authorizationCodeData = cacheStoreForAuthorizationCodeData.get(code);
-
-        // Remove the code from cache after retrieving the object
-        cacheStoreForAuthorizationCodeData.delete(code);
-
-        // Remove the authorization from the initial request
-        oAuth2AuthorizationService.remove(authorizationCodeData.oAuth2Authorization());
 
         // Check state only if it is not null and not blank
         if (state != null && !state.isBlank() && (!authorizationCodeData.state().equals(state))) {
@@ -106,8 +101,12 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
             additionalParameters.put(NONCE, nonce);
         }
 
+        if (codeVerifier != null && !codeVerifier.isBlank()) {
+            additionalParameters.put(PkceParameterNames.CODE_VERIFIER, codeVerifier);
+        }
+
         // Return the authentication token
-        return new OAuth2AuthorizationCodeAuthenticationToken(code, clientPrincipal, null, additionalParameters);
+        return new OAuth2AuthorizationCodeAuthenticationToken(code, clientPrincipal, redirectUri, additionalParameters);
     }
 
     private Authentication handleClientCredentialsGrant(MultiValueMap<String, String> parameters) {
