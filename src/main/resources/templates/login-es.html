@@ -327,7 +327,7 @@
 <div class="page">
     <div class="container">
         <div class="registration-card">
-            <h3>Tu organización debe estar registrada en el Marketplace antes de iniciar sesión.</h3>
+            <h3>Tu organización debe estar registrada antes de iniciar sesión.</h3>
             <button th:attr="onclick='window.location.href = \'' + ${onboardingUri} + '\''">
                 Registro
             </button>
@@ -337,7 +337,7 @@
                 <div class="instructions">
                     <h1 class="instructions-title">Instrucciones de inicio de sesión:</h1>
                     <ol>
-                        <li>Debes iniciar sesión en una EUDI Wallet o en una <a th:href="${walletUri}">DOME Wallet</a> utilizando tu teléfono móvil.</li>
+                        <li>Debes iniciar sesión en un EUDI Wallet o en nuestro <a th:href="${walletUri}">Wallet Digital</a> utilizando tu teléfono móvil.</li>
                         <li>Escanea el código QR.</li>
                         <li>Selecciona la credencial LEAR obtenida tras el proceso de registro.</li>
                     </ol>
@@ -347,14 +347,14 @@
                         <img id="qr-code" class="qr-image" th:src="${qrImage}" alt="Código QR">
                     </div>
                     <div id="qr-title" class="qr-title additional-element">
-                        Escanea el código QR con tu EUDI Wallet o DOME Wallet para iniciar sesión
+                        Escanea el código QR con un EUDI Wallet o nuestro Wallet Digital para iniciar sesión
                     </div>
                     <div id="same-device-title" class="additional-element" style="display: none;">
                         <h3>Inicio de sesión desde el mismo dispositivo</h3>
                     </div>
-                    <button id="dome-wallet-button" class="action-button" style="display: none;">
+                    <button id="tenant-wallet-button" class="action-button" style="display: none;">
                         <i class="fa-solid fa-wallet"></i>
-                        DOME Wallet
+                        Wallet Digital
                     </button>
                 </div>
             </div>
@@ -389,7 +389,7 @@
         document.getElementById('qr-title').style.display = 'none';
         document.getElementById('qr-code').style.display = 'none';
         document.getElementById('same-device-title').style.display = 'block';
-        document.getElementById('dome-wallet-button').style.display = 'flex';
+        document.getElementById('tenant-wallet-button').style.display = 'flex';
     }
 
     // Function to switch to QR login flow
@@ -398,13 +398,13 @@
         document.getElementById('qr-title').style.display = 'block';
         document.getElementById('qr-code').style.display = 'block';
         document.getElementById('same-device-title').style.display = 'none';
-        document.getElementById('dome-wallet-button').style.display = 'none';
+        document.getElementById('tenant-wallet-button').style.display = 'none';
     }
 
     // Function to configure the wallet button with the authRequest URL
     function configureAuthRequest() {
         console.log('Configuring auth request'); // Log for debugging
-        const walletButton = document.getElementById('dome-wallet-button');
+        const walletButton = document.getElementById('tenant-wallet-button');
         if (authRequest) {
             let walletUri = authRequest.replace("openid4vp://", "https://wallet.dome-marketplace.org");
             walletButton.onclick = () => {
