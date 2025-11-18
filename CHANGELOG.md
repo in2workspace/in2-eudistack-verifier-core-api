@@ -6,7 +6,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v2.0.5](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.5)
 ### Fixed
-- Small text fixes in login template.
+- Small text fixes in login template. 
 
 ## [v2.0.4](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.4)
 ### Removed
