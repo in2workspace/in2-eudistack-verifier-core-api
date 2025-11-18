@@ -126,8 +126,6 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                     "id_token",
                     generateIdToken(credential, subject, audience, authentication.getAdditionalParameters()));
 
-            System.out.print("additionalParameters - idToken");
-            System.out.print(additionalParameters);
             oAuth2RefreshToken = getOAuth2RefreshToken(
                     authentication,
                     issueTime,
