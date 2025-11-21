@@ -255,7 +255,11 @@ public class VpServiceImpl implements VpService {
 
     private void validateCredentialTypeWithIssuerCapabilities(List<IssuerCredentialsCapabilities> issuerCapabilitiesList, List<String> credentialTypes) {
         // Iterate over each credential type in the verifiable credential
+        log.info("Issuer capabilities: {}", issuerCapabilitiesList);
+        log.info("Credential types in VC: {}", credentialTypes);
+
         for (String credentialType : credentialTypes) {
+
             // Check if any of the issuer capabilities support this credential type
             boolean isSupported = issuerCapabilitiesList.stream().anyMatch(capability -> capability.credentialsType().equals(credentialType));
 
