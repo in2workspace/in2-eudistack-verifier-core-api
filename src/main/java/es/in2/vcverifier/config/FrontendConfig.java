@@ -43,7 +43,7 @@ public class FrontendConfig {
     }
 
     public String getFaviconSrc() {
-        return defaultIfBlank(properties.faviconSrc(), "dome_logo_favicon.png");
+        return defaultIfBlank(properties.faviconSrc(), "dome_favicon.png");
     }
 
     public String getDefaultLang() { return defaultIfBlank(properties.defaultLang(), "en"); }

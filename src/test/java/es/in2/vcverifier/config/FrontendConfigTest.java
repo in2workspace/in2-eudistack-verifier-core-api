@@ -36,7 +36,7 @@ class FrontendConfigImplTest {
         assertThat(frontendConfig.getPrimaryContrastColor()).isEqualTo("#ffffff");
         assertThat(frontendConfig.getSecondaryColor()).isEqualTo("#14274A");
         assertThat(frontendConfig.getSecondaryContrastColor()).isEqualTo("#00ADD3");
-        assertThat(frontendConfig.getFaviconSrc()).isEqualTo("dome_logo_favicon.png");
+        assertThat(frontendConfig.getFaviconSrc()).isEqualTo("dome_favicon.png");
         assertThat(frontendConfig.getDefaultLang()).isEqualTo("en");
     }
 
