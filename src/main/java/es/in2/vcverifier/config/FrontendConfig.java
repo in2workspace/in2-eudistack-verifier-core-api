@@ -39,12 +39,12 @@ public class FrontendConfig {
     }
 
     public String getLogoSrc() {
-        return joinUrl(properties.images().baseUrl(), properties.images().logoPath());
+        return joinUrl(properties.assets().baseUrl(), properties.assets().logoPath());
     }
 
     public String getFaviconSrc() {
-        String faviconPath = defaultIfBlank(properties.images().faviconPath(), "dome_favicon.png");
-        return joinUrl(properties.images().baseUrl(), faviconPath);
+        String faviconPath = defaultIfBlank(properties.assets().faviconPath(), "dome_favicon.png");
+        return joinUrl(properties.assets().baseUrl(), faviconPath);
     }
 
     public String getDefaultLang() {

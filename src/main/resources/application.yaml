@@ -70,8 +70,8 @@ verifier:
       secondary: "#14274A"
       # Defines contrasting text color for secondary color (OPTIONAL with default value)
       secondaryContrast: "#00ADD3"
-    images:
-      # Base URL for images (REQUIRED)
+    assets:
+      # Base URL for assets (REQUIRED)
       baseUrl:
       # Placeholder for logo source path (REQUIRED)
       logoPath:

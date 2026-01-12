@@ -9,7 +9,7 @@ verifier:
       primaryContrast: "#FFFFFF"
       secondary: "#00ADD3"
       secondaryContrast: "#000000"
-    images:
+    assets:
       # Base URL for images (REQUIRED)
       baseUrl: "https://cdn.example.com/assets"
       # Placeholder for logo source path (REQUIRED)

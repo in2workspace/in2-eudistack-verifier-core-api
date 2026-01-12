@@ -26,15 +26,15 @@ class FrontendConfigImplTest {
     void testFrontendConfigWithDefaults() {
         FrontendProperties.Urls urls = mock(FrontendProperties.Urls.class);
         FrontendProperties.Colors colors = mock(FrontendProperties.Colors.class);
-        FrontendProperties.Images images = mock(FrontendProperties.Images.class);
+        FrontendProperties.Assets assets = mock(FrontendProperties.Assets.class);
 
         when(frontendProperties.urls()).thenReturn(urls);
         when(frontendProperties.colors()).thenReturn(colors);
-        when(frontendProperties.images()).thenReturn(images);
+        when(frontendProperties.assets()).thenReturn(assets);
 
-        when(images.baseUrl()).thenReturn("https://cdn.example.com/assets");
-        when(images.logoPath()).thenReturn("logo.png");
-        when(images.faviconPath()).thenReturn(null);
+        when(assets.baseUrl()).thenReturn("https://cdn.example.com/assets");
+        when(assets.logoPath()).thenReturn("logo.png");
+        when(assets.faviconPath()).thenReturn(null);
 
         assertThat(frontendConfig.getPrimaryColor()).isEqualTo("#2D58A7");
         assertThat(frontendConfig.getPrimaryContrastColor()).isEqualTo("#ffffff");
@@ -50,11 +50,11 @@ class FrontendConfigImplTest {
     void testFrontendConfigWithProvidedValues() {
         FrontendProperties.Urls urls = mock(FrontendProperties.Urls.class);
         FrontendProperties.Colors colors = mock(FrontendProperties.Colors.class);
-        FrontendProperties.Images images = mock(FrontendProperties.Images.class);
+        FrontendProperties.Assets assets = mock(FrontendProperties.Assets.class);
 
         when(frontendProperties.urls()).thenReturn(urls);
         when(frontendProperties.colors()).thenReturn(colors);
-        when(frontendProperties.images()).thenReturn(images);
+        when(frontendProperties.assets()).thenReturn(assets);
 
         when(frontendProperties.defaultLang()).thenReturn("en");
         when(colors.primary()).thenReturn("#123456");
@@ -62,9 +62,9 @@ class FrontendConfigImplTest {
         when(colors.secondary()).thenReturn("#abcdef");
         when(colors.secondaryContrast()).thenReturn("#fedcba");
 
-        when(images.baseUrl()).thenReturn("https://cdn.example.com/assets/");
-        when(images.logoPath()).thenReturn("/custom_logo.png");
-        when(images.faviconPath()).thenReturn("custom_favicon.ico");
+        when(assets.baseUrl()).thenReturn("https://cdn.example.com/assets/");
+        when(assets.logoPath()).thenReturn("/custom_logo.png");
+        when(assets.faviconPath()).thenReturn("custom_favicon.ico");
 
         assertThat(frontendConfig.getPrimaryColor()).isEqualTo("#123456");
         assertThat(frontendConfig.getPrimaryContrastColor()).isEqualTo("#654321");

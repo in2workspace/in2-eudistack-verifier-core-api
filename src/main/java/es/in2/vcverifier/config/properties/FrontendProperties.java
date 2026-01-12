@@ -12,7 +12,7 @@ import org.springframework.validation.annotation.Validated;
 public record FrontendProperties(
         @NotNull @NestedConfigurationProperty Urls urls,
         @NestedConfigurationProperty Colors colors,
-        @NotNull @NestedConfigurationProperty Images images,
+        @NotNull @NestedConfigurationProperty Assets assets,
         String defaultLang
 ) {
 
@@ -29,7 +29,7 @@ public record FrontendProperties(
             String secondaryContrast
     ) {}
 
-    public record Images(
+    public record Assets(
             @NotBlank String baseUrl,
             @NotBlank String logoPath,
             String faviconPath

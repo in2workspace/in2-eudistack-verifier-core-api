@@ -33,7 +33,7 @@ class FrontendPropertiesTest {
                 "#000000"
         );
 
-        FrontendProperties.Images expectedImages = new FrontendProperties.Images(
+        FrontendProperties.Assets expectedAssets = new FrontendProperties.Assets(
                 "https://cdn.example.com/assets",
                 "logo.png",
                 "favicon.ico"
@@ -47,9 +47,9 @@ class FrontendPropertiesTest {
                 .as("Colors should match the provided values")
                 .isEqualTo(expectedColors);
 
-        assertThat(frontendProperties.images())
-                .as("Images should match the provided values")
-                .isEqualTo(expectedImages);
+        assertThat(frontendProperties.assets())
+                .as("Assets should match the provided values")
+                .isEqualTo(expectedAssets);
 
         assertThat(frontendProperties.defaultLang())
                 .as("Default lang should be en")
@@ -67,8 +67,8 @@ class FrontendPropertiesTest {
                 .withPropertyValues(
                         "verifier.frontend.urls.support=https://example.com/support",
                         "verifier.frontend.urls.wallet=https://example.com/wallet",
-                        "verifier.frontend.images.baseUrl=https://cdn.example.com/assets",
-                        "verifier.frontend.images.logoPath=logo.png"
+                        "verifier.frontend.assets.baseUrl=https://cdn.example.com/assets",
+                        "verifier.frontend.assets.logoPath=logo.png"
                 )
                 .run(context -> assertThat(context).hasFailed());
     }
@@ -80,8 +80,8 @@ class FrontendPropertiesTest {
                 .withPropertyValues(
                         "verifier.frontend.urls.onboarding=https://example.com/onboarding",
                         "verifier.frontend.urls.wallet=https://example.com/wallet",
-                        "verifier.frontend.images.baseUrl=https://cdn.example.com/assets",
-                        "verifier.frontend.images.logoPath=logo.png"
+                        "verifier.frontend.assets.baseUrl=https://cdn.example.com/assets",
+                        "verifier.frontend.assets.logoPath=logo.png"
                 )
                 .run(context -> assertThat(context).hasFailed());
     }
@@ -93,21 +93,21 @@ class FrontendPropertiesTest {
                 .withPropertyValues(
                         "verifier.frontend.urls.onboarding=https://example.com/onboarding",
                         "verifier.frontend.urls.support=https://example.com/support",
-                        "verifier.frontend.images.baseUrl=https://cdn.example.com/assets",
-                        "verifier.frontend.images.logoPath=logo.png"
+                        "verifier.frontend.assets.baseUrl=https://cdn.example.com/assets",
+                        "verifier.frontend.assets.logoPath=logo.png"
                 )
                 .run(context -> assertThat(context).hasFailed());
     }
 
     @Test
-    void testMissingMandatoryImagesBaseUrlCausesError() {
+    void testMissingMandatoryAssetsBaseUrlCausesError() {
         new ApplicationContextRunner()
                 .withUserConfiguration(TestConfig.class)
                 .withPropertyValues(
                         "verifier.frontend.urls.onboarding=https://example.com/onboarding",
                         "verifier.frontend.urls.support=https://example.com/support",
                         "verifier.frontend.urls.wallet=https://example.com/wallet",
-                        "verifier.frontend.images.logoPath=logo.png"
+                        "verifier.frontend.assets.logoPath=logo.png"
                 )
                 .run(context -> assertThat(context).hasFailed());
     }
@@ -120,9 +120,9 @@ class FrontendPropertiesTest {
                         "verifier.frontend.urls.onboarding=https://example.com/onboarding",
                         "verifier.frontend.urls.support=https://example.com/support",
                         "verifier.frontend.urls.wallet=https://example.com/wallet",
-                        "verifier.frontend.images.baseUrl=https://cdn.example.com/assets"
+                        "verifier.frontend.assets.baseUrl=https://cdn.example.com/assets"
                         // omit logoPath
-                        // "verifier.frontend.images.logoPath=logo.png"
+                        // "verifier.frontend.assets.logoPath=logo.png"
                 )
                 .run(context -> assertThat(context).hasFailed());
     }
@@ -135,8 +135,8 @@ class FrontendPropertiesTest {
                         "verifier.frontend.urls.onboarding=https://example.com/onboarding",
                         "verifier.frontend.urls.support=https://example.com/support",
                         "verifier.frontend.urls.wallet=https://example.com/wallet",
-                        "verifier.frontend.images.baseUrl=https://cdn.example.com/assets",
-                        "verifier.frontend.images.logoPath=logo.png"
+                        "verifier.frontend.assets.baseUrl=https://cdn.example.com/assets",
+                        "verifier.frontend.assets.logoPath=logo.png"
                         // faviconPath optional
                 )
                 .run(context -> assertThat(context).hasNotFailed());
