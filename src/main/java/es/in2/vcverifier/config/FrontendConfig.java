@@ -58,13 +58,6 @@ public class FrontendConfig {
     }
 
     private String joinUrl(String baseUrl, String path) {
-        if (baseUrl == null || baseUrl.isBlank()) {
-            return path;
-        }
-        if (path == null || path.isBlank()) {
-            return baseUrl;
-        }
-
         boolean baseEndsWithSlash = baseUrl.endsWith("/");
         boolean pathStartsWithSlash = path.startsWith("/");
 
