@@ -32,6 +32,6 @@ public record FrontendProperties(
     public record Assets(
             @NotBlank String baseUrl,
             @NotBlank String logoPath,
-            String faviconPath
+            @NotBlank String faviconPath
     ) {}
 }

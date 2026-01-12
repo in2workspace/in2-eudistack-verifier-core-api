@@ -128,7 +128,7 @@ class FrontendPropertiesTest {
     }
 
     @Test
-    void testWithAllMandatoryPropertiesAndNoOptional() {
+    void testMissingMandatoryFaviconPathCausesError() {
         new ApplicationContextRunner()
                 .withUserConfiguration(TestConfig.class)
                 .withPropertyValues(
@@ -137,7 +137,23 @@ class FrontendPropertiesTest {
                         "verifier.frontend.urls.wallet=https://example.com/wallet",
                         "verifier.frontend.assets.baseUrl=https://cdn.example.com/assets",
                         "verifier.frontend.assets.logoPath=logo.png"
-                        // faviconPath optional
+                        // omit faviconPath
+                )
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+
+    @Test
+    void testWithAllMandatoryPropertiesAndNoOptional() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(TestConfig.class)
+                .withPropertyValues(
+                        "verifier.frontend.urls.onboarding=https://example.com/onboarding",
+                        "verifier.frontend.urls.support=https://example.com/support",
+                        "verifier.frontend.urls.wallet=https://example.com/wallet",
+                        "verifier.frontend.assets.baseUrl=https://cdn.example.com/assets",
+                        "verifier.frontend.assets.logoPath=logo.png",
+                        "verifier.frontend.assets.faviconPath=favicon.ico"
                 )
                 .run(context -> assertThat(context).hasNotFailed());
     }

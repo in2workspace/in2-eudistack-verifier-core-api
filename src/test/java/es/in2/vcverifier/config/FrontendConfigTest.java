@@ -34,7 +34,7 @@ class FrontendConfigImplTest {
 
         when(assets.baseUrl()).thenReturn("https://cdn.example.com/assets");
         when(assets.logoPath()).thenReturn("logo.png");
-        when(assets.faviconPath()).thenReturn(null);
+        when(assets.faviconPath()).thenReturn("favicon.ico");
 
         assertThat(frontendConfig.getPrimaryColor()).isEqualTo("#2D58A7");
         assertThat(frontendConfig.getPrimaryContrastColor()).isEqualTo("#ffffff");
@@ -42,7 +42,7 @@ class FrontendConfigImplTest {
         assertThat(frontendConfig.getSecondaryContrastColor()).isEqualTo("#00ADD3");
 
         assertThat(frontendConfig.getLogoSrc()).isEqualTo("https://cdn.example.com/assets/logo.png");
-        assertThat(frontendConfig.getFaviconSrc()).isEqualTo("https://cdn.example.com/assets/dome_favicon.png");
+        assertThat(frontendConfig.getFaviconSrc()).isEqualTo("https://cdn.example.com/assets/favicon.ico");
         assertThat(frontendConfig.getDefaultLang()).isEqualTo("en");
     }
 

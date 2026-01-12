@@ -43,8 +43,10 @@ public class FrontendConfig {
     }
 
     public String getFaviconSrc() {
-        String faviconPath = defaultIfBlank(properties.assets().faviconPath(), "dome_favicon.png");
-        return joinUrl(properties.assets().baseUrl(), faviconPath);
+        return joinUrl(
+                properties.assets().baseUrl(),
+                properties.assets().faviconPath()
+        );
     }
 
     public String getDefaultLang() {
