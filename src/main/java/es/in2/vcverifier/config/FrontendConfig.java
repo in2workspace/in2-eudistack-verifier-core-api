@@ -39,16 +39,39 @@ public class FrontendConfig {
     }
 
     public String getLogoSrc() {
-        return properties.logoSrc();
+        return joinUrl(properties.images().baseUrl(), properties.images().logoPath());
     }
 
     public String getFaviconSrc() {
-        return defaultIfBlank(properties.faviconSrc(), "dome_favicon.png");
+        String faviconPath = defaultIfBlank(properties.images().faviconPath(), "dome_favicon.png");
+        return joinUrl(properties.images().baseUrl(), faviconPath);
     }
 
-    public String getDefaultLang() { return defaultIfBlank(properties.defaultLang(), "en"); }
+    public String getDefaultLang() {
+        return defaultIfBlank(properties.defaultLang(), "en");
+    }
 
     private String defaultIfBlank(String value, String defaultValue) {
         return (value == null || value.trim().isEmpty()) ? defaultValue : value;
+    }
+
+    private String joinUrl(String baseUrl, String path) {
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return path;
+        }
+        if (path == null || path.isBlank()) {
+            return baseUrl;
+        }
+
+        boolean baseEndsWithSlash = baseUrl.endsWith("/");
+        boolean pathStartsWithSlash = path.startsWith("/");
+
+        if (baseEndsWithSlash && pathStartsWithSlash) {
+            return baseUrl + path.substring(1);
+        }
+        if (!baseEndsWithSlash && !pathStartsWithSlash) {
+            return baseUrl + "/" + path;
+        }
+        return baseUrl + path;
     }
 }

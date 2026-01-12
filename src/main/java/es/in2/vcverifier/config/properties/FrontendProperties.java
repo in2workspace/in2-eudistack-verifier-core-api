@@ -12,19 +12,26 @@ import org.springframework.validation.annotation.Validated;
 public record FrontendProperties(
         @NotNull @NestedConfigurationProperty Urls urls,
         @NestedConfigurationProperty Colors colors,
-        @NotBlank String logoSrc,
-        String faviconSrc,
-        String defaultLang) {
+        @NotNull @NestedConfigurationProperty Images images,
+        String defaultLang
+) {
 
     public record Urls(
             @NotBlank @URL String onboarding,
             @NotBlank @URL String support,
-            @NotBlank @URL String wallet) {}
+            @NotBlank @URL String wallet
+    ) {}
 
     public record Colors(
             String primary,
             String primaryContrast,
             String secondary,
             String secondaryContrast
+    ) {}
+
+    public record Images(
+            @NotBlank String baseUrl,
+            @NotBlank String logoPath,
+            String faviconPath
     ) {}
 }
