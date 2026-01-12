@@ -75,9 +75,9 @@ verifier:
       baseUrl:
       # Placeholder for logo source path (REQUIRED)
       logoPath:
-      # Placeholder for favicon source path (OPTIONAL)
+      # Placeholder for favicon source path (REQUIRED)
       faviconPath:
-    # Default language for visible texts (OPTIONAL)
+    # Default language for visible texts (REQUIRED)
     defaultLang: en
   backend:
     # Placeholder for backend URL (REQUIRED)
