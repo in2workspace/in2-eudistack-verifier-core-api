@@ -4,13 +4,18 @@ verifier:
       onboarding: https://example.com/onboarding
       support: https://example.com/support
       wallet: https://example.com/wallet
-    logoSrc: logo.png
-    faviconSrc: favicon.ico
     colors:
       primary: "#FF0000"
       primaryContrast: "#FFFFFF"
       secondary: "#00ADD3"
       secondaryContrast: "#000000"
+    images:
+      # Base URL for images (REQUIRED)
+      baseUrl: "https://cdn.example.com/assets"
+      # Placeholder for logo source path (REQUIRED)
+      logoPath: "logo.png"
+      # Placeholder for favicon source path (OPTIONAL)
+      faviconPath: "favicon.ico"
     defaultLang: "en"
   backend:
     # Placeholder for backend URL (REQUIRED)

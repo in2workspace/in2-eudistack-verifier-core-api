@@ -34,9 +34,9 @@ class FrontendPropertiesTest {
         );
 
         FrontendProperties.Images expectedImages = new FrontendProperties.Images(
-                "https://cdn.jsdelivr.net/gh/in2workspace/eudistack-images@main/Altia",
-                "altia-logo.png",
-                "altia-favicon.ico"
+                "https://cdn.example.com/assets",
+                "logo.png",
+                "favicon.ico"
         );
 
         assertThat(frontendProperties.urls())
