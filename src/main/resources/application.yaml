@@ -70,11 +70,14 @@ verifier:
       secondary: "#14274A"
       # Defines contrasting text color for secondary color (OPTIONAL with default value)
       secondaryContrast: "#00ADD3"
-    # Placeholder for logo source path (REQUIRED)
-    logoSrc:
-    # Placeholder for favicon source path (OPTIONAL)
-    faviconSrc:
-    # Default language for visible texts (OPTIONAL)
+    assets:
+      # Base URL for assets (REQUIRED)
+      baseUrl:
+      # Placeholder for logo source path (REQUIRED)
+      logoPath:
+      # Placeholder for favicon source path (REQUIRED)
+      faviconPath:
+    # Default language for visible texts (REQUIRED)
     defaultLang: en
   backend:
     # Placeholder for backend URL (REQUIRED)
