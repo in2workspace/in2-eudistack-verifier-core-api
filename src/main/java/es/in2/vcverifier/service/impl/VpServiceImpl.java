@@ -56,7 +56,7 @@ public class VpServiceImpl implements VpService {
 
 
     @Override
-    public void validateVerifiablePresentation(String verifiablePresentation) {
+    public void validateVerifiablePresentation(String verifiablePresentation) { //PASA POR AQUI
         log.info("Starting validation of Verifiable Presentation");
         // Step 1: Extract the Verifiable Credential (VC) from the VP (JWT)
         log.debug("VpServiceImpl -- validateVerifiablePresentation -- Extracting first Verifiable Credential from Verifiable Presentation");
@@ -119,6 +119,9 @@ public class VpServiceImpl implements VpService {
 
         // Step 10: Validate the VP's signature with the DIDService (the DID of the holder of the VP)
         String mandateeId = learCredential.mandateeId();
+        System.out.println("XIVATO 4: "+ mandateeId);
+
+        System.out.println("XIVATO 5: "+ learCredential);
         PublicKey holderPublicKey = didService.getPublicKeyFromDid(mandateeId); // Get the holder's public key in bytes
         jwtService.verifyJWTWithECKey(verifiablePresentation, holderPublicKey); // Validate the VP was signed by the holder DID
         log.info("VP's signature is valid, holder DID {} confirmed", mandateeId);
