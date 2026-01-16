@@ -19,7 +19,7 @@ logging:
     level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
   level:
     # Sets logging level for the custom package "es.in2.vcverifier"
-    es.in2.verifier: INFO
+    es.in2.vcverifier: INFO
     # Sets logging level for Spring Security
     org.springframework.security: INFO
     # Sets logging level for web filters
