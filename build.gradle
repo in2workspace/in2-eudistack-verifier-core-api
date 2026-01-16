@@ -10,7 +10,7 @@ plugins {
 }
 
 group = 'es.in2'
-version = '2.0.9'
+version = '2.0.10'
 
 java {
 	toolchain {
@@ -87,6 +87,7 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	// Monitoring
 	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+
 }
 
 tasks.named('compileJava') {
