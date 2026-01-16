@@ -87,6 +87,9 @@ dependencies {
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	// Monitoring
 	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
+    // Logback
+    implementation 'net.logstash.logback:logstash-logback-encoder:7.4'
+
 }
 
 tasks.named('compileJava') {
