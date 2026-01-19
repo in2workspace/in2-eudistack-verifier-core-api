@@ -61,6 +61,14 @@ public class VpServiceImpl implements VpService {
         // Step 1: Extract the Verifiable Credential (VC) from the VP (JWT)
         log.debug("VpServiceImpl -- validateVerifiablePresentation -- Extracting first Verifiable Credential from Verifiable Presentation");
         SignedJWT jwtCredential = extractFirstVerifiableCredential(verifiablePresentation);
+        String vcSub = null;
+        try {
+            vcSub = jwtCredential.getJWTClaimsSet().getSubject();
+            vcSub = normalizeDid(vcSub);
+        } catch (Exception e) {
+            log.warn("[BIND] Cannot read VC 'sub' from VC JWT claims", e);
+        }
+        log.info("[BIND] VC JWT sub={}", vcSub);
         Payload payload = jwtService.getPayloadFromSignedJWT(jwtCredential);
         log.debug("VpServiceImpl -- validateVerifiablePresentation -- Successfully extracted the Verifiable Credential payload");
 
@@ -119,7 +127,6 @@ public class VpServiceImpl implements VpService {
 
         // Step 10: Validate the VP's signature (PoP) and cryptographic binding
 
-        // 10.1 Extract holder DID from VP (preferred: header.kid -> iss -> sub)
         SignedJWT vpJwt;
         try {
             vpJwt = SignedJWT.parse(verifiablePresentation);
@@ -139,21 +146,24 @@ public class VpServiceImpl implements VpService {
         }
 
         String holderDid = extractDidFromKidIssSub(vpKid, vpIss, vpSub);
+        holderDid = normalizeDid(holderDid);
+
         if (holderDid == null || holderDid.isBlank()) {
             throw new InvalidScopeException("Cannot extract holder DID from VP (kid/iss/sub)");
         }
 
         log.info("[BIND] VP holder DID resolved as {}", holderDid);
 
-        // 10.2 Verify VP signature using holder DID
+        // PoP: verify VP signature with holder DID
         PublicKey holderPublicKey = didService.getPublicKeyFromDid(holderDid);
         jwtService.verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
         log.info("VP's signature is valid, holder DID {} confirmed", holderDid);
 
-        // 10.3 Extract DID bound in VC (new first, then legacy)
-        String boundDidFromVc = extractBoundDidFromCredential(learCredential);
+        // Binding: VC bound DID (new first, then legacy)
+        String boundDidFromVc = extractBoundDidFromCredential(learCredential, vcSub);
+
         if (boundDidFromVc == null || boundDidFromVc.isBlank()) {
-            throw new InvalidScopeException("Credential missing cryptographic binding DID (credentialSubject.id or mandatee.id)");
+            throw new InvalidScopeException("Credential missing cryptographic binding DID (redentialSubject.id or vc.jwt.sub or mandatee.id)");
         }
 
         log.info("[BIND] VC bound DID resolved as {}", boundDidFromVc);
@@ -440,16 +450,34 @@ public class VpServiceImpl implements VpService {
         return null;
     }
 
-    private String extractBoundDidFromCredential(LEARCredential cred) {
-        // NEW: credentialSubject.id
+    private String extractBoundDidFromCredential(LEARCredential cred, String vcSub) {
+        // 1) NEW: credentialSubject.id (preferred)
         String csId = safeGetCredentialSubjectId(cred);
-        if (csId != null && !csId.isBlank()) return csId;
+        csId = normalizeDid(csId);
+        if (csId != null && !csId.isBlank()) {
 
-        // LEGACY: mandatee.id
-        String mandateeId = cred.mandateeId();
+            // Optional consistency check vs VC JWT sub
+            if (vcSub != null && vcSub.startsWith("did:") && !csId.equals(vcSub)) {
+                log.warn("[BIND] VC mismatch: credentialSubject.id={} != vcSub={}", csId, vcSub);
+            }
+
+            return csId;
+        }
+
+        // 2) NEW: VC JWT sub
+        if (vcSub != null && vcSub.startsWith("did:")) return vcSub;
+
+        // 3) LEGACY: mandatee.id
+        String mandateeId = normalizeDid(cred.mandateeId());
         if (mandateeId != null && !mandateeId.isBlank()) return mandateeId;
 
         return null;
+    }
+
+    private String normalizeDid(String did) {
+        if (did == null) return null;
+        if (!did.startsWith("did:")) return did;
+        return did.contains("#") ? did.substring(0, did.indexOf('#')) : did;
     }
 
     private String safeGetCredentialSubjectId(LEARCredential cred) {

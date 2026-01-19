@@ -540,7 +540,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 
     private String resolveCredentialSubjectDid(LEARCredential credential, JsonNode credentialJson) {
 
-        // 1) NUEVO: credentialSubject.id
+        // 1) credentialSubject.id
         String csId = null;
         try {
             csId = credentialJson.path("credentialSubject").path("id").asText(null);
@@ -550,7 +550,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
             return csId;
         }
 
-        // 2) LEGACY: mandatee.id (vía modelo)
+        // 2) LEGACY: mandatee.id
         String mandateeId = null;
         try {
             mandateeId = credential.mandateeId();
@@ -560,7 +560,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
             return mandateeId;
         }
 
-        // 3) LEGACY fallback directo del JSON
+        // 3) LEGACY fallback
         String mandateeIdJson = credentialJson
                 .path("credentialSubject")
                 .path("mandate")
