@@ -1072,7 +1072,4 @@ class CustomAuthenticationProviderTest {
         return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
     }
 
-
-
-
 }
