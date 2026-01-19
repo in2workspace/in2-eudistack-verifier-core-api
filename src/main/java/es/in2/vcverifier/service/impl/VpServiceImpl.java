@@ -56,7 +56,7 @@ public class VpServiceImpl implements VpService {
 
 
     @Override
-    public void validateVerifiablePresentation(String verifiablePresentation) { //PASA POR AQUI
+    public void validateVerifiablePresentation(String verifiablePresentation) {
         log.info("Starting validation of Verifiable Presentation");
         // Step 1: Extract the Verifiable Credential (VC) from the VP (JWT)
         log.debug("VpServiceImpl -- validateVerifiablePresentation -- Extracting first Verifiable Credential from Verifiable Presentation");
@@ -163,7 +163,7 @@ public class VpServiceImpl implements VpService {
         String boundDidFromVc = extractBoundDidFromCredential(learCredential, vcSub);
 
         if (boundDidFromVc == null || boundDidFromVc.isBlank()) {
-            throw new InvalidScopeException("Credential missing cryptographic binding DID (redentialSubject.id or vc.jwt.sub or mandatee.id)");
+            throw new InvalidScopeException("Credential missing cryptographic binding DID (credentialSubject.id or vc.jwt.sub or mandatee.id)");
         }
 
         log.info("[BIND] VC bound DID resolved as {}", boundDidFromVc);

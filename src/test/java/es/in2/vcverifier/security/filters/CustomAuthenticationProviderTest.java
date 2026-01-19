@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import es.in2.vcverifier.config.BackendConfig;
 import es.in2.vcverifier.config.CacheStore;
 import es.in2.vcverifier.model.RefreshTokenDataCache;
@@ -691,13 +692,19 @@ class CustomAuthenticationProviderTest {
         when(backendConfig.getUrl()).thenReturn("https://auth.server");
 
         // Mock VC JSON i @context = MACHINE_V2
-        JsonNode vcJsonNode = mock(JsonNode.class);
-        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
+        ObjectNode vcJsonNode = JsonNodeFactory.instance.objectNode();
+
         ArrayNode contextNode = JsonNodeFactory.instance.arrayNode();
         for (String ctx : LEAR_CREDENTIAL_MACHINE_V2_CONTEXT) {
             contextNode.add(ctx);
         }
-        when(vcJsonNode.get("@context")).thenReturn(contextNode);
+        vcJsonNode.set("@context", contextNode);
+
+        ObjectNode cs = JsonNodeFactory.instance.objectNode();
+        cs.put("id", "did:key:zTestMachineSubject");
+        vcJsonNode.set("credentialSubject", cs);
+
+        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
 
         // Mock credencial V2
         LEARCredentialMachineV2 machineV2 = mock(LEARCredentialMachineV2.class);
@@ -747,11 +754,16 @@ class CustomAuthenticationProviderTest {
         when(backendConfig.getUrl()).thenReturn("https://auth.server");
 
         // @context qualsevol que NO sigui LEAR_CREDENTIAL_MACHINE_V2_CONTEXT
-        JsonNode vcJsonNode = mock(JsonNode.class);
-        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
+        ObjectNode vcJsonNode = JsonNodeFactory.instance.objectNode();
         ArrayNode contextNode = JsonNodeFactory.instance.arrayNode();
-        contextNode.add("https://any.other/context"); // diferent de V2
-        when(vcJsonNode.get("@context")).thenReturn(contextNode);
+        contextNode.add("https://any.other/context"); // NO es V2
+        vcJsonNode.set("@context", contextNode);
+
+        ObjectNode cs = JsonNodeFactory.instance.objectNode();
+        cs.put("id", "did:key:zTestMachineSubject"); // <- para resolveCredentialSubjectDid()
+        vcJsonNode.set("credentialSubject", cs);
+
+        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
 
         LEARCredentialMachineV1 machineV1 = mock(LEARCredentialMachineV1.class);
         when(machineV1.type()).thenReturn(List.of("VerifiableCredential", "LEARCredentialMachine"));

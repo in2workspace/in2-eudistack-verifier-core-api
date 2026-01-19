@@ -409,6 +409,10 @@ class VpServiceImplTest {
 
             mockedSignedJWT.when(() -> SignedJWT.parse(verifiablePresentation)).thenReturn(vpSignedJWT);
 
+            var vpHeader = mock(com.nimbusds.jose.JWSHeader.class);
+            when(vpSignedJWT.getHeader()).thenReturn(vpHeader);
+            when(vpHeader.getKeyID()).thenReturn(learCredentialEmployeeV1.mandateeId()); // holderDid
+
             // Set up the VP claims
             JWTClaimsSet vpClaimsSet = mock(JWTClaimsSet.class);
             when(vpSignedJWT.getJWTClaimsSet()).thenReturn(vpClaimsSet);
@@ -422,6 +426,11 @@ class VpServiceImplTest {
             // Step 2: Parse the VC JWT
             SignedJWT jwtCredential = mock(SignedJWT.class);
             mockedSignedJWT.when(() -> SignedJWT.parse(vcJwt)).thenReturn(jwtCredential);
+
+            // VC claims -> sub (binding source #2)
+            JWTClaimsSet vcClaimsSet = mock(JWTClaimsSet.class);
+            when(jwtCredential.getJWTClaimsSet()).thenReturn(vcClaimsSet);
+            when(vcClaimsSet.getSubject()).thenReturn(learCredentialEmployeeV1.mandateeId());
 
             Payload payload = mock(Payload.class);
             when(jwtService.getPayloadFromSignedJWT(jwtCredential)).thenReturn(payload);
@@ -492,6 +501,11 @@ class VpServiceImplTest {
         try (MockedStatic<SignedJWT> mockedSignedJWT = mockStatic(SignedJWT.class)) {
 
             mockedSignedJWT.when(() -> SignedJWT.parse(verifiablePresentation)).thenReturn(vpSignedJWT);
+
+            // VP header -> kid (holder DID)
+            var vpHeader = mock(com.nimbusds.jose.JWSHeader.class);
+            when(vpSignedJWT.getHeader()).thenReturn(vpHeader);
+            when(vpHeader.getKeyID()).thenReturn(learCredentialEmployeeV1.mandateeId());
 
             // Set up the VP claims
             JWTClaimsSet vpClaimsSet = mock(JWTClaimsSet.class);

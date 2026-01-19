@@ -80,7 +80,7 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
 
         // Send the decoded token to a service for validation
         try{
-            vpService.validateVerifiablePresentation(decodedVpToken); //PASA POR AQUI
+            vpService.validateVerifiablePresentation(decodedVpToken);
         }catch(Exception e){
             log.error("VP Token is invalid - VP Token used in H2M flow is invalid");
             throw e;

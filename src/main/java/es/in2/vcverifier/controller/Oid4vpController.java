@@ -42,7 +42,7 @@ public class Oid4vpController {
         //TODO We need use presentationSubmission in the future
         log.info("Processing auth response");
         log.debug("Oid4vpController -- processAuthResponse -- Request params: state = {}, vpToken = {}, presentationSubmission = {}", state, vpToken, presentationSubmission);
-        authorizationResponseProcessorService.processAuthResponse(state, vpToken); //PASA POR AQUI
+        authorizationResponseProcessorService.processAuthResponse(state, vpToken);
     }
 
 }
