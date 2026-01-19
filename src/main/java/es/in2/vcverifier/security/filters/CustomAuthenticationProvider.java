@@ -98,7 +98,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 
         LEARCredential credential = getVerifiableCredential(authentication, credentialJson);
 
-        String subject = credential.mandateeId();
+        String subject = resolveCredentialSubjectDid(credential, credentialJson);
         log.debug("CustomAuthenticationProvider -- handleGrant -- Credential subject obtained: {}", subject);
 
         String audience = getAudience(authentication, credential);
@@ -536,5 +536,48 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         return OAuth2AuthorizationCodeAuthenticationToken.class.isAssignableFrom(authentication)
                 || OAuth2ClientCredentialsAuthenticationToken.class.isAssignableFrom(authentication)
                 || OAuth2RefreshTokenAuthenticationToken.class.isAssignableFrom(authentication);
+    }
+
+    private String resolveCredentialSubjectDid(LEARCredential credential, JsonNode credentialJson) {
+
+        // 1) NUEVO: credentialSubject.id
+        String csId = null;
+        try {
+            csId = credentialJson.path("credentialSubject").path("id").asText(null);
+        } catch (Exception ignored) {}
+
+        if (csId != null && !csId.isBlank()) {
+            return csId;
+        }
+
+        // 2) LEGACY: mandatee.id (vía modelo)
+        String mandateeId = null;
+        try {
+            mandateeId = credential.mandateeId();
+        } catch (Exception ignored) {}
+
+        if (mandateeId != null && !mandateeId.isBlank()) {
+            return mandateeId;
+        }
+
+        // 3) LEGACY fallback directo del JSON
+        String mandateeIdJson = credentialJson
+                .path("credentialSubject")
+                .path("mandate")
+                .path("mandatee")
+                .path("id")
+                .asText(null);
+
+        if (mandateeIdJson != null && !mandateeIdJson.isBlank()) {
+            return mandateeIdJson;
+        }
+
+        log.error("[GRANT] Cannot resolve subject DID. Paths checked: credentialSubject.id, mandatee.id, credentialSubject.mandate.mandatee.id");
+        log.error("[GRANT] credentialSubject keys={}",
+                credentialJson.path("credentialSubject").isObject()
+                        ? credentialJson.path("credentialSubject").fieldNames().toString()
+                        : "not-object");
+
+        throw new IllegalStateException("Missing cryptographic binding DID in credential (credentialSubject.id or mandatee.id)");
     }
 }
