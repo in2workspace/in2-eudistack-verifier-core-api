@@ -117,16 +117,57 @@ public class VpServiceImpl implements VpService {
         trustFrameworkService.getTrustedIssuerListData(DID_ELSI_PREFIX + mandatorOrganizationIdentifier);
         log.info("Mandator OrganizationIdentifier {} is valid and allowed", mandatorOrganizationIdentifier);
 
-        // Step 10: Validate the VP's signature with the DIDService (the DID of the holder of the VP)
-        String mandateeId = learCredential.mandateeId();
-        System.out.println("XIVATO 4: "+ mandateeId);
+        // Step 10: Validate the VP's signature (PoP) and cryptographic binding
 
-        System.out.println("XIVATO 5: "+ learCredential);
-        PublicKey holderPublicKey = didService.getPublicKeyFromDid(mandateeId); // Get the holder's public key in bytes
-        jwtService.verifyJWTWithECKey(verifiablePresentation, holderPublicKey); // Validate the VP was signed by the holder DID
-        log.info("VP's signature is valid, holder DID {} confirmed", mandateeId);
+        // 10.1 Extract holder DID from VP (preferred: header.kid -> iss -> sub)
+        SignedJWT vpJwt;
+        try {
+            vpJwt = SignedJWT.parse(verifiablePresentation);
+        } catch (Exception e) {
+            throw new InvalidVPtokenException("Invalid vp_token JWT");
+        }
 
+        String vpKid = vpJwt.getHeader().getKeyID();
+        String vpIss;
+        String vpSub;
+        try {
+            var claims = vpJwt.getJWTClaimsSet();
+            vpIss = claims.getIssuer();
+            vpSub = claims.getSubject();
+        } catch (Exception e) {
+            throw new InvalidVPtokenException("Cannot read vp_token claims");
+        }
+
+        String holderDid = extractDidFromKidIssSub(vpKid, vpIss, vpSub);
+        if (holderDid == null || holderDid.isBlank()) {
+            throw new InvalidScopeException("Cannot extract holder DID from VP (kid/iss/sub)");
+        }
+
+        log.info("[BIND] VP holder DID resolved as {}", holderDid);
+
+        // 10.2 Verify VP signature using holder DID
+        PublicKey holderPublicKey = didService.getPublicKeyFromDid(holderDid);
+        jwtService.verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
+        log.info("VP's signature is valid, holder DID {} confirmed", holderDid);
+
+        // 10.3 Extract DID bound in VC (new first, then legacy)
+        String boundDidFromVc = extractBoundDidFromCredential(learCredential);
+        if (boundDidFromVc == null || boundDidFromVc.isBlank()) {
+            throw new InvalidScopeException("Credential missing cryptographic binding DID (credentialSubject.id or mandatee.id)");
+        }
+
+        log.info("[BIND] VC bound DID resolved as {}", boundDidFromVc);
+
+        // 10.4 Enforce binding: holder DID must match VC bound DID
+        if (!holderDid.equals(boundDidFromVc)) {
+            throw new InvalidScopeException(
+                    "Cryptographic binding mismatch: VP holder DID (" + holderDid + ") != VC bound DID (" + boundDidFromVc + ")"
+            );
+        }
+
+        log.info("Cryptographic binding validated: VP holder DID matches VC bound DID");
         log.info("Verifiable Presentation validation completed successfully");
+
     }
 
     @Override
@@ -389,5 +430,35 @@ public class VpServiceImpl implements VpService {
         }
         return firstCredential;
     }
+
+    private String extractDidFromKidIssSub(String kid, String iss, String sub) {
+        if (kid != null && kid.startsWith("did:")) {
+            return kid.contains("#") ? kid.substring(0, kid.indexOf('#')) : kid;
+        }
+        if (iss != null && iss.startsWith("did:")) return iss;
+        if (sub != null && sub.startsWith("did:")) return sub;
+        return null;
+    }
+
+    private String extractBoundDidFromCredential(LEARCredential cred) {
+        // NEW: credentialSubject.id
+        String csId = safeGetCredentialSubjectId(cred);
+        if (csId != null && !csId.isBlank()) return csId;
+
+        // LEGACY: mandatee.id
+        String mandateeId = cred.mandateeId();
+        if (mandateeId != null && !mandateeId.isBlank()) return mandateeId;
+
+        return null;
+    }
+
+    private String safeGetCredentialSubjectId(LEARCredential cred) {
+        try {
+            return cred.credentialSubjectId();
+        } catch (Exception ignore) {
+            return null;
+        }
+    }
+
 
 }
