@@ -33,6 +33,12 @@ class FrontendPropertiesTest {
                 "#000000"
         );
 
+        FrontendProperties.Assets expectedAssets = new FrontendProperties.Assets(
+                "https://cdn.example.com/assets",
+                "logo.png",
+                "favicon.ico"
+        );
+
         assertThat(frontendProperties.urls())
                 .as("URLs should match the provided values")
                 .isEqualTo(expectedUrls);
@@ -41,13 +47,9 @@ class FrontendPropertiesTest {
                 .as("Colors should match the provided values")
                 .isEqualTo(expectedColors);
 
-        assertThat(frontendProperties.logoSrc())
-                .as("Logo source should be 'logo.png'")
-                .isEqualTo("logo.png");
-
-        assertThat(frontendProperties.faviconSrc())
-                .as("Favicon source should be 'favicon.ico'")
-                .isEqualTo("favicon.ico");
+        assertThat(frontendProperties.assets())
+                .as("Assets should match the provided values")
+                .isEqualTo(expectedAssets);
 
         assertThat(frontendProperties.defaultLang())
                 .as("Default lang should be en")
@@ -63,11 +65,10 @@ class FrontendPropertiesTest {
         new ApplicationContextRunner()
                 .withUserConfiguration(TestConfig.class)
                 .withPropertyValues(
-                        // omit onboarding url
-                        // "verifier.frontend.urls.onboarding"
                         "verifier.frontend.urls.support=https://example.com/support",
                         "verifier.frontend.urls.wallet=https://example.com/wallet",
-                        "verifier.frontend.logoSrc=logo.png"
+                        "verifier.frontend.assets.baseUrl=https://cdn.example.com/assets",
+                        "verifier.frontend.assets.logoPath=logo.png"
                 )
                 .run(context -> assertThat(context).hasFailed());
     }
@@ -77,11 +78,10 @@ class FrontendPropertiesTest {
         new ApplicationContextRunner()
                 .withUserConfiguration(TestConfig.class)
                 .withPropertyValues(
-                         "verifier.frontend.urls.onboarding=https://example.com/onboarding",
-                        // omit support url
-                        //  "verifier.frontend.urls.support=https://example.com/support",
+                        "verifier.frontend.urls.onboarding=https://example.com/onboarding",
                         "verifier.frontend.urls.wallet=https://example.com/wallet",
-                        "verifier.frontend.logoSrc=logo.png"
+                        "verifier.frontend.assets.baseUrl=https://cdn.example.com/assets",
+                        "verifier.frontend.assets.logoPath=logo.png"
                 )
                 .run(context -> assertThat(context).hasFailed());
     }
@@ -91,28 +91,57 @@ class FrontendPropertiesTest {
         new ApplicationContextRunner()
                 .withUserConfiguration(TestConfig.class)
                 .withPropertyValues(
-                         "verifier.frontend.urls.onboarding=https://example.com/onboarding",
+                        "verifier.frontend.urls.onboarding=https://example.com/onboarding",
                         "verifier.frontend.urls.support=https://example.com/support",
-                        // omit wallet url
-                        //  "verifier.frontend.urls.wallet=https://example.com/wallet",
-                        "verifier.frontend.logoSrc=logo.png"
+                        "verifier.frontend.assets.baseUrl=https://cdn.example.com/assets",
+                        "verifier.frontend.assets.logoPath=logo.png"
                 )
                 .run(context -> assertThat(context).hasFailed());
     }
 
     @Test
-    void testMissingMandatoryLogoSrcCausesError() {
+    void testMissingMandatoryAssetsBaseUrlCausesError() {
         new ApplicationContextRunner()
                 .withUserConfiguration(TestConfig.class)
                 .withPropertyValues(
-                         "verifier.frontend.urls.onboarding=https://example.com/onboarding",
+                        "verifier.frontend.urls.onboarding=https://example.com/onboarding",
                         "verifier.frontend.urls.support=https://example.com/support",
-                          "verifier.frontend.urls.wallet=https://example.com/wallet"
-                        //omit logoSrc
-//                        "verifier.frontend.logoSrc=logo.png"
+                        "verifier.frontend.urls.wallet=https://example.com/wallet",
+                        "verifier.frontend.assets.logoPath=logo.png"
                 )
                 .run(context -> assertThat(context).hasFailed());
     }
+
+    @Test
+    void testMissingMandatoryLogoPathCausesError() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(TestConfig.class)
+                .withPropertyValues(
+                        "verifier.frontend.urls.onboarding=https://example.com/onboarding",
+                        "verifier.frontend.urls.support=https://example.com/support",
+                        "verifier.frontend.urls.wallet=https://example.com/wallet",
+                        "verifier.frontend.assets.baseUrl=https://cdn.example.com/assets"
+                        // omit logoPath
+                        // "verifier.frontend.assets.logoPath=logo.png"
+                )
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
+    void testMissingMandatoryFaviconPathCausesError() {
+        new ApplicationContextRunner()
+                .withUserConfiguration(TestConfig.class)
+                .withPropertyValues(
+                        "verifier.frontend.urls.onboarding=https://example.com/onboarding",
+                        "verifier.frontend.urls.support=https://example.com/support",
+                        "verifier.frontend.urls.wallet=https://example.com/wallet",
+                        "verifier.frontend.assets.baseUrl=https://cdn.example.com/assets",
+                        "verifier.frontend.assets.logoPath=logo.png"
+                        // omit faviconPath
+                )
+                .run(context -> assertThat(context).hasFailed());
+    }
+
 
     @Test
     void testWithAllMandatoryPropertiesAndNoOptional() {
@@ -122,7 +151,9 @@ class FrontendPropertiesTest {
                         "verifier.frontend.urls.onboarding=https://example.com/onboarding",
                         "verifier.frontend.urls.support=https://example.com/support",
                         "verifier.frontend.urls.wallet=https://example.com/wallet",
-                        "verifier.frontend.logoSrc=logo.png"
+                        "verifier.frontend.assets.baseUrl=https://cdn.example.com/assets",
+                        "verifier.frontend.assets.logoPath=logo.png",
+                        "verifier.frontend.assets.faviconPath=favicon.ico"
                 )
                 .run(context -> assertThat(context).hasNotFailed());
     }

@@ -14,7 +14,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Blinker:wght@100;200;300;400;600;700;800;900&display=swap" rel="stylesheet">
 
     <!-- Favicon -->
-    <link rel="icon" th:href="@{/img/{file}(file=${faviconSrc})}" type="image/png">
+    <link rel="icon" th:href="${faviconSrc}" type="image/png">
 
     <!-- Integrated CSS styles -->
     <style th:inline="text" >
@@ -22,7 +22,7 @@
         :root {
             --fore-color-primary: [[${primaryContrast}]];
             --bg-color-primary: [[${primary}]] !important;
-            --dark-primary: [[${secondary}]] !important;
+            --secondary: [[${secondary}]] !important;
         }
 
         body {
@@ -43,7 +43,8 @@
         .header img {
             display:block;
             max-width: 150px;
-            width:100%;
+            max-height: 65px;
+            width: auto;
         }
 
         .page {
@@ -95,7 +96,7 @@
         }
 
         .card a:hover {
-            color: var(--dark-primary);
+            color: var(--secondary);
             font-weight: bold;
             text-decoration: underline;
             transition: text-decoration 200ms ease-in-out, color 200ms ease-in-out;
@@ -107,7 +108,7 @@
         }
 
         .registration-card {
-            background-color: var(--dark-primary);
+            background-color: var(--secondary);
             text-align: center;
             display: flex;
             flex-direction: column;
@@ -137,7 +138,7 @@
 
         .registration-card button:hover, .qr-container button:hover {
             background-color: var(--fore-color-primary);
-            color: var(--dark-primary);
+            color: var(--secondary);
             transform: scale(1.05);
             transition: background-color 0.3s ease, transform 0.3s ease, color 0.3s ease;
         }
@@ -149,7 +150,6 @@
         .qr-image {
             display: block;
             max-width: 100%;
-            padding: 8px;
             box-sizing: border-box;
         }
 
@@ -195,7 +195,7 @@
         }
 
         .help a:hover{
-            color: var(--dark-primary);
+            color: var(--secondary);
         }
 
         .qr-card-content {
@@ -322,7 +322,7 @@
 </head>
 <body>
 <div class="header">
-    <img th:src="@{/img/{file}(file=${logoSrc})}" alt="Logotipo" th:attr="onclick='window.location.href = \'' + ${homeUri} + '\''" style="cursor: pointer;">
+    <img th:src="${logoSrc}" alt="Logotipo" th:attr="onclick='window.location.href = \'' + ${homeUri} + '\''" style="cursor: pointer;">
 </div>
 <div class="page">
     <div class="container">
