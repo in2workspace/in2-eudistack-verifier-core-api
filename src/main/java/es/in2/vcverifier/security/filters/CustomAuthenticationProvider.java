@@ -541,14 +541,24 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     private String resolveCredentialSubjectDid(LEARCredential credential, JsonNode credentialJson) {
 
         // 1) credentialSubject.id
-        String csId = credentialJson.path("credentialSubject").path("id").asText(null);
+        String csId = null;
+        try {
+            csId = credentialJson.path("credentialSubject").path("id").asText(null);
+        } catch (Exception e) {
+            log.debug("Cannot extract credentialSubject from credential implementation: {}", credential.getClass().getSimpleName(), e);
+        }
 
         if (csId != null && !csId.isBlank()) {
             return csId;
         }
 
         // 2) LEGACY: mandatee.id
-        String mandateeId = credential.mandateeId();
+        String mandateeId = null;
+        try {
+            mandateeId = credential.mandateeId();
+        } catch (Exception e) {
+            log.debug("Cannot extract mandateeId from credential implementation: {}", credential.getClass().getSimpleName(), e);
+        }
 
         if (mandateeId != null && !mandateeId.isBlank()) {
             return mandateeId;
@@ -565,6 +575,12 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         if (mandateeIdJson != null && !mandateeIdJson.isBlank()) {
             return mandateeIdJson;
         }
+
+        log.error("[GRANT] Cannot resolve subject DID. Paths checked: credentialSubject.id, mandatee.id, credentialSubject.mandate.mandatee.id");
+        log.error("[GRANT] credentialSubject keys={}",
+                credentialJson.path("credentialSubject").isObject()
+                        ? credentialJson.path("credentialSubject").fieldNames().toString()
+                        : "not-object");
 
         throw new IllegalStateException("Missing cryptographic binding DID in credential (credentialSubject.id or mandatee.id)");
     }
