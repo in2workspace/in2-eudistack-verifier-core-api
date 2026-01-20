@@ -13,7 +13,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class LEARCredentialEmployeeV1Test {
+class LEARCredentialEmployeeV1Test {
 
     @Test
     void shouldBuildLEARCredentialEmployeeV1AndAccessFieldsCorrectly() {

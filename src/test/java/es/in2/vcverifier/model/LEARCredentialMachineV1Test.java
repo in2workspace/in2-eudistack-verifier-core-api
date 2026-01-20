@@ -12,7 +12,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class LEARCredentialMachineV1Test {
+class LEARCredentialMachineV1Test {
 
     @Test
     void shouldBuildLEARCredentialMachineV1AndAccessFieldsCorrectly() {

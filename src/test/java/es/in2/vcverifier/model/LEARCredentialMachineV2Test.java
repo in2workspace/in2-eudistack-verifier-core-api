@@ -11,7 +11,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-public class LEARCredentialMachineV2Test {
+class LEARCredentialMachineV2Test {
 
     @Test
     void shouldBuildLEARCredentialMachineV2AndAccessFieldsCorrectly() {

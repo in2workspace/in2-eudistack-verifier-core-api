@@ -1074,17 +1074,6 @@ class CustomAuthenticationProviderTest {
         return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
     }
 
-    private CustomAuthenticationProvider provider() {
-        return new CustomAuthenticationProvider(
-                mock(JWTService.class),
-                mock(RegisteredClientRepository.class),
-                mock(BackendConfig.class),
-                objectMapper,
-                mock(CacheStore.class),
-                mock(OAuth2AuthorizationService.class)
-        );
-    }
-
     private String invokeResolve(CustomAuthenticationProvider cap, LEARCredential cred, JsonNode json) {
         try {
             Method m = CustomAuthenticationProvider.class

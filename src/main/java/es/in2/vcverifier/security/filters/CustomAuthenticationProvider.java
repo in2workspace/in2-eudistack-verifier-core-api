@@ -541,20 +541,14 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     private String resolveCredentialSubjectDid(LEARCredential credential, JsonNode credentialJson) {
 
         // 1) credentialSubject.id
-        String csId = null;
-        try {
-            csId = credentialJson.path("credentialSubject").path("id").asText(null);
-        } catch (Exception ignored) {}
+        String csId = credentialJson.path("credentialSubject").path("id").asText(null);
 
         if (csId != null && !csId.isBlank()) {
             return csId;
         }
 
         // 2) LEGACY: mandatee.id
-        String mandateeId = null;
-        try {
-            mandateeId = credential.mandateeId();
-        } catch (Exception ignored) {}
+        String mandateeId = credential.mandateeId();
 
         if (mandateeId != null && !mandateeId.isBlank()) {
             return mandateeId;

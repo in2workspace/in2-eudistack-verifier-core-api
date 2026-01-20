@@ -1,7 +1,6 @@
 package es.in2.vcverifier.model;
 
 import es.in2.vcverifier.model.credentials.lear.CredentialStatus;
-import es.in2.vcverifier.model.credentials.lear.Mandator;
 import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV3;
 import es.in2.vcverifier.model.credentials.lear.employee.subject.CredentialSubjectV3;
 import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.MandateV3;
@@ -13,7 +12,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-public class LEARCredentialEmployeeV3Test {
+class LEARCredentialEmployeeV3Test {
 
     @Test
     void shouldBuildLEARCredentialEmployeeV3AndAccessFieldsCorrectly() {
