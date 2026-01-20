@@ -50,6 +50,8 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.*;
 
 import static es.in2.vcverifier.util.Constants.LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT;
@@ -1071,5 +1073,73 @@ class CustomAuthenticationProviderTest {
                 .digest(verifier.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
         return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
     }
+
+    private CustomAuthenticationProvider provider() {
+        return new CustomAuthenticationProvider(
+                mock(JWTService.class),
+                mock(RegisteredClientRepository.class),
+                mock(BackendConfig.class),
+                objectMapper,
+                mock(CacheStore.class),
+                mock(OAuth2AuthorizationService.class)
+        );
+    }
+
+    private String invokeResolve(CustomAuthenticationProvider cap, LEARCredential cred, JsonNode json) {
+        try {
+            Method m = CustomAuthenticationProvider.class
+                    .getDeclaredMethod("resolveCredentialSubjectDid", LEARCredential.class, JsonNode.class);
+            m.setAccessible(true);
+            return (String) m.invoke(cap, cred, json);
+        } catch (InvocationTargetException e) {
+            Throwable target = e.getTargetException();
+            if (target instanceof RuntimeException re) throw re;
+            throw new RuntimeException(target);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Test
+    void resolveCredentialSubjectDid_legacyFallback_throwsException() {
+        LEARCredential mockCredential = mock(LEARCredential.class);
+        when(mockCredential.mandateeId()).thenThrow(new RuntimeException("Legacy method failed"));
+
+        ObjectNode credentialJson = JsonNodeFactory.instance.objectNode();
+        ObjectNode credentialSubject = credentialJson.putObject("credentialSubject");
+        ObjectNode mandate = credentialSubject.putObject("mandate");
+        mandate.putObject("mandatee"); // sin id
+
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> invokeResolve(customAuthenticationProvider, mockCredential, credentialJson)
+        );
+
+        assertEquals(
+                "Missing cryptographic binding DID in credential (credentialSubject.id or mandatee.id)",
+                ex.getMessage()
+        );
+    }
+
+
+    @Test
+    void resolveCredentialSubjectDid_legacyFallback_success() {
+        LEARCredential mockCredential = mock(LEARCredential.class);
+        when(mockCredential.mandateeId()).thenReturn(null);
+
+        // JSON real sin ObjectMapper
+        ObjectNode credentialJson = JsonNodeFactory.instance.objectNode();
+        ObjectNode credentialSubject = credentialJson.putObject("credentialSubject");
+        ObjectNode mandate = credentialSubject.putObject("mandate");
+        ObjectNode mandatee = mandate.putObject("mandatee");
+        mandatee.put("id", "did:example:legacy-mandatee");
+
+        assertNotNull(credentialJson);
+
+        String result = invokeResolve(customAuthenticationProvider, mockCredential, credentialJson);
+
+        assertEquals("did:example:legacy-mandatee", result);
+    }
+
 
 }

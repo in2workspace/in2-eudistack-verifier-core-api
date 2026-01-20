@@ -572,12 +572,6 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
             return mandateeIdJson;
         }
 
-        log.error("[GRANT] Cannot resolve subject DID. Paths checked: credentialSubject.id, mandatee.id, credentialSubject.mandate.mandatee.id");
-        log.error("[GRANT] credentialSubject keys={}",
-                credentialJson.path("credentialSubject").isObject()
-                        ? credentialJson.path("credentialSubject").fieldNames().toString()
-                        : "not-object");
-
         throw new IllegalStateException("Missing cryptographic binding DID in credential (credentialSubject.id or mandatee.id)");
     }
 }
