@@ -285,12 +285,30 @@ public class VpServiceImpl implements VpService {
     }
 
     private boolean validateNewCredentialNotRevoked(LEARCredential learCredential) {
-        if(REVOCATION.equals(learCredential.credentialStatusPurpose())){
-            return !trustFrameworkService.getCredentialStatusListData(learCredential.statusListCredential())
-                    .contains(learCredential.credentialStatusListIndex()); //negate because we want a true just only when really not exist
+        if (!REVOCATION.equals(learCredential.credentialStatusPurpose())) {
+            return false;
         }
-        return Boolean.FALSE;
+
+        String type = learCredential.credentialStatusType();
+
+        if ("PlainListEntity".equals(type)) {
+            // Legacy JSON: list of nonces
+            return !trustFrameworkService.getCredentialStatusListData(learCredential.statusListCredential())
+                    .contains(learCredential.credentialStatusListIndex());
+        }
+
+        if ("BitstringStatusListEntry".equals(type)) {
+            // Modern VC-JWT: bitstring encoded list
+            return !trustFrameworkService.isCredentialRevokedInBitstringStatusList(
+                    learCredential.statusListCredential(),
+                    learCredential.credentialStatusListIndex(),
+                    learCredential.credentialStatusPurpose()
+            );
+        }
+
+        throw new CredentialException("Unsupported credentialStatus.type: " + type);
     }
+
 
     private void validateCredentialTimeWindow(LEARCredential credential) {
         try {
