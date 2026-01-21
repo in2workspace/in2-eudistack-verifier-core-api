@@ -13,6 +13,7 @@ import es.in2.vcverifier.model.RevokedCredentialIds;
 import es.in2.vcverifier.model.issuer.IssuerAttribute;
 import es.in2.vcverifier.model.issuer.IssuerCredentialsCapabilities;
 import es.in2.vcverifier.model.issuer.IssuerResponse;
+import es.in2.vcverifier.service.CertificateValidationService;
 import es.in2.vcverifier.service.TrustFrameworkService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -26,8 +27,10 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.text.ParseException;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
@@ -39,6 +42,7 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
     private final ObjectMapper objectMapper;
     private final BackendConfig backendConfig;
     private final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+    private final CertificateValidationService certificateValidationService;
 
     @Override
     public ExternalTrustedListYamlData fetchAllowedClient() {
@@ -172,8 +176,34 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
             log.info("body response: {}", jwtString);
             //todo validate with jwtService.verifyJWTWithX5cRS256(jwtString);
 
-            SignedJWT signedJWT = SignedJWT.parse(jwtString);
-            JsonNode claims = objectMapper.valueToTree(signedJWT.getJWTClaimsSet().toJSONObject());
+            SignedJWT signedJWTCredential = SignedJWT.parse(jwtString);
+
+            Map<String, Object> vcHeader = signedJWTCredential.getHeader().toJSONObject();
+
+            // Read issuer from claims (payload)
+            String credentialIssuerDid;
+            try {
+                credentialIssuerDid = signedJWTCredential.getJWTClaimsSet().getStringClaim("issuer");
+            } catch (ParseException e) {
+                throw new CredentialException("Error reading JWT claims: " + e.getMessage());
+            }
+
+            if (credentialIssuerDid == null || credentialIssuerDid.isBlank()) {
+                throw new CredentialException("Missing or blank 'issuer' claim in Status List Credential JWT");
+            }
+
+            if (!credentialIssuerDid.startsWith("did:elsi:")) {
+                throw new CredentialException("Unsupported issuer DID format: " + credentialIssuerDid);
+            }
+
+            certificateValidationService.extractAndVerifyCertificate(
+                    signedJWTCredential.serialize(),
+                    vcHeader,
+                    credentialIssuerDid.substring("did:elsi:".length())
+            );
+
+
+            JsonNode claims = objectMapper.valueToTree(signedJWTCredential.getJWTClaimsSet().toJSONObject());
             log.info("Claims: " + claims);
 
             String statusListCredentialPurpose = extractStatusPurposeFromStatusListCredentialClaims(claims);
