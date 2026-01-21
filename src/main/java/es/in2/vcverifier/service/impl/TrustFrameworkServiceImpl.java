@@ -173,9 +173,7 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
             //todo validate with jwtService.verifyJWTWithX5cRS256(jwtString);
 
             SignedJWT signedJWT = SignedJWT.parse(jwtString);
-            JsonNode claims = objectMapper.readTree(
-                    signedJWT.getJWTClaimsSet().toJSONObject().toString()
-            );
+            JsonNode claims = objectMapper.valueToTree(signedJWT.getJWTClaimsSet().toJSONObject());
             log.info("Claims: " + claims);
 
             String statusListCredentialPurpose = extractStatusPurposeFromStatusListCredentialClaims(claims);
@@ -317,6 +315,7 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
         } catch (IllegalArgumentException e) {
             throw new CredentialException("encodedList is not valid base64url" + e.getMessage());
         }
+        log.info("gzipped: {}", gzipped);
 
         return gunzip(gzipped);
     }
