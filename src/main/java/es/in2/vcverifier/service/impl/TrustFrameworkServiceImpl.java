@@ -127,6 +127,7 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
 
     @Override
     public boolean isCredentialRevokedInBitstringStatusList(String statusListCredentialUrl, String statusListIndex, String credentialStatusPurpose) {
+        log.info("isCredentialRevokedInBitstringStatusList, statusListCredentialUrl: {}, statusListIndex: {}, credentialStatusPurpose: {}", statusListCredentialUrl, statusListIndex, credentialStatusPurpose);
         final int index;
         try {
             index = Integer.parseInt(statusListIndex);
@@ -168,19 +169,23 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
         try {
             // Body is the JWT string when using application/vc+jwt
             String jwtString = response.body();
+            log.info("body response: {}", jwtString);
             //todo validate with jwtService.verifyJWTWithX5cRS256(jwtString);
 
             SignedJWT signedJWT = SignedJWT.parse(jwtString);
             JsonNode claims = objectMapper.readTree(
                     signedJWT.getJWTClaimsSet().toJSONObject().toString()
             );
+            log.info("Claims: " + claims);
 
             String statusListCredentialPurpose = extractStatusPurposeFromStatusListCredentialClaims(claims);
+            log.info("Extracted statusListCredential purpose: " + statusListCredentialPurpose);
             if(!statusListCredentialPurpose.equals(credentialStatusPurpose)){
                 throw new CredentialException("Status status purpose of the credential being validated and the status purpose from the statusListCredential don't match: " + credentialStatusPurpose + ", " + statusListCredentialPurpose);
             }
 
             String encodedList = extractEncodedListFromStatusListCredentialClaims(claims);
+            log.info("Extracted encodedList: " + encodedList);
 
             byte[] rawBytes = decodeEncodedListToRawBytes(encodedList);
 
@@ -292,6 +297,7 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
      * Decodes the encodedList (multibase base64url gzip) into raw bitstring bytes.
      */
     private byte[] decodeEncodedListToRawBytes(String encodedList) {
+        log.info("decodeEncodedListToRawBytes - encodedList: " + encodedList);
         if (encodedList == null || encodedList.isBlank()) {
             throw new CredentialException("encodedList cannot be blank");
         }
@@ -303,6 +309,7 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
         }
 
         payload = payload.substring(1);
+        log.info("decodeEncodedListToRawBytes - extracted payload: " + payload);
 
         final byte[] gzipped;
         try {
@@ -319,6 +326,7 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
      * Bit numbering is LSB-first within each byte, matching the issuer implementation.
      */
     private boolean isBitSet(byte[] rawBytes, int bitIndex) {
+        log.info("isBitSet");
         if (rawBytes == null) {
             throw new IllegalArgumentException("rawBytes cannot be null");
         }

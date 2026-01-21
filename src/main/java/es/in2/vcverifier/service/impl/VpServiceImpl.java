@@ -285,19 +285,23 @@ public class VpServiceImpl implements VpService {
     }
 
     private boolean validateNewCredentialNotRevoked(LEARCredential learCredential) {
+        log.info("validateNewCredentialNotRevoked, vc: {}", learCredential);
         if (!REVOCATION.equals(learCredential.credentialStatusPurpose())) {
+            log.error("credentialStatus is not revocation: {}", learCredential.credentialStatusPurpose());
             return false;
         }
 
         String type = learCredential.credentialStatusType();
 
         if ("PlainListEntity".equals(type)) {
+            log.info("Validating credential with PlainListEntity credential status");
             // Legacy JSON: list of nonces
             return !trustFrameworkService.getCredentialStatusListData(learCredential.statusListCredential())
                     .contains(learCredential.credentialStatusListIndex());
         }
 
         if ("BitstringStatusListEntry".equals(type)) {
+            log.info("Validating credential with BitstringStatusListEntry credential status");
             // Modern VC-JWT: bitstring encoded list
             return !trustFrameworkService.isCredentialRevokedInBitstringStatusList(
                     learCredential.statusListCredential(),
