@@ -549,6 +549,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         }
 
         if (csId != null && !csId.isBlank()) {
+            log.info("Subject DID resolved via credentialSubject.id()");
             return csId;
         }
 
@@ -561,6 +562,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         }
 
         if (mandateeId != null && !mandateeId.isBlank()) {
+            log.info("Subject DID resolved via mandateeId()");
             return mandateeId;
         }
 
