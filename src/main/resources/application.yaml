@@ -24,9 +24,9 @@ logging:
     org.springframework.security: INFO
     # Sets logging level for web filters
     org.springframework.web.filter: INFO
-    # Para ver en detalle el DispatcherServlet
+    # To see the DispatcherServlet in detail
     org.springframework.web.servlet.DispatcherServlet: TRACE
-    # Para rastrear el mapeo de URLs a métodos @RequestMapping
+    # To track the mapping of URLs to @RequestMapping methods
     org.springframework.web.servlet.handler.RequestMappingHandlerMapping: TRACE
 
 management:

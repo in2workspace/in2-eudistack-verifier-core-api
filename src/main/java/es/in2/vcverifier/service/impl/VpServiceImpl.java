@@ -456,7 +456,6 @@ public class VpServiceImpl implements VpService {
         csId = normalizeDid(csId);
         if (csId != null && !csId.isBlank()) {
 
-            // Optional consistency check vs VC JWT sub
             if (vcSub != null && vcSub.startsWith("did:") && !csId.equals(vcSub)) {
                 log.warn("[BIND] VC mismatch: credentialSubject.id={} != vcSub={}", csId, vcSub);
             }
