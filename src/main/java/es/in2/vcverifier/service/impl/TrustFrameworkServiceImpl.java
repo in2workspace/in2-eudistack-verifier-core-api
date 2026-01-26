@@ -10,10 +10,12 @@ import es.in2.vcverifier.dto.CredentialStatusResponse;
 import es.in2.vcverifier.exception.*;
 import es.in2.vcverifier.model.ExternalTrustedListYamlData;
 import es.in2.vcverifier.model.RevokedCredentialIds;
+import es.in2.vcverifier.model.StatusListCredentialData;
 import es.in2.vcverifier.model.issuer.IssuerAttribute;
 import es.in2.vcverifier.model.issuer.IssuerCredentialsCapabilities;
 import es.in2.vcverifier.model.issuer.IssuerResponse;
 import es.in2.vcverifier.service.CertificateValidationService;
+import es.in2.vcverifier.service.StatusListCredentialService;
 import es.in2.vcverifier.service.TrustFrameworkService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,6 +45,7 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
     private final BackendConfig backendConfig;
     private final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
     private final CertificateValidationService certificateValidationService;
+    private final StatusListCredentialService statusListCredentialService;
 
     @Override
     public ExternalTrustedListYamlData fetchAllowedClient() {
@@ -130,106 +133,51 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
     }
 
     @Override
-    public boolean isCredentialRevokedInBitstringStatusList(String statusListCredentialUrl, String statusListIndex, String credentialStatusPurpose) {
-        log.info("isCredentialRevokedInBitstringStatusList, statusListCredentialUrl: {}, statusListIndex: {}, credentialStatusPurpose: {}", statusListCredentialUrl, statusListIndex, credentialStatusPurpose);
-        final int index;
-        try {
-            index = Integer.parseInt(statusListIndex);
-        } catch (NumberFormatException e) {
-            throw new CredentialException("statusListIndex is not a valid integer: " + statusListIndex + e.getMessage());
-        }
+    public boolean isCredentialRevokedInBitstringStatusList(
+            String statusListCredentialUrl,
+            String statusListIndex,
+            String credentialStatusPurpose) {
 
-        if (index < 0) {
-            throw new CredentialException("statusListIndex must be >= 0: " + statusListIndex);
-        }
+        log.info("Checking credential revocation in bitstring status list - URL: {}, Index: {}, Purpose: {}",
+                statusListCredentialUrl, statusListIndex, credentialStatusPurpose);
 
-        final HttpClient client = HttpClient.newHttpClient();
-        final HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(statusListCredentialUrl))
-                .header("Accept", "application/vc+jwt")
-                .GET()
-                .build();
+        // Parse and validate the status list index
+        final int index = parseAndValidateStatusListIndex(statusListIndex);
 
-        final HttpResponse<String> response;
-        try {
-            response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new FailedCommunicationException("Interrupted while fetching Status List Credential" + e.getMessage());
-        } catch (IOException e) {
-            throw new FailedCommunicationException("Error fetching Status List Credential" + e.getMessage());
-        }
+        // Fetch the Status List Credential JWT
+        final String jwtString = fetchStatusListCredentialJwt(statusListCredentialUrl);
 
-        if (response.statusCode() == 404) {
-            throw new FailedCommunicationException("Status List Credential not found: " + statusListCredentialUrl);
-        }
+        log.debug("Status List Credential JWT fetched successfully");
 
-        if (response.statusCode() != 200) {
-            throw new FailedCommunicationException(
-                    "Failed to fetch Status List Credential. Status code: " + response.statusCode()
+        final SignedJWT signedJwt = parseSignedJwt(jwtString);
+        // Validate the certificate of the Status List Credential
+        validateStatusListCredentialCertificate(jwtString, signedJwt);
+
+        // Parse the JWT using StatusListCredentialService
+        final StatusListCredentialData statusData = statusListCredentialService.parse(signedJwt);
+
+        log.debug("Status List Credential parsed successfully. Purpose: {}", statusData.statusPurpose());
+
+        // Validate that the status purpose matches
+        statusListCredentialService.validateStatusPurposeMatches(
+                statusData.statusPurpose(),
+                credentialStatusPurpose
+        );
+
+        // Check if the index is within bounds
+        final int maxBits = statusListCredentialService.maxBits(statusData.rawBitstringBytes());
+        if (index >= maxBits) {
+            throw new CredentialException(
+                    "statusListIndex out of range. maxBits=" + maxBits + ", index=" + index
             );
         }
 
-        try {
-            // Body is the JWT string when using application/vc+jwt
-            String jwtString = response.body();
-            log.info("body response: {}", jwtString);
-            //todo validate with jwtService.verifyJWTWithX5cRS256(jwtString);
+        // Check if the bit at the given index is set (credential is revoked/suspended)
+        final boolean isRevoked = statusListCredentialService.isBitSet(statusData.rawBitstringBytes(), index);
 
-            SignedJWT signedJWTCredential = SignedJWT.parse(jwtString);
+        log.info("Credential revocation check completed. Index: {}, IsRevoked: {}", index, isRevoked);
 
-            Map<String, Object> vcHeader = signedJWTCredential.getHeader().toJSONObject();
-
-            // Read issuer from claims (payload)
-            String credentialIssuerDid;
-            try {
-                credentialIssuerDid = signedJWTCredential.getJWTClaimsSet().getStringClaim("issuer");
-            } catch (ParseException e) {
-                throw new CredentialException("Error reading JWT claims: " + e.getMessage());
-            }
-
-            if (credentialIssuerDid == null || credentialIssuerDid.isBlank()) {
-                throw new CredentialException("Missing or blank 'issuer' claim in Status List Credential JWT");
-            }
-
-            if (!credentialIssuerDid.startsWith("did:elsi:")) {
-                throw new CredentialException("Unsupported issuer DID format: " + credentialIssuerDid);
-            }
-
-            certificateValidationService.extractAndVerifyCertificate(
-                    signedJWTCredential.serialize(),
-                    vcHeader,
-                    credentialIssuerDid.substring("did:elsi:".length())
-            );
-
-
-            JsonNode claims = objectMapper.valueToTree(signedJWTCredential.getJWTClaimsSet().toJSONObject());
-            log.info("Claims: " + claims);
-
-            String statusListCredentialPurpose = extractStatusPurposeFromStatusListCredentialClaims(claims);
-            log.info("Extracted statusListCredential purpose: " + statusListCredentialPurpose);
-            if(!statusListCredentialPurpose.equals(credentialStatusPurpose)){
-                throw new CredentialException("Status status purpose of the credential being validated and the status purpose from the statusListCredential don't match: " + credentialStatusPurpose + ", " + statusListCredentialPurpose);
-            }
-
-            String encodedList = extractEncodedListFromStatusListCredentialClaims(claims);
-            log.info("Extracted encodedList: " + encodedList);
-
-            byte[] rawBytes = decodeEncodedListToRawBytes(encodedList);
-
-            // Optional but strongly recommended: bounds check to fail fast
-            int maxBits = rawBytes.length * 8;
-            if (index >= maxBits) {
-                throw new CredentialException("statusListIndex out of range. maxBits=" + maxBits + ", index=" + index);
-            }
-
-            return isBitSet(rawBytes, index);
-
-        } catch (CredentialException e) {
-            throw e;
-        } catch (Exception e) {
-            throw new CredentialException("Error processing bitstring status list credential: " + e.getMessage());
-        }
+        return isRevoked;
     }
 
 
@@ -274,50 +222,6 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
         } catch (IOException e) {
             throw new IllegalStateException("Failed to gunzip content", e);
         }
-    }
-
-    /**
-     * Extracts credentialSubject.statusPurpose from the JWT claims.
-     */
-    // todo avoid duplication
-    // todo consider making statusListCredential an implementation of VerifiablCredential
-    private String extractStatusPurposeFromStatusListCredentialClaims(JsonNode claims) {
-        if (claims == null || claims.isNull()) {
-            throw new CredentialException("Missing JWT claims");
-        }
-
-        JsonNode credentialSubject = claims.get("credentialSubject");
-        if (credentialSubject == null || credentialSubject.isNull()) {
-            throw new CredentialException("Missing 'credentialSubject' in Status List Credential JWT");
-        }
-
-        JsonNode statusPurpose = credentialSubject.get("statusPurpose");
-        if (statusPurpose == null || !statusPurpose.isTextual() || statusPurpose.asText().isBlank()) {
-            throw new CredentialException("Missing or invalid 'credentialSubject.statusPurpose' in Status List Credential JWT");
-        }
-
-        return statusPurpose.asText();
-    }
-
-    /**
-     * Extracts credentialSubject.encodedList from the JWT claims.
-     */
-    private String extractEncodedListFromStatusListCredentialClaims(JsonNode claims) {
-        if (claims == null || claims.isNull()) {
-            throw new CredentialException("Missing JWT claims");
-        }
-
-        JsonNode credentialSubject = claims.get("credentialSubject");
-        if (credentialSubject == null || credentialSubject.isNull()) {
-            throw new CredentialException("Missing 'credentialSubject' in Status List Credential JWT");
-        }
-
-        JsonNode encodedList = credentialSubject.get("encodedList");
-        if (encodedList == null || !encodedList.isTextual() || encodedList.asText().isBlank()) {
-            throw new CredentialException("Missing or invalid 'credentialSubject.encodedList' in Status List Credential JWT");
-        }
-
-        return encodedList.asText();
     }
 
 
@@ -373,6 +277,94 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
 
         int mask = 1 << bitInByte;
         return (rawBytes[byteIndex] & mask) != 0;
+    }
+
+    private int parseAndValidateStatusListIndex(String statusListIndex) {
+        final int index;
+        try {
+            index = Integer.parseInt(statusListIndex);
+        } catch (NumberFormatException e) {
+            throw new CredentialException(
+                    "statusListIndex " + statusListIndex + "is not a valid integer: " + e.getMessage()
+            );
+        }
+
+        if (index < 0) {
+            throw new CredentialException("statusListIndex must be >= 0, but was: " + statusListIndex);
+        }
+
+        return index;
+    }
+
+    private String fetchStatusListCredentialJwt(String statusListCredentialUrl) {
+        final HttpClient client = HttpClient.newHttpClient();
+        final HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(statusListCredentialUrl))
+                .header("Accept", "application/vc+jwt")
+                .GET()
+                .build();
+
+        final HttpResponse<String> response;
+        try {
+            response = client.send(request, HttpResponse.BodyHandlers.ofString());
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new FailedCommunicationException(
+                    "Interrupted while fetching Status List Credential from: " + statusListCredentialUrl + ". " +  e
+            );
+        } catch (IOException e) {
+            throw new FailedCommunicationException(
+                    "Error fetching Status List Credential from: " + statusListCredentialUrl + ". " + e
+            );
+        }
+
+        if (response.statusCode() == 404) {
+            throw new FailedCommunicationException(
+                    "Status List Credential not found at: " + statusListCredentialUrl
+            );
+        }
+
+        if (response.statusCode() != 200) {
+            throw new FailedCommunicationException(
+                    "Failed to fetch Status List Credential. Status code: " + response.statusCode()
+                            + ", URL: " + statusListCredentialUrl
+            );
+        }
+
+        return response.body();
+    }
+
+    private void validateStatusListCredentialCertificate(String jwtString, SignedJWT signedJwt) {
+        final Map<String, Object> vcHeader = signedJwt.getHeader().toJSONObject();
+
+        final String credentialIssuerDid;
+        try {
+            credentialIssuerDid = signedJwt.getJWTClaimsSet().getStringClaim("issuer");
+        } catch (ParseException e) {
+            throw new CredentialException("Error reading JWT claims: " + e.getMessage());
+        }
+
+        if (credentialIssuerDid == null || credentialIssuerDid.isBlank()) {
+            throw new CredentialException("Missing or blank 'issuer' claim in Status List Credential JWT");
+        }
+
+        if (!credentialIssuerDid.startsWith("did:elsi:")) {
+            throw new CredentialException("Unsupported issuer DID format. Expected 'did:elsi:...' but got: " + credentialIssuerDid);
+        }
+
+        final String certificateId = credentialIssuerDid.substring("did:elsi:".length());
+
+        certificateValidationService.extractAndVerifyCertificate(jwtString, vcHeader, certificateId);
+
+        log.debug("Status List Credential certificate validated successfully for issuer: {}", credentialIssuerDid);
+    }
+
+    private SignedJWT parseSignedJwt(String jwtString) {
+        try {
+            return SignedJWT.parse(jwtString);
+        } catch (ParseException e) {
+            throw new CredentialException("Error parsing Status List Credential JWT: " + e.getMessage());
+        }
     }
 
 }
