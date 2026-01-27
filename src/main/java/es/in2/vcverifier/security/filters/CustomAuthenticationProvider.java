@@ -540,40 +540,19 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 
     private String resolveCredentialSubjectDid(LEARCredential credential, JsonNode credentialJson) {
 
-        // 1) credentialSubject.id
-        String csId = null;
-        try {
-            csId = credentialJson.path("credentialSubject").path("id").asText(null);
-        } catch (Exception e) {
-            log.debug("Cannot extract credentialSubject from credential implementation: {}", credential.getClass().getSimpleName(), e);
-        }
-
+        String csId = tryGetCredentialSubjectId(credential, credentialJson);
         if (csId != null && !csId.isBlank()) {
             log.info("Subject DID resolved via credentialSubject.id()");
             return csId;
         }
 
-        // 2) LEGACY: mandatee.id
-        String mandateeId = null;
-        try {
-            mandateeId = credential.mandateeId();
-        } catch (Exception e) {
-            log.debug("Cannot extract mandateeId from credential implementation: {}", credential.getClass().getSimpleName(), e);
-        }
-
+        String mandateeId = tryGetMandateeIdFromCredential(credential);
         if (mandateeId != null && !mandateeId.isBlank()) {
             log.info("Subject DID resolved via mandateeId()");
             return mandateeId;
         }
 
-        // 3) LEGACY fallback
-        String mandateeIdJson = credentialJson
-                .path("credentialSubject")
-                .path("mandate")
-                .path("mandatee")
-                .path("id")
-                .asText(null);
-
+        String mandateeIdJson = getMandateeIdFromJson(credentialJson);
         if (mandateeIdJson != null && !mandateeIdJson.isBlank()) {
             return mandateeIdJson;
         }
@@ -586,4 +565,34 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 
         throw new IllegalStateException("Missing cryptographic binding DID in credential (credentialSubject.id or mandatee.id)");
     }
+    private String tryGetCredentialSubjectId(LEARCredential credential, JsonNode credentialJson) {
+        try {
+            return credentialJson.path("credentialSubject").path("id").asText(null);
+        } catch (Exception e) {
+            log.debug("Cannot extract credentialSubject from credential implementation: {}",
+                    credential.getClass().getSimpleName(), e);
+            return null;
+        }
+    }
+
+    private String tryGetMandateeIdFromCredential(LEARCredential credential) {
+        try {
+            return credential.mandateeId();
+        } catch (Exception e) {
+            log.debug("Cannot extract mandateeId from credential implementation: {}",
+                    credential.getClass().getSimpleName(), e);
+            return null;
+        }
+    }
+
+    private String getMandateeIdFromJson(JsonNode credentialJson) {
+        return credentialJson
+                .path("credentialSubject")
+                .path("mandate")
+                .path("mandatee")
+                .path("id")
+                .asText(null);
+    }
+
+
 }
