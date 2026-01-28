@@ -10,4 +10,5 @@ public interface TrustFrameworkService {
     List<String> getCredentialStatusListData(String url);
     List<String> getRevokedCredentialIds();
     ExternalTrustedListYamlData fetchAllowedClient();
+    boolean isCredentialRevokedInBitstringStatusList(String statusListCredentialUrl, String statusListIndex, String credentialStatusPurpose);
 }

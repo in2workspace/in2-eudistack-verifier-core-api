@@ -76,28 +76,7 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
         String redirectUri  = parameters.getFirst(OAuth2ParameterNames.REDIRECT_URI);
         String codeVerifier = parameters.getFirst(PkceParameterNames.CODE_VERIFIER);
 
-        String codePrefix = code == null ? "null" : code.substring(0, Math.min(10, code.length()));
-        log.info(
-                "[AUTH_CODE] codePrefix={}, clientId={}, redirectUriPresent={}, statePresent={}, pkcePresent={}",
-                codePrefix,
-                clientId,
-                redirectUri != null && !redirectUri.isBlank(),
-                state != null && !state.isBlank(),
-                codeVerifier != null && !codeVerifier.isBlank()
-        );
-
         AuthorizationCodeData authorizationCodeData = cacheStoreForAuthorizationCodeData.get(code);
-        if (authorizationCodeData == null) {
-            log.error("[AUTH_CODE] AuthorizationCodeData NOT FOUND for codePrefix={}", codePrefix);
-            throw new IllegalArgumentException("Invalid or expired authorization code");
-        }
-
-        log.info(
-                "[AUTH_CODE] Stored data: statePresent={}, noncePresent={}, scopes={}",
-                authorizationCodeData.state() != null && !authorizationCodeData.state().isBlank(),
-                authorizationCodeData.clientNonce() != null && !authorizationCodeData.clientNonce().isBlank(),
-                authorizationCodeData.requestedScopes()
-        );
 
         // Check state only if it is not null and not blank
         if (state != null && !state.isBlank() && (!authorizationCodeData.state().equals(state))) {
@@ -125,16 +104,6 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
         if (codeVerifier != null && !codeVerifier.isBlank()) {
             additionalParameters.put(PkceParameterNames.CODE_VERIFIER, codeVerifier);
         }
-        log.info(
-                "[AUTH_CODE] AuthenticationToken built: scope={}, noncePresent={}, vcLen={}",
-                additionalParameters.get(OAuth2ParameterNames.SCOPE),
-                nonce != null && !nonce.isBlank(),
-                authorizationCodeData.verifiableCredential() != null
-                        ? authorizationCodeData.verifiableCredential().size()
-                        : null
-        );
-
-        log.info("Authorization code grant successfully handled");
 
         // Return the authentication token
         return new OAuth2AuthorizationCodeAuthenticationToken(code, clientPrincipal, redirectUri, additionalParameters);

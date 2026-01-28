@@ -81,10 +81,4 @@ public record LEARCredentialEmployeeV1(
         public String mandateeEmail() {
                 return credentialSubjectV1.mandate().mandatee().email();
         }
-
-        @Override
-        public String credentialSubjectId() {
-            return credentialSubjectV1 != null ? credentialSubjectV1.id() : null;
-        }
-
 }

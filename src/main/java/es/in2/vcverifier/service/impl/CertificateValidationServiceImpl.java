@@ -31,6 +31,7 @@ import java.util.regex.Pattern;
 public class CertificateValidationServiceImpl implements CertificateValidationService {
     @Override
     public void extractAndVerifyCertificate(String verifiableCredential, Map<String, Object> vcHeader, String expectedOrgId) {
+        log.debug("extractAndVerifyCertificate, verifiableCredential: {}, vcHeader: {}, expectedOrgId: {}", verifiableCredential, vcHeader, expectedOrgId);
         // Retrieve the x5c claim (certificate chain)
         Object x5cObj = vcHeader.get("x5c");
 

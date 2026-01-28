@@ -80,10 +80,5 @@ public record LEARCredentialEmployeeV3(
 
     @Override
     public String statusListCredential() { return credentialStatus.credentials(); }
-
-    @Override
-    public String credentialSubjectId() {
-        return credentialSubjectV3 != null ? credentialSubjectV3.id() : null;
-    }
 }
 
