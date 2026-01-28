@@ -332,6 +332,7 @@ public class VpServiceImpl implements VpService {
 
     }
 
+    // For VCs without credential status
     private boolean validateOldCredentialNotRevoked(String credentialId) {
         List<String> revokedIds = trustFrameworkService.getRevokedCredentialIds();
         return !revokedIds.contains(credentialId); //negate because we want a true just only when really not exist
@@ -339,12 +340,34 @@ public class VpServiceImpl implements VpService {
     }
 
     private boolean validateNewCredentialNotRevoked(LEARCredential learCredential) {
-        if(REVOCATION.equals(learCredential.credentialStatusPurpose())){
-            return !trustFrameworkService.getCredentialStatusListData(learCredential.statusListCredential())
-                    .contains(learCredential.credentialStatusListIndex()); //negate because we want a true just only when really not exist
+        log.info("validateNewCredentialNotRevoked, vc: {}", learCredential);
+        if (!REVOCATION.equals(learCredential.credentialStatusPurpose())) {
+            log.error("credentialStatus is not revocation: {}", learCredential.credentialStatusPurpose());
+            return false;
         }
-        return Boolean.FALSE;
+
+        String type = learCredential.credentialStatusType();
+
+        if ("PlainListEntity".equals(type)) {
+            log.info("Validating credential with PlainListEntity credential status");
+            // Legacy JSON: list of nonces
+            return !trustFrameworkService.getCredentialStatusListData(learCredential.statusListCredential())
+                    .contains(learCredential.credentialStatusListIndex());
+        }
+
+        if ("BitstringStatusListEntry".equals(type)) {
+            log.info("Validating credential with BitstringStatusListEntry credential status");
+            // Modern VC-JWT: bitstring encoded list
+            return !trustFrameworkService.isCredentialRevokedInBitstringStatusList(
+                    learCredential.statusListCredential(),
+                    learCredential.credentialStatusListIndex(),
+                    learCredential.credentialStatusPurpose()
+            );
+        }
+
+        throw new CredentialException("Unsupported credentialStatus.type: " + type);
     }
+
 
     private void validateCredentialTimeWindow(LEARCredential credential) {
         try {
