@@ -98,7 +98,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
 
         LEARCredential credential = getVerifiableCredential(authentication, credentialJson);
 
-        String subject = resolveCredentialSubjectDid(credential, credentialJson);
+        String subject = credential.mandateeId();
         log.debug("CustomAuthenticationProvider -- handleGrant -- Credential subject obtained: {}", subject);
 
         String audience = getAudience(authentication, credential);
@@ -537,62 +537,4 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                 || OAuth2ClientCredentialsAuthenticationToken.class.isAssignableFrom(authentication)
                 || OAuth2RefreshTokenAuthenticationToken.class.isAssignableFrom(authentication);
     }
-
-    private String resolveCredentialSubjectDid(LEARCredential credential, JsonNode credentialJson) {
-
-        String csId = tryGetCredentialSubjectId(credential, credentialJson);
-        if (csId != null && !csId.isBlank()) {
-            log.info("Subject DID resolved via credentialSubject.id()");
-            return csId;
-        }
-
-        String mandateeId = tryGetMandateeIdFromCredential(credential);
-        if (mandateeId != null && !mandateeId.isBlank()) {
-            log.info("Subject DID resolved via mandateeId()");
-            return mandateeId;
-        }
-
-        String mandateeIdJson = getMandateeIdFromJson(credentialJson);
-        if (mandateeIdJson != null && !mandateeIdJson.isBlank()) {
-            return mandateeIdJson;
-        }
-
-        log.error("[GRANT] Cannot resolve subject DID. Paths checked: credentialSubject.id, mandatee.id, credentialSubject.mandate.mandatee.id");
-        log.error("[GRANT] credentialSubject keys={}",
-                credentialJson.path("credentialSubject").isObject()
-                        ? credentialJson.path("credentialSubject").fieldNames().toString()
-                        : "not-object");
-
-        throw new IllegalStateException("Missing cryptographic binding DID in credential (credentialSubject.id or mandatee.id)");
-    }
-    private String tryGetCredentialSubjectId(LEARCredential credential, JsonNode credentialJson) {
-        try {
-            return credentialJson.path("credentialSubject").path("id").asText(null);
-        } catch (Exception e) {
-            log.debug("Cannot extract credentialSubject from credential implementation: {}",
-                    credential.getClass().getSimpleName(), e);
-            return null;
-        }
-    }
-
-    private String tryGetMandateeIdFromCredential(LEARCredential credential) {
-        try {
-            return credential.mandateeId();
-        } catch (Exception e) {
-            log.debug("Cannot extract mandateeId from credential implementation: {}",
-                    credential.getClass().getSimpleName(), e);
-            return null;
-        }
-    }
-
-    private String getMandateeIdFromJson(JsonNode credentialJson) {
-        return credentialJson
-                .path("credentialSubject")
-                .path("mandate")
-                .path("mandatee")
-                .path("id")
-                .asText(null);
-    }
-
-
 }

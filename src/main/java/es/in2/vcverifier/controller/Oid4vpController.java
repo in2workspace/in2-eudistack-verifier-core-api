@@ -22,10 +22,10 @@ public class Oid4vpController {
     @GetMapping("/auth-request/{id}")
     @ResponseStatus(HttpStatus.OK)
     public String getAuthorizationRequest(@PathVariable String id) {
+        // Intentamos recuperar el JWT de la caché usando el ID proporcionado
         AuthorizationRequestJWT authorizationRequestJWT = cacheStoreForAuthorizationRequestJWT.get(id);
         cacheStoreForAuthorizationRequestJWT.delete(id);
         String jwt = authorizationRequestJWT.authRequest();
-
         if (jwt != null) {
             return jwt;
         } else {

@@ -19,6 +19,4 @@ public interface LEARCredential {
     String credentialStatusPurpose();
     String credentialStatusListIndex();
     String statusListCredential();
-    String credentialSubjectId();
-
 }

@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.JsonNodeFactory;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 import es.in2.vcverifier.config.BackendConfig;
 import es.in2.vcverifier.config.CacheStore;
 import es.in2.vcverifier.model.RefreshTokenDataCache;
@@ -50,8 +49,6 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.settings.ClientSettings;
 
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.*;
 
 import static es.in2.vcverifier.util.Constants.LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT;
@@ -694,19 +691,13 @@ class CustomAuthenticationProviderTest {
         when(backendConfig.getUrl()).thenReturn("https://auth.server");
 
         // Mock VC JSON i @context = MACHINE_V2
-        ObjectNode vcJsonNode = JsonNodeFactory.instance.objectNode();
-
+        JsonNode vcJsonNode = mock(JsonNode.class);
+        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
         ArrayNode contextNode = JsonNodeFactory.instance.arrayNode();
         for (String ctx : LEAR_CREDENTIAL_MACHINE_V2_CONTEXT) {
             contextNode.add(ctx);
         }
-        vcJsonNode.set("@context", contextNode);
-
-        ObjectNode cs = JsonNodeFactory.instance.objectNode();
-        cs.put("id", "did:key:zTestMachineSubject");
-        vcJsonNode.set("credentialSubject", cs);
-
-        when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
+        when(vcJsonNode.get("@context")).thenReturn(contextNode);
 
         // Mock credencial V2
         LEARCredentialMachineV2 machineV2 = mock(LEARCredentialMachineV2.class);
@@ -756,16 +747,11 @@ class CustomAuthenticationProviderTest {
         when(backendConfig.getUrl()).thenReturn("https://auth.server");
 
         // @context qualsevol que NO sigui LEAR_CREDENTIAL_MACHINE_V2_CONTEXT
-        ObjectNode vcJsonNode = JsonNodeFactory.instance.objectNode();
-        ArrayNode contextNode = JsonNodeFactory.instance.arrayNode();
-        contextNode.add("https://any.other/context"); // NO es V2
-        vcJsonNode.set("@context", contextNode);
-
-        ObjectNode cs = JsonNodeFactory.instance.objectNode();
-        cs.put("id", "did:key:zTestMachineSubject"); // <- para resolveCredentialSubjectDid()
-        vcJsonNode.set("credentialSubject", cs);
-
+        JsonNode vcJsonNode = mock(JsonNode.class);
         when(objectMapper.convertValue(vcMap, JsonNode.class)).thenReturn(vcJsonNode);
+        ArrayNode contextNode = JsonNodeFactory.instance.arrayNode();
+        contextNode.add("https://any.other/context"); // diferent de V2
+        when(vcJsonNode.get("@context")).thenReturn(contextNode);
 
         LEARCredentialMachineV1 machineV1 = mock(LEARCredentialMachineV1.class);
         when(machineV1.type()).thenReturn(List.of("VerifiableCredential", "LEARCredentialMachine"));
@@ -1074,61 +1060,7 @@ class CustomAuthenticationProviderTest {
         return java.util.Base64.getUrlEncoder().withoutPadding().encodeToString(digest);
     }
 
-    private String invokeResolve(CustomAuthenticationProvider cap, LEARCredential cred, JsonNode json) {
-        try {
-            Method m = CustomAuthenticationProvider.class
-                    .getDeclaredMethod("resolveCredentialSubjectDid", LEARCredential.class, JsonNode.class);
-            m.setAccessible(true);
-            return (String) m.invoke(cap, cred, json);
-        } catch (InvocationTargetException e) {
-            Throwable target = e.getTargetException();
-            if (target instanceof RuntimeException re) throw re;
-            throw new RuntimeException(target);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
 
-    @Test
-    void resolveCredentialSubjectDid_legacyFallback_throwsException() {
-        LEARCredential mockCredential = mock(LEARCredential.class);
-        when(mockCredential.mandateeId()).thenThrow(new RuntimeException("Legacy method failed"));
-
-        ObjectNode credentialJson = JsonNodeFactory.instance.objectNode();
-        ObjectNode credentialSubject = credentialJson.putObject("credentialSubject");
-        ObjectNode mandate = credentialSubject.putObject("mandate");
-        mandate.putObject("mandatee"); // sin id
-
-        IllegalStateException ex = assertThrows(
-                IllegalStateException.class,
-                () -> invokeResolve(customAuthenticationProvider, mockCredential, credentialJson)
-        );
-
-        assertEquals(
-                "Missing cryptographic binding DID in credential (credentialSubject.id or mandatee.id)",
-                ex.getMessage()
-        );
-    }
-
-
-    @Test
-    void resolveCredentialSubjectDid_legacyFallback_success() {
-        LEARCredential mockCredential = mock(LEARCredential.class);
-        when(mockCredential.mandateeId()).thenReturn(null);
-
-        // JSON real sin ObjectMapper
-        ObjectNode credentialJson = JsonNodeFactory.instance.objectNode();
-        ObjectNode credentialSubject = credentialJson.putObject("credentialSubject");
-        ObjectNode mandate = credentialSubject.putObject("mandate");
-        ObjectNode mandatee = mandate.putObject("mandatee");
-        mandatee.put("id", "did:example:legacy-mandatee");
-
-        assertNotNull(credentialJson);
-
-        String result = invokeResolve(customAuthenticationProvider, mockCredential, credentialJson);
-
-        assertEquals("did:example:legacy-mandatee", result);
-    }
 
 
 }

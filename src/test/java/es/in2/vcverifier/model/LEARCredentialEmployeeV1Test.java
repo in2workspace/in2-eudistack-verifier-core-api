@@ -13,7 +13,7 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class LEARCredentialEmployeeV1Test {
+public class LEARCredentialEmployeeV1Test {
 
     @Test
     void shouldBuildLEARCredentialEmployeeV1AndAccessFieldsCorrectly() {
@@ -67,39 +67,5 @@ class LEARCredentialEmployeeV1Test {
         assertEquals("Doe", credential.mandateeLastName());
         assertEquals("john.doe@example.com", credential.mandateeEmail());
     }
-
-    @Test
-    void credentialSubjectId_shouldBeNull_forLegacyV1() {
-        MandateeV1 mandatee = MandateeV1.builder()
-                .id("mandatee-id-123")
-                .firstName("John")
-                .lastName("Doe")
-                .email("john.doe@example.com")
-                .build();
-
-        Mandator mandator = Mandator.builder()
-                .organizationIdentifier("org-456")
-                .build();
-
-        MandateV1 mandate = MandateV1.builder()
-                .id("mandate-789")
-                .mandatee(mandatee)
-                .mandator(mandator)
-                .build();
-
-        CredentialSubjectV1 subject = CredentialSubjectV1.builder()
-                .mandate(mandate)
-                .build();
-
-        LEARCredentialEmployeeV1 credential = LEARCredentialEmployeeV1.builder()
-                .id("vc-id-001")
-                .type(List.of("VerifiableCredential", "LEARCredentialEmployee"))
-                .context(List.of("https://www.w3.org/2018/credentials/v1"))
-                .credentialSubjectV1(subject)
-                .build();
-
-        assertEquals(null, credential.credentialSubjectId());
-    }
-
 
 }
