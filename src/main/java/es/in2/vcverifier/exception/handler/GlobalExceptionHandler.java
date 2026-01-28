@@ -86,5 +86,12 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         log.error("Login time has expired ", ex.getMessage());
         return new GlobalErrorMessage("Login time has expired ",ex.getMessage(),"");
     }
+
+    @ExceptionHandler(StatusListCredentialException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public GlobalErrorMessage handleException(StatusListCredentialException ex) {
+        log.error("Error while handling Status List Credential ", ex.getMessage());
+        return new GlobalErrorMessage("Error while handling Status List Credential ",ex.getMessage(),"");
+    }
 }
 
