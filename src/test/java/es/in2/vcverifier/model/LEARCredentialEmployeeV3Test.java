@@ -1,11 +1,10 @@
 package es.in2.vcverifier.model;
 
 import es.in2.vcverifier.model.credentials.lear.CredentialStatus;
-import es.in2.vcverifier.model.credentials.lear.Mandator;
-import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV1;
-import es.in2.vcverifier.model.credentials.lear.employee.subject.CredentialSubjectV1;
-import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.MandateV1;
-import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.mandatee.MandateeV1;
+import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV3;
+import es.in2.vcverifier.model.credentials.lear.employee.subject.CredentialSubjectV3;
+import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.MandateV3;
+import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.mandatee.MandateeV3;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -13,28 +12,22 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class LEARCredentialEmployeeV1Test {
+class LEARCredentialEmployeeV3Test {
 
     @Test
-    void shouldBuildLEARCredentialEmployeeV1AndAccessFieldsCorrectly() {
-        MandateeV1 mandatee = MandateeV1.builder()
+    void shouldBuildLEARCredentialEmployeeV3AndAccessFieldsCorrectly() {
+        MandateeV3 mandatee = MandateeV3.builder()
                 .id("mandatee-id-123")
                 .firstName("John")
                 .lastName("Doe")
                 .email("john.doe@example.com")
                 .build();
 
-        Mandator mandator = Mandator.builder()
-                .organizationIdentifier("org-456")
-                .build();
-
-        MandateV1 mandate = MandateV1.builder()
-                .id("mandate-789")
+        MandateV3 mandate = MandateV3.builder()
                 .mandatee(mandatee)
-                .mandator(mandator)
                 .build();
 
-        CredentialSubjectV1 subject = CredentialSubjectV1.builder()
+        CredentialSubjectV3 subject = CredentialSubjectV3.builder()
                 .mandate(mandate)
                 .build();
 
@@ -46,17 +39,16 @@ class LEARCredentialEmployeeV1Test {
                 .credentials("https://statuslist.example.com/123")
                 .build();
 
-        LEARCredentialEmployeeV1 credential = LEARCredentialEmployeeV1.builder()
+        LEARCredentialEmployeeV3 credential = LEARCredentialEmployeeV3.builder()
                 .id("vc-id-001")
                 .type(List.of("VerifiableCredential", "LEARCredentialEmployee"))
-                .context(List.of("https://www.w3.org/2018/credentials/v1"))
-                .credentialSubjectV1(subject)
+                .context(List.of("https://www.w3.org/2018/credentials/V3"))
+                .credentialSubjectV3(subject)
                 .credentialStatus(credentialStatus)
                 .build();
 
         // Assertions
         assertEquals("mandatee-id-123", credential.mandateeId());
-        assertEquals("org-456", credential.mandatorOrganizationIdentifier());
         assertTrue(credential.learCredentialStatusExist());
         assertEquals("status-id", credential.credentialStatusId());
         assertEquals("StatusType", credential.credentialStatusType());
@@ -69,33 +61,27 @@ class LEARCredentialEmployeeV1Test {
     }
 
     @Test
-    void credentialSubjectId_shouldBeNull_forLegacyV1() {
-        MandateeV1 mandatee = MandateeV1.builder()
+    void credentialSubjectId_shouldBeNull_forLegacyV3() {
+        MandateeV3 mandatee = MandateeV3.builder()
                 .id("mandatee-id-123")
                 .firstName("John")
                 .lastName("Doe")
                 .email("john.doe@example.com")
                 .build();
 
-        Mandator mandator = Mandator.builder()
-                .organizationIdentifier("org-456")
-                .build();
-
-        MandateV1 mandate = MandateV1.builder()
-                .id("mandate-789")
+        MandateV3 mandate = MandateV3.builder()
                 .mandatee(mandatee)
-                .mandator(mandator)
                 .build();
 
-        CredentialSubjectV1 subject = CredentialSubjectV1.builder()
+        CredentialSubjectV3 subject = CredentialSubjectV3.builder()
                 .mandate(mandate)
                 .build();
 
-        LEARCredentialEmployeeV1 credential = LEARCredentialEmployeeV1.builder()
+        LEARCredentialEmployeeV3 credential = LEARCredentialEmployeeV3.builder()
                 .id("vc-id-001")
                 .type(List.of("VerifiableCredential", "LEARCredentialEmployee"))
-                .context(List.of("https://www.w3.org/2018/credentials/v1"))
-                .credentialSubjectV1(subject)
+                .context(List.of("https://www.w3.org/2018/credentials/V3"))
+                .credentialSubjectV3(subject)
                 .build();
 
         assertEquals(null, credential.credentialSubjectId());
