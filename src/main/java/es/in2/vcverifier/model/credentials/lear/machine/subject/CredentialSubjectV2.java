@@ -10,5 +10,6 @@ import lombok.Builder;
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public record CredentialSubjectV2(
-        @JsonProperty("mandate") MandateV2 mandate
+        @JsonProperty("mandate") MandateV2 mandate,
+        @JsonProperty("id") String id
 ) {}

@@ -15,6 +15,8 @@ server:
   port: 8080
 
 logging:
+  pattern:
+    level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
   level:
     # Sets logging level for the custom package "es.in2.vcverifier"
     es.in2.vcverifier: INFO
@@ -22,6 +24,10 @@ logging:
     org.springframework.security: INFO
     # Sets logging level for web filters
     org.springframework.web.filter: INFO
+    # To see the DispatcherServlet in detail
+    org.springframework.web.servlet.DispatcherServlet: TRACE
+    # To track the mapping of URLs to @RequestMapping methods
+    org.springframework.web.servlet.handler.RequestMappingHandlerMapping: TRACE
 
 management:
   endpoints:

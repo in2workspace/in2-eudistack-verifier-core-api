@@ -68,4 +68,9 @@ public record LEARCredentialMachineV2 (
     @Override
     public String statusListCredential() { return credentialStatus.credentials(); }
 
+    @Override
+    public String credentialSubjectId() {
+        return credentialSubjectV2 != null ? credentialSubjectV2.id() : null;
+    }
+
 }
