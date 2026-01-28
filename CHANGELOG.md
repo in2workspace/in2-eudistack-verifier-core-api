@@ -202,4 +202,4 @@ refresh_token).
 ### Fixed
 - Fix the issue with Login page not showing Wallet URL.
 - Fix the issue with Login page not valid Registration URL.
-- Fix the issue with Login page not redirecting to the Relying Party after expiration of the QR code.****
+- Fix the issue with Login page not redirecting to the Relying Party after expiration of the QR code.
