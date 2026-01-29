@@ -146,6 +146,7 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
 
         // Fetch the Status List Credential JWT
         final String jwtString = fetchStatusListCredentialJwt(statusListCredentialUrl);
+        System.out.println("XIVATO1: " + jwtString);
 
         log.debug("Status List Credential JWT fetched successfully");
 
@@ -330,6 +331,7 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
                             + ", URL: " + statusListCredentialUrl
             );
         }
+        System.out.println(("XIVATO2: " + response.body()));
 
         return response.body();
     }
