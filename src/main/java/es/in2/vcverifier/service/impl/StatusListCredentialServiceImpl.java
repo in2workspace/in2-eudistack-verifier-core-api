@@ -151,14 +151,6 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
     // Internal helpers
     // ------------------------------------------------------------------------
 
-    private Object readClaimsSafely(SignedJWT signedJWT) {
-        try {
-            return signedJWT.getJWTClaimsSet().toJSONObject();
-        } catch (ParseException e) {
-            throw new StatusListCredentialException("Error reading JWT claims set", e);
-        }
-    }
-
     private JsonNode getRequiredObject(JsonNode parent, String field) {
         if (parent == null || parent.isNull()) {
             throw new StatusListCredentialException("Missing JWT claims");
