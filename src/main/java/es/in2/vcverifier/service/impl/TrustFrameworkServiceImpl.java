@@ -254,31 +254,6 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
         return gunzip(gzipped);
     }
 
-
-    /**
-     * Bit numbering is LSB-first within each byte, matching the issuer implementation.
-     */
-    private boolean isBitSet(byte[] rawBytes, int bitIndex) {
-        log.info("isBitSet");
-        if (rawBytes == null) {
-            throw new IllegalArgumentException("rawBytes cannot be null");
-        }
-        if (bitIndex < 0) {
-            throw new IllegalArgumentException("bitIndex must be >= 0");
-        }
-
-        int maxBits = rawBytes.length * 8;
-        if (bitIndex >= maxBits) {
-            throw new IllegalArgumentException("bitIndex out of range. maxBits=" + maxBits + ", bitIndex=" + bitIndex);
-        }
-
-        int byteIndex = bitIndex / 8;
-        int bitInByte = bitIndex % 8;
-
-        int mask = 1 << bitInByte;
-        return (rawBytes[byteIndex] & mask) != 0;
-    }
-
     private int parseAndValidateStatusListIndex(String statusListIndex) {
         final int index;
         try {
