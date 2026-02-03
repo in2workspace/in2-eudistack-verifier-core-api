@@ -456,7 +456,7 @@ class VpServiceImplTest {
             when(vcSignedJWT.serialize()).thenReturn(vcJwt);
 
             doNothing().when(certificateValidationService)
-                    .extractAndVerifyCertificate(eq(vcJwt), eq(vcHeaderMap), eq("VATES-FOO"));
+                    .extractAndVerifyCertificate(vcJwt, vcHeaderMap, "VATES-FOO");
 
             // PoP signature verification of VP
             PublicKey holderPublicKey = generateECPublicKey();
@@ -469,7 +469,7 @@ class VpServiceImplTest {
             assertDoesNotThrow(() -> vpServiceImpl.validateVerifiablePresentation(verifiablePresentation));
 
             verify(jwtService).verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
-            verify(certificateValidationService).extractAndVerifyCertificate(eq(vcJwt), eq(vcHeaderMap), eq("VATES-FOO"));
+            verify(certificateValidationService).extractAndVerifyCertificate(vcJwt, vcHeaderMap, "VATES-FOO");
             verify(didService).getPublicKeyFromDid("did:example:holder");
         }
     }

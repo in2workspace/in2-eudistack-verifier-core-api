@@ -79,11 +79,6 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
         }
     }
 
-    /**
-     * Parses a Status List Credential already represented as a {@link SignedJWT} and
-     * extracts issuer, credentialSubject.statusPurpose and the decoded bitstring
-     * (credentialSubject.encodedList).
-     */
     @Override
     public StatusListCredentialData parse(SignedJWT signedJwt) {
         try {
