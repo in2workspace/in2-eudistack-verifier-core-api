@@ -125,4 +125,16 @@ class GlobalExceptionHandlerTest {
         assertThat(response.message()).isEmpty();
         assertThat(response.path()).isEmpty();
     }
+
+    @Test
+    void testHandleStatusListCredentialException() {
+        StatusListCredentialException exception = new StatusListCredentialException("Status list error");
+
+        GlobalErrorMessage response = globalExceptionHandler.handleException(exception);
+
+        assertThat(response.title()).isEqualTo("Error while handling Status List Credential ");
+        assertThat(response.message()).isEqualTo("Status list error");
+        assertThat(response.path()).isEmpty();
+    }
+
 }

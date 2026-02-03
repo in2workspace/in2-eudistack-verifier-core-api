@@ -69,146 +69,7 @@ class VpServiceImplTest {
     @InjectMocks
     private VpServiceImpl vpServiceImpl;
 
-    @Test
-    void getCredentialFromTheVerifiablePresentation_success(){
-        String verifiablePresentation = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJkaWQ6a2V5OnpEbmFlblF6WEthVE5SNlYyaWZyY0VFU042VFR1WWpweWFmUGh0c1pZU3Y0VlJia3IiLCJuYmYiOjE3MTc0MzgwMDMsImlzcyI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsInZwIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sImhvbGRlciI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsImlkIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIiwidHlwZSI6WyJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIl0sInZlcmlmaWFibGVDcmVkZW50aWFsIjpbImV5SmhiR2NpT2lKSVV6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUp6ZFdJaU9pSXhNak0wTlRZM09Ea3dJaXdpYm1GdFpTSTZJa3B2YUc0Z1JHOWxJaXdpYVdGMElqb3hOVEUyTWpNNU1ESXlmUS5TZmxLeHdSSlNNZUtLRjJRVDRmd3BNZUpmMzZQT2s2eUpWX2FkUXNzdzVjIl19LCJleHAiOjE3MjAwMzAwMDMsImlhdCI6MTcxNzQzODAwMywianRpIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIn0._tIB_9fsQjZmJV2cgGDWtYXmps9fbLbMDtu8wZhIwC9u6I7RAaR4NK5WrnRC1TIVbQa06ZeneELxc_ktTkdhfA";
 
-        Payload payload = mock(Payload.class);
-        when(jwtService.getPayloadFromSignedJWT(any(SignedJWT.class))).thenReturn(payload);
-
-        Object mockVC = new Object();
-        when(jwtService.getVCFromPayload(payload)).thenReturn(mockVC);
-        Object result = vpServiceImpl.getCredentialFromTheVerifiablePresentation(verifiablePresentation);
-
-        Assertions.assertThat(mockVC)
-                .isNotNull()
-                .isEqualTo(result);
-
-        verify(jwtService, times(1)).getPayloadFromSignedJWT(any(SignedJWT.class));
-        verify(jwtService, times(1)).getVCFromPayload(any(Payload.class));
-    }
-
-    @Test
-    void getCredentialFromTheVerifiablePresentationAsJsonNode_with_VC_JSONObject_success() throws JsonProcessingException {
-        String verifiablePresentation = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJkaWQ6a2V5OnpEbmFlblF6WEthVE5SNlYyaWZyY0VFU042VFR1WWpweWFmUGh0c1pZU3Y0VlJia3IiLCJuYmYiOjE3MTc0MzgwMDMsImlzcyI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsInZwIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sImhvbGRlciI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsImlkIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIiwidHlwZSI6WyJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIl0sInZlcmlmaWFibGVDcmVkZW50aWFsIjpbImV5SmhiR2NpT2lKSVV6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUp6ZFdJaU9pSXhNak0wTlRZM09Ea3dJaXdpYm1GdFpTSTZJa3B2YUc0Z1JHOWxJaXdpYVdGMElqb3hOVEUyTWpNNU1ESXlmUS5TZmxLeHdSSlNNZUtLRjJRVDRmd3BNZUpmMzZQT2s2eUpWX2FkUXNzdzVjIl19LCJleHAiOjE3MjAwMzAwMDMsImlhdCI6MTcxNzQzODAwMywianRpIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIn0._tIB_9fsQjZmJV2cgGDWtYXmps9fbLbMDtu8wZhIwC9u6I7RAaR4NK5WrnRC1TIVbQa06ZeneELxc_ktTkdhfA";
-
-        Payload payload = mock(Payload.class);
-        when(jwtService.getPayloadFromSignedJWT(any(SignedJWT.class))).thenReturn(payload);
-
-        JSONObject mockVC = new JSONObject();
-        when(jwtService.getVCFromPayload(payload)).thenReturn(mockVC);
-
-        JsonNode jsonNode = mock(JsonNode.class);
-        when(objectMapper.readTree(mockVC.toString())).thenReturn(jsonNode);
-
-        Object result = vpServiceImpl.getCredentialFromTheVerifiablePresentationAsJsonNode(verifiablePresentation);
-
-        Assertions.assertThat(mockVC).isNotNull();
-        Assertions.assertThat(jsonNode).isEqualTo(result);
-
-        verify(jwtService, times(1)).getPayloadFromSignedJWT(any(SignedJWT.class));
-        verify(jwtService, times(1)).getVCFromPayload(any(Payload.class));
-        verify(objectMapper, times(1)).readTree(any(String.class));
-    }
-
-    @Test
-    void getCredentialFromTheVerifiablePresentationAsJsonNode_with_VC_Map_success() {
-        String verifiablePresentation = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJkaWQ6a2V5OnpEbmFlblF6WEthVE5SNlYyaWZyY0VFU042VFR1WWpweWFmUGh0c1pZU3Y0VlJia3IiLCJuYmYiOjE3MTc0MzgwMDMsImlzcyI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsInZwIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sImhvbGRlciI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsImlkIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIiwidHlwZSI6WyJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIl0sInZlcmlmaWFibGVDcmVkZW50aWFsIjpbImV5SmhiR2NpT2lKSVV6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUp6ZFdJaU9pSXhNak0wTlRZM09Ea3dJaXdpYm1GdFpTSTZJa3B2YUc0Z1JHOWxJaXdpYVdGMElqb3hOVEUyTWpNNU1ESXlmUS5TZmxLeHdSSlNNZUtLRjJRVDRmd3BNZUpmMzZQT2s2eUpWX2FkUXNzdzVjIl19LCJleHAiOjE3MjAwMzAwMDMsImlhdCI6MTcxNzQzODAwMywianRpIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIn0._tIB_9fsQjZmJV2cgGDWtYXmps9fbLbMDtu8wZhIwC9u6I7RAaR4NK5WrnRC1TIVbQa06ZeneELxc_ktTkdhfA";
-
-        Payload payload = mock(Payload.class);
-        when(jwtService.getPayloadFromSignedJWT(any(SignedJWT.class))).thenReturn(payload);
-
-        Map<String, String> mockVC = new HashMap<>();
-        when(jwtService.getVCFromPayload(payload)).thenReturn(mockVC);
-
-        JsonNode jsonNode = mock(JsonNode.class);
-        when(objectMapper.convertValue(mockVC, JsonNode.class)).thenReturn(jsonNode);
-
-        Object result = vpServiceImpl.getCredentialFromTheVerifiablePresentationAsJsonNode(verifiablePresentation);
-
-        Assertions.assertThat(mockVC).isNotNull();
-        Assertions.assertThat(jsonNode).isEqualTo(result);
-
-        verify(jwtService, times(1)).getPayloadFromSignedJWT(any(SignedJWT.class));
-        verify(jwtService, times(1)).getVCFromPayload(any(Payload.class));
-        verify(objectMapper, times(1)).convertValue(mockVC,JsonNode.class);
-    }
-
-    @Test
-    void getCredentialFromTheVerifiablePresentationAsJsonNode_with_VC_unsupported_instance_throw_JsonConversionException(){
-        String verifiablePresentation = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJkaWQ6a2V5OnpEbmFlblF6WEthVE5SNlYyaWZyY0VFU042VFR1WWpweWFmUGh0c1pZU3Y0VlJia3IiLCJuYmYiOjE3MTc0MzgwMDMsImlzcyI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsInZwIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sImhvbGRlciI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsImlkIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIiwidHlwZSI6WyJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIl0sInZlcmlmaWFibGVDcmVkZW50aWFsIjpbImV5SmhiR2NpT2lKSVV6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUp6ZFdJaU9pSXhNak0wTlRZM09Ea3dJaXdpYm1GdFpTSTZJa3B2YUc0Z1JHOWxJaXdpYVdGMElqb3hOVEUyTWpNNU1ESXlmUS5TZmxLeHdSSlNNZUtLRjJRVDRmd3BNZUpmMzZQT2s2eUpWX2FkUXNzdzVjIl19LCJleHAiOjE3MjAwMzAwMDMsImlhdCI6MTcxNzQzODAwMywianRpIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIn0._tIB_9fsQjZmJV2cgGDWtYXmps9fbLbMDtu8wZhIwC9u6I7RAaR4NK5WrnRC1TIVbQa06ZeneELxc_ktTkdhfA";
-
-        Payload payload = mock(Payload.class);
-        when(jwtService.getPayloadFromSignedJWT(any(SignedJWT.class))).thenReturn(payload);
-
-        Object mockVC = new Object();
-        when(jwtService.getVCFromPayload(payload)).thenReturn(mockVC);
-
-        JsonConversionException thrown = assertThrows(JsonConversionException.class, () -> vpServiceImpl.getCredentialFromTheVerifiablePresentationAsJsonNode(verifiablePresentation));
-
-        Assertions.assertThat(thrown.getMessage()).isEqualTo("Error durante la conversión a JsonNode.");
-
-        verify(jwtService, times(1)).getPayloadFromSignedJWT(any(SignedJWT.class));
-
-    }
-
-    @Test
-    void getCredentialFromTheVerifiablePresentationAsJsonNode_with_VC_Map_throw_JsonConversionException_when_mapping(){
-        String verifiablePresentation = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJkaWQ6a2V5OnpEbmFlblF6WEthVE5SNlYyaWZyY0VFU042VFR1WWpweWFmUGh0c1pZU3Y0VlJia3IiLCJuYmYiOjE3MTc0MzgwMDMsImlzcyI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsInZwIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sImhvbGRlciI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsImlkIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIiwidHlwZSI6WyJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIl0sInZlcmlmaWFibGVDcmVkZW50aWFsIjpbImV5SmhiR2NpT2lKSVV6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUp6ZFdJaU9pSXhNak0wTlRZM09Ea3dJaXdpYm1GdFpTSTZJa3B2YUc0Z1JHOWxJaXdpYVdGMElqb3hOVEUyTWpNNU1ESXlmUS5TZmxLeHdSSlNNZUtLRjJRVDRmd3BNZUpmMzZQT2s2eUpWX2FkUXNzdzVjIl19LCJleHAiOjE3MjAwMzAwMDMsImlhdCI6MTcxNzQzODAwMywianRpIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIn0._tIB_9fsQjZmJV2cgGDWtYXmps9fbLbMDtu8wZhIwC9u6I7RAaR4NK5WrnRC1TIVbQa06ZeneELxc_ktTkdhfA";
-
-        Payload payload = mock(Payload.class);
-        when(jwtService.getPayloadFromSignedJWT(any(SignedJWT.class))).thenReturn(payload);
-
-        Map<String, Object> mockVC = new HashMap<>();
-
-        when(jwtService.getVCFromPayload(payload)).thenReturn(mockVC);
-
-        when(objectMapper.convertValue(mockVC, JsonNode.class)).thenThrow(new IllegalArgumentException(new JsonConversionException("Error durante la conversión a JsonNode.")));
-
-
-        JsonConversionException thrown = assertThrows(JsonConversionException.class, () -> vpServiceImpl.getCredentialFromTheVerifiablePresentationAsJsonNode(verifiablePresentation));
-
-        Assertions.assertThat(thrown.getMessage()).isEqualTo("Error durante la conversión a JsonNode.");
-
-    }
-
-    @Test
-    void getCredentialFromTheVerifiablePresentationAsJsonNode_with_VC_JSONObject_throw_JsonConversionException_when_mapping() throws JsonProcessingException {
-        String verifiablePresentation = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJkaWQ6a2V5OnpEbmFlblF6WEthVE5SNlYyaWZyY0VFU042VFR1WWpweWFmUGh0c1pZU3Y0VlJia3IiLCJuYmYiOjE3MTc0MzgwMDMsImlzcyI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsInZwIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sImhvbGRlciI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsImlkIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIiwidHlwZSI6WyJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIl0sInZlcmlmaWFibGVDcmVkZW50aWFsIjpbImV5SmhiR2NpT2lKSVV6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUp6ZFdJaU9pSXhNak0wTlRZM09Ea3dJaXdpYm1GdFpTSTZJa3B2YUc0Z1JHOWxJaXdpYVdGMElqb3hOVEUyTWpNNU1ESXlmUS5TZmxLeHdSSlNNZUtLRjJRVDRmd3BNZUpmMzZQT2s2eUpWX2FkUXNzdzVjIl19LCJleHAiOjE3MjAwMzAwMDMsImlhdCI6MTcxNzQzODAwMywianRpIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIn0._tIB_9fsQjZmJV2cgGDWtYXmps9fbLbMDtu8wZhIwC9u6I7RAaR4NK5WrnRC1TIVbQa06ZeneELxc_ktTkdhfA";
-
-        Payload payload = mock(Payload.class);
-        when(jwtService.getPayloadFromSignedJWT(any(SignedJWT.class))).thenReturn(payload);
-
-        JSONObject mockVC = new JSONObject();
-
-        when(jwtService.getVCFromPayload(payload)).thenReturn(mockVC);
-
-        when(objectMapper.readTree(mockVC.toString())).thenThrow(new JsonConversionException("Error durante la conversión a JsonNode."));
-
-
-        JsonConversionException thrown = assertThrows(JsonConversionException.class, () -> vpServiceImpl.getCredentialFromTheVerifiablePresentationAsJsonNode(verifiablePresentation));
-
-        Assertions.assertThat(thrown.getMessage()).isEqualTo("Error durante la conversión a JsonNode.");
-
-    }
-
-    @Test
-    void validateVerifiablePresentation_vp_claim_with_verifiableCredential_claim_string_but_not_jwt_format_throws_JWTParsingException_and_return_false() {
-        String vpClaimWithVcNotJwtFormat = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJkaWQ6a2V5OnpEbmFlblF6WEthVE5SNlYyaWZyY0VFU042VFR1WWpweWFmUGh0c1pZU3Y0VlJia3IiLCJuYmYiOjE3MTc0MzgwMDMsImlzcyI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsInZwIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sImhvbGRlciI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsImlkIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIiwidHlwZSI6WyJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIl0sInZlcmlmaWFibGVDcmVkZW50aWFsIjpbImludmFsaWQtand0Il19LCJleHAiOjE3MjAwMzAwMDMsImlhdCI6MTcxNzQzODAwMywianRpIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIn0.MHfKhZCCmXUlAwdgC_cT5bWJyINKeMjVDiXx3dCBKydSPdzX3QO2kiESeoO1tmzolA-7KRtJj7R-b6HfNE4xbA";
-
-        assertThrows(JWTParsingException.class, () ->
-                vpServiceImpl.validateVerifiablePresentation(vpClaimWithVcNotJwtFormat)
-        );
-    }
-
-    @Test
-    void validateVerifiablePresentation_vp_claim_with_verifiableCredential_claim_no_string_format_throws_CredentialException_and_return_false() {
-        String vpClaimWithVcNotStringFormat = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJkaWQ6a2V5OnpEbmFlblF6WEthVE5SNlYyaWZyY0VFU042VFR1WWpweWFmUGh0c1pZU3Y0VlJia3IiLCJuYmYiOjE3MTc0MzgwMDMsImlzcyI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsInZwIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sImhvbGRlciI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsImlkIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIiwidHlwZSI6WyJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIl0sInZlcmlmaWFibGVDcmVkZW50aWFsIjpbMV19LCJleHAiOjE3MjAwMzAwMDMsImlhdCI6MTcxNzQzODAwMywianRpIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIn0.K-bG85t--QMmOumsZsNbk7Vm62AUsl8kgDxwH3G9---Eb7xfX0NkVuq1r2iTh-H2uRNcpmnao03Y8fbrnYVqFA";
-
-        assertThrows(CredentialException.class, () ->
-                vpServiceImpl.validateVerifiablePresentation(vpClaimWithVcNotStringFormat)
-        );
-    }
 
     @Test
     void validateVerifiablePresentation_vp_claim_with_verifiableCredential_claim_is_not_found_throws_CredentialException_and_return_false() {
@@ -327,23 +188,44 @@ class VpServiceImplTest {
         );
     }
 
-//  todo test
-//   @Test
-//    void mapPayloadToVerifiableCredential_whenMapToSpecificCredentialIncorrectTypes_shouldThrowInvalidCredentialTypeException() {
-//        String verifiablePresentation = "eyJ0eXAiOiJKV1QiLCJhbGciOiJFUzI1NiJ9.eyJzdWIiOiJkaWQ6a2V5OnpEbmFlblF6WEthVE5SNlYyaWZyY0VFU042VFR1WWpweWFmUGh0c1pZU3Y0VlJia3IiLCJuYmYiOjE3MTc0MzgwMDMsImlzcyI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsInZwIjp7IkBjb250ZXh0IjpbImh0dHBzOi8vd3d3LnczLm9yZy8yMDE4L2NyZWRlbnRpYWxzL3YxIl0sImhvbGRlciI6ImRpZDprZXk6ekRuYWVuUXpYS2FUTlI2VjJpZnJjRUVTTjZUVHVZanB5YWZQaHRzWllTdjRWUmJrciIsImlkIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIiwidHlwZSI6WyJWZXJpZmlhYmxlUHJlc2VudGF0aW9uIl0sInZlcmlmaWFibGVDcmVkZW50aWFsIjpbImV5SmhiR2NpT2lKSVV6STFOaUlzSW5SNWNDSTZJa3BYVkNKOS5leUp6ZFdJaU9pSXhNak0wTlRZM09Ea3dJaXdpYm1GdFpTSTZJa3B2YUc0Z1JHOWxJaXdpYVdGMElqb3hOVEUyTWpNNU1ESXlmUS5TZmxLeHdSSlNNZUtLRjJRVDRmd3BNZUpmMzZQT2s2eUpWX2FkUXNzdzVjIl19LCJleHAiOjE3MjAwMzAwMDMsImlhdCI6MTcxNzQzODAwMywianRpIjoiNDFhY2FkYTMtNjdiNC00OTRlLWE2ZTMtZTA5NjY0NDlmMjVkIn0._tIB_9fsQjZmJV2cgGDWtYXmps9fbLbMDtu8wZhIwC9u6I7RAaR4NK5WrnRC1TIVbQa06ZeneELxc_ktTkdhfA";
-//
-//        Payload payload = mock(Payload.class);
-//        when(jwtService.getPayloadFromSignedJWT(any(SignedJWT.class))).thenReturn(payload);
-//        Map<String, Object> vcMap = new HashMap<>();
-//        vcMap.put("type", List.of("invalid"));
-//
-//        when(jwtService.getVCFromPayload(payload)).thenReturn(vcMap);
-//
-//        assertThrows(
-//                InvalidCredentialTypeException.class,
-//                () ->  vpServiceImpl.validateVerifiablePresentation(verifiablePresentation)
-//        );
-//    }
+    @Test
+    void mapPayloadToVerifiableCredential_whenMapToSpecificCredentialIncorrectTypes_shouldThrowInvalidCredentialTypeException() throws Exception {
+        String vpToken = "vp.jwt";
+        String vcJwt = "vc.jwt";
+
+        SignedJWT vpSignedJWT = mock(SignedJWT.class);
+        SignedJWT vcSignedJWT = mock(SignedJWT.class);
+
+        try (MockedStatic<SignedJWT> mocked = mockStatic(SignedJWT.class)) {
+            mocked.when(() -> SignedJWT.parse(vpToken)).thenReturn(vpSignedJWT);
+            mocked.when(() -> SignedJWT.parse(vcJwt)).thenReturn(vcSignedJWT);
+
+            // VP -> contains VC JWT in vp claim
+            JWTClaimsSet vpClaims = mock(JWTClaimsSet.class);
+            when(vpSignedJWT.getJWTClaimsSet()).thenReturn(vpClaims);
+            when(vpClaims.getClaim("vp")).thenReturn(Map.of("verifiableCredential", List.of(vcJwt)));
+
+            // VC sub is read (but not strictly needed for this test)
+            JWTClaimsSet vcClaims = mock(JWTClaimsSet.class);
+            when(vcSignedJWT.getJWTClaimsSet()).thenReturn(vcClaims);
+            when(vcClaims.getSubject()).thenReturn("did:example:any");
+
+            // Payload -> VC map
+            Payload payload = mock(Payload.class);
+            when(jwtService.getPayloadFromSignedJWT(vcSignedJWT)).thenReturn(payload);
+
+            Map<String, Object> vcMap = new HashMap<>();
+            vcMap.put("type", List.of("invalid")); // unsupported type
+            vcMap.put("@context", LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT); // must be a list of strings
+            when(jwtService.getVCFromPayload(payload)).thenReturn(vcMap);
+
+            assertThrows(
+                    InvalidCredentialTypeException.class,
+                    () -> vpServiceImpl.validateVerifiablePresentation(vpToken)
+            );
+        }
+    }
+
 
     @Test
     void mapPayloadToVerifiableCredential_whenMapToSpecificCredentialBadContextNotList_shouldThrowCredentialMappingException() {
@@ -486,152 +368,172 @@ class VpServiceImplTest {
             assertDoesNotThrow(() ->
                     vpServiceImpl.validateVerifiablePresentation(verifiablePresentation)
             );
+
             // Verify interactions
             verify(jwtService).verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
         }
     }
 
+    @Test
+    void validateNewVerifiablePresentation_success() throws Exception {
+        // Given
+        String verifiablePresentation = "valid.vp.jwt";
+        String vcJwt = "valid.vc.jwt";
 
-//    @Test
-//    void validateNewVerifiablePresentation_success() throws Exception {
-//        // Given
-//        String verifiablePresentation = "valid.vp.jwt";
-//        LEARCredentialEmployeeV1 learCredentialEmployeeV1 = getNewLEARCredentialEmployee();
-//
-//        // Step 1: Parse the VP JWT
-//        SignedJWT vpSignedJWT = mock(SignedJWT.class);
-//        try (MockedStatic<SignedJWT> mockedSignedJWT = mockStatic(SignedJWT.class)) {
-//
-//            mockedSignedJWT.when(() -> SignedJWT.parse(verifiablePresentation)).thenReturn(vpSignedJWT);
-//
-//            // VP header -> kid (holder DID)
-//            var vpHeader = mock(com.nimbusds.jose.JWSHeader.class);
-//            when(vpSignedJWT.getHeader()).thenReturn(vpHeader);
-//            when(vpHeader.getKeyID()).thenReturn(learCredentialEmployeeV1.mandateeId());
-//
-//            // Set up the VP claims
-//            JWTClaimsSet vpClaimsSet = mock(JWTClaimsSet.class);
-//            when(vpSignedJWT.getJWTClaimsSet()).thenReturn(vpClaimsSet);
-//
-//            // Mock the "vp" claim in the VP
-//            Map<String, Object> vcClaimMap = new HashMap<>();
-//            String vcJwt = "valid.vc.jwt";
-//            vcClaimMap.put("verifiableCredential", List.of(vcJwt));
-//            when(vpClaimsSet.getClaim("vp")).thenReturn(vcClaimMap);
-//
-//            // Step 2: Parse the VC JWT
-//            SignedJWT jwtCredential = mock(SignedJWT.class);
-//            mockedSignedJWT.when(() -> SignedJWT.parse(vcJwt)).thenReturn(jwtCredential);
-//
-//            Payload payload = mock(Payload.class);
-//            when(jwtService.getPayloadFromSignedJWT(jwtCredential)).thenReturn(payload);
-//
-//            // Step 3: Validate the credential id is not in the revoked list
-//            // Create a vcFromPayload Map
-//            LinkedTreeMap<String, Object> vcFromPayload = new LinkedTreeMap<>();
-//            when(jwtService.getVCFromPayload(payload)).thenReturn(vcFromPayload);
-//
-//            // Mock trustFrameworkService.getCredentialStatusListData to return an empty list
-//            when(trustFrameworkService.getCredentialStatusListData(any())).thenReturn(Collections.emptyList());
-//
-//            // Step 4: Extract and validate credential types
-//            vcFromPayload.put("type", List.of("LEARCredentialEmployee"));
-//            vcFromPayload.put("@context", LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT);
-//
-//            // Step 5: Retrieve the list of issuer capabilities
-//            List<IssuerCredentialsCapabilities> issuerCapabilitiesList = List.of(
-//                    IssuerCredentialsCapabilities.builder()
-//                            .validFor(new TimeRange(Instant.now().toString(), Instant.now().plusSeconds(3600).toString()))
-//                            .credentialsType("LEARCredentialEmployee")
-//                            .claims(null)
-//                            .build()
-//            );
-//            when(trustFrameworkService.getTrustedIssuerListData(learCredentialEmployeeV1.issuer().getId())).thenReturn(issuerCapabilitiesList);
-//
-//            when(objectMapper.convertValue(vcFromPayload, LEARCredentialEmployeeV1.class)).thenReturn(learCredentialEmployeeV1);
-//
-//            // Step 7: Validate the mandator with trusted issuer service
-//            when(trustFrameworkService.getTrustedIssuerListData(DID_ELSI_PREFIX + learCredentialEmployeeV1.mandatorOrganizationIdentifier())).thenReturn(issuerCapabilitiesList);
-//
-//            // Step 7: Verify the signature and the organizationId of the credential signature
-//            Map<String, Object> vcHeader = new HashMap<>();
-//            vcHeader.put("x5c", List.of("base64Cert"));
-//            JWSHeader header = mock(JWSHeader.class);
-//            when(jwtCredential.getHeader()).thenReturn(header);
-//            when(header.toJSONObject()).thenReturn(vcHeader);
-//
-//
-//            when(jwtCredential.serialize()).thenReturn(vcJwt);
-//
-//            doNothing().when(certificateValidationService).extractAndVerifyCertificate(any(), eq(vcHeader),eq("issuer"));
-//
-//            // Step 8: Get the holder's public key
-//            PublicKey holderPublicKey = generateECPublicKey();
-//            when(didService.getPublicKeyFromDid(learCredentialEmployeeV1.mandateeId())).thenReturn(holderPublicKey);
-//
-//            // Mock jwtService.verifyJWTSignature for the Verifiable Presentation
-//            doNothing().when(jwtService).verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
-//
-//            assertDoesNotThrow(() ->
-//                    vpServiceImpl.validateVerifiablePresentation(verifiablePresentation)
-//            );
-//
-//            // Verify interactions
-//            verify(jwtService).verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
-//        }
-//    }
-//
-//    @Test
-//    void validateNewVerifiablePresentation_revocated() throws Exception {
-//        // Given
-//        String verifiablePresentation = "valid.vp.jwt";
-//        LEARCredentialEmployeeV1 learCredentialEmployeeV1 = getNewLEARCredentialEmployee();
-//
-//        // Step 1: Parse the VP JWT
-//        SignedJWT vpSignedJWT = mock(SignedJWT.class);
-//        try (MockedStatic<SignedJWT> mockedSignedJWT = mockStatic(SignedJWT.class)) {
-//
-//            mockedSignedJWT.when(() -> SignedJWT.parse(verifiablePresentation)).thenReturn(vpSignedJWT);
-//
-//            // Set up the VP claims
-//            JWTClaimsSet vpClaimsSet = mock(JWTClaimsSet.class);
-//            when(vpSignedJWT.getJWTClaimsSet()).thenReturn(vpClaimsSet);
-//
-//            // Mock the "vp" claim in the VP
-//            Map<String, Object> vcClaimMap = new HashMap<>();
-//            String vcJwt = "valid.vc.jwt";
-//            vcClaimMap.put("verifiableCredential", List.of(vcJwt));
-//            when(vpClaimsSet.getClaim("vp")).thenReturn(vcClaimMap);
-//
-//            // Step 2: Parse the VC JWT
-//            SignedJWT jwtCredential = mock(SignedJWT.class);
-//            mockedSignedJWT.when(() -> SignedJWT.parse(vcJwt)).thenReturn(jwtCredential);
-//
-//            Payload payload = mock(Payload.class);
-//            when(jwtService.getPayloadFromSignedJWT(jwtCredential)).thenReturn(payload);
-//
-//            // Step 3: Validate the credential id is not in the revoked list
-//            // Create a vcFromPayload Map
-//            LinkedTreeMap<String, Object> vcFromPayload = new LinkedTreeMap<>();
-//            when(jwtService.getVCFromPayload(payload)).thenReturn(vcFromPayload);
-//
-//            // Mock trustFrameworkService.getCredentialStatusListData to return an empty list
-//            when(trustFrameworkService.getCredentialStatusListData(any())).thenReturn(List.of("1"));
-//
-//            // Step 4: Extract and validate credential types
-//            vcFromPayload.put("id", "urn:uuid:1234");
-//            vcFromPayload.put("type", List.of("LEARCredentialEmployee"));
-//            vcFromPayload.put("@context", LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT);
-//
-//            when(objectMapper.convertValue(vcFromPayload, LEARCredentialEmployeeV1.class)).thenReturn(learCredentialEmployeeV1);
-//
-//            assertThrows(CredentialRevokedException.class, () ->
-//                    vpServiceImpl.validateVerifiablePresentation(verifiablePresentation)
-//            );
-//
-//
-//        }
-//    }
+        SignedJWT vpSignedJWT = mock(SignedJWT.class);
+        SignedJWT vcSignedJWT = mock(SignedJWT.class);
+
+        try (MockedStatic<SignedJWT> mockedSignedJWT = mockStatic(SignedJWT.class)) {
+
+            mockedSignedJWT.when(() -> SignedJWT.parse(verifiablePresentation)).thenReturn(vpSignedJWT);
+            mockedSignedJWT.when(() -> SignedJWT.parse(vcJwt)).thenReturn(vcSignedJWT);
+
+            // VP header -> kid (holder DID)
+            com.nimbusds.jose.JWSHeader vpHeader = mock(com.nimbusds.jose.JWSHeader.class);
+            when(vpSignedJWT.getHeader()).thenReturn(vpHeader);
+            when(vpHeader.getKeyID()).thenReturn("did:example:holder#key-1");
+
+            // VP claims: iss/sub (optional) and vp claim with VC
+            JWTClaimsSet vpClaimsSet = mock(JWTClaimsSet.class);
+            when(vpSignedJWT.getJWTClaimsSet()).thenReturn(vpClaimsSet);
+            when(vpClaimsSet.getIssuer()).thenReturn("did:example:holder");
+            when(vpClaimsSet.getSubject()).thenReturn("did:example:holder");
+            when(vpClaimsSet.getClaim("vp")).thenReturn(Map.of("verifiableCredential", List.of(vcJwt)));
+
+            // VC claims: sub used for binding fallback/logging
+            JWTClaimsSet vcClaimsSet = mock(JWTClaimsSet.class);
+            when(vcSignedJWT.getJWTClaimsSet()).thenReturn(vcClaimsSet);
+            when(vcClaimsSet.getSubject()).thenReturn("did:example:holder");
+
+            // VC payload
+            Payload payload = mock(Payload.class);
+            when(jwtService.getPayloadFromSignedJWT(vcSignedJWT)).thenReturn(payload);
+
+            Map<String, Object> vcFromPayload = new HashMap<>();
+            vcFromPayload.put("type", List.of("LEARCredentialEmployee"));
+            vcFromPayload.put("@context", LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT);
+            when(jwtService.getVCFromPayload(payload)).thenReturn(vcFromPayload);
+
+            // Map -> credential domain object
+            LEARCredentialEmployeeV1 cred = mock(LEARCredentialEmployeeV1.class);
+            when(objectMapper.convertValue(vcFromPayload, LEARCredentialEmployeeV1.class)).thenReturn(cred);
+
+            // Time window ok
+            when(cred.validFrom()).thenReturn(ZonedDateTime.now().minusMinutes(1).toString());
+            when(cred.validUntil()).thenReturn(ZonedDateTime.now().plusMinutes(5).toString());
+
+            // Revocation path: old (no credentialStatus)
+            when(cred.learCredentialStatusExist()).thenReturn(false);
+            when(cred.id()).thenReturn("urn:uuid:1234");
+            when(trustFrameworkService.getRevokedCredentialIds()).thenReturn(List.of());
+
+            // Types
+            when(cred.type()).thenReturn(List.of("LEARCredentialEmployee"));
+
+            // Issuer
+            var issuer = mock(es.in2.vcverifier.model.credentials.Issuer.class);
+            when(cred.issuer()).thenReturn(issuer);
+            when(issuer.getId()).thenReturn("did:elsi:VATES-FOO"); // IMPORTANT: must start with did:elsi:
+
+            // Issuer capabilities include this credential type
+            List<IssuerCredentialsCapabilities> issuerCapabilitiesList = List.of(
+                    IssuerCredentialsCapabilities.builder()
+                            .credentialsType("LEARCredentialEmployee")
+                            .validFor(null)
+                            .claims(null)
+                            .build()
+            );
+            when(trustFrameworkService.getTrustedIssuerListData("did:elsi:VATES-FOO")).thenReturn(issuerCapabilitiesList);
+
+            // Mandator check
+            when(cred.mandatorOrganizationIdentifier()).thenReturn("VATES-FOO");
+            when(trustFrameworkService.getTrustedIssuerListData(DID_ELSI_PREFIX + "VATES-FOO")).thenReturn(issuerCapabilitiesList);
+
+            // Certificate validation (uses issuer DID substring after "did:elsi:")
+            Map<String, Object> vcHeaderMap = new HashMap<>();
+            vcHeaderMap.put("x5c", List.of("base64Cert"));
+
+            com.nimbusds.jose.JWSHeader vcHeader = mock(com.nimbusds.jose.JWSHeader.class);
+            when(vcSignedJWT.getHeader()).thenReturn(vcHeader);
+            when(vcHeader.toJSONObject()).thenReturn(vcHeaderMap);
+
+            when(vcSignedJWT.serialize()).thenReturn(vcJwt);
+
+            doNothing().when(certificateValidationService)
+                    .extractAndVerifyCertificate(eq(vcJwt), eq(vcHeaderMap), eq("VATES-FOO"));
+
+            // PoP signature verification of VP
+            PublicKey holderPublicKey = generateECPublicKey();
+            when(didService.getPublicKeyFromDid("did:example:holder")).thenReturn(holderPublicKey);
+            doNothing().when(jwtService).verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
+
+            // Binding: make VC bound DID == holder DID via credentialSubjectId
+            when(cred.credentialSubjectId()).thenReturn("did:example:holder");
+
+            assertDoesNotThrow(() -> vpServiceImpl.validateVerifiablePresentation(verifiablePresentation));
+
+            verify(jwtService).verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
+            verify(certificateValidationService).extractAndVerifyCertificate(eq(vcJwt), eq(vcHeaderMap), eq("VATES-FOO"));
+            verify(didService).getPublicKeyFromDid("did:example:holder");
+        }
+    }
+
+    @Test
+    void validateNewVerifiablePresentation_revoked() throws Exception {
+        // Given
+        String verifiablePresentation = "valid.vp.jwt";
+        String vcJwt = "valid.vc.jwt";
+
+        SignedJWT vpSignedJWT = mock(SignedJWT.class);
+        SignedJWT vcSignedJWT = mock(SignedJWT.class);
+
+        try (MockedStatic<SignedJWT> mockedSignedJWT = mockStatic(SignedJWT.class)) {
+
+            mockedSignedJWT.when(() -> SignedJWT.parse(verifiablePresentation)).thenReturn(vpSignedJWT);
+            mockedSignedJWT.when(() -> SignedJWT.parse(vcJwt)).thenReturn(vcSignedJWT);
+
+            // VP -> contains VC JWT
+            JWTClaimsSet vpClaimsSet = mock(JWTClaimsSet.class);
+            when(vpSignedJWT.getJWTClaimsSet()).thenReturn(vpClaimsSet);
+            when(vpClaimsSet.getClaim("vp")).thenReturn(Map.of("verifiableCredential", List.of(vcJwt)));
+
+            // VC subject (not critical here)
+            JWTClaimsSet vcClaimsSet = mock(JWTClaimsSet.class);
+            when(vcSignedJWT.getJWTClaimsSet()).thenReturn(vcClaimsSet);
+            when(vcClaimsSet.getSubject()).thenReturn("did:example:any");
+
+            // VC payload
+            Payload payload = mock(Payload.class);
+            when(jwtService.getPayloadFromSignedJWT(vcSignedJWT)).thenReturn(payload);
+
+            Map<String, Object> vcFromPayload = new HashMap<>();
+            vcFromPayload.put("id", "urn:uuid:1234");
+            vcFromPayload.put("type", List.of("LEARCredentialEmployee"));
+            vcFromPayload.put("@context", LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT);
+            when(jwtService.getVCFromPayload(payload)).thenReturn(vcFromPayload);
+
+            // Map -> credential domain object
+            LEARCredentialEmployeeV1 cred = mock(LEARCredentialEmployeeV1.class);
+            when(objectMapper.convertValue(vcFromPayload, LEARCredentialEmployeeV1.class)).thenReturn(cred);
+
+            // Time window ok
+            when(cred.validFrom()).thenReturn(ZonedDateTime.now().minusMinutes(1).toString());
+            when(cred.validUntil()).thenReturn(ZonedDateTime.now().plusMinutes(5).toString());
+
+            // Revocation path: old (no credentialStatus) -> revoked list contains the id
+            when(cred.learCredentialStatusExist()).thenReturn(false);
+            when(cred.id()).thenReturn("urn:uuid:1234");
+            when(trustFrameworkService.getRevokedCredentialIds()).thenReturn(List.of("urn:uuid:1234"));
+
+            assertThrows(CredentialRevokedException.class, () ->
+                    vpServiceImpl.validateVerifiablePresentation(verifiablePresentation)
+            );
+
+            // Should fail early (before PoP / did resolution)
+            verifyNoInteractions(didService);
+            verify(jwtService, never()).verifyJWTWithECKey(anyString(), any());
+        }
+    }
 
     @Test
     void validateOldVerifiablePresentation_revocated() throws Exception {
