@@ -1,7 +1,5 @@
 package es.in2.vcverifier.service;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.Payload;
@@ -20,8 +18,6 @@ import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.mandate
 import es.in2.vcverifier.model.issuer.IssuerCredentialsCapabilities;
 import es.in2.vcverifier.model.issuer.TimeRange;
 import es.in2.vcverifier.service.impl.VpServiceImpl;
-import org.assertj.core.api.Assertions;
-import org.json.JSONObject;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
