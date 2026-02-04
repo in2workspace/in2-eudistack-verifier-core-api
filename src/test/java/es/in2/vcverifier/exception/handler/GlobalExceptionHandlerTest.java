@@ -136,7 +136,4 @@ class GlobalExceptionHandlerTest {
         assertThat(response.message()).isEqualTo("Status list error");
         assertThat(response.path()).isEmpty();
     }
-
-    
-
 }

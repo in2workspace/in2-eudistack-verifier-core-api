@@ -122,7 +122,7 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
             );
         }
 
-        int byteIndex = bitIndex / 8;
+        int byteIndex = bitIndex / 8; // Use MSB-first bit ordering within each byte: bitIndex 0
         int bitInByte = 7 - (bitIndex % 8);
         int mask = 1 << bitInByte;
 
