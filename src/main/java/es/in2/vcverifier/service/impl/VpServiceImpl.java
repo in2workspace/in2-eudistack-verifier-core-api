@@ -348,6 +348,8 @@ public class VpServiceImpl implements VpService {
 
         String type = learCredential.credentialStatusType();
 
+        // Legacy PlainListEntry
+        // TODO Remove once the last credential of this type expires in DOME.
         if ("PlainListEntity".equals(type)) {
             log.info("Validating credential with PlainListEntity credential status");
             // Legacy JSON: list of nonces

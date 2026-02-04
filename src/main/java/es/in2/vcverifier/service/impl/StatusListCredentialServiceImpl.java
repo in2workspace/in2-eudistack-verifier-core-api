@@ -1,6 +1,5 @@
 package es.in2.vcverifier.service.impl;
 
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jwt.SignedJWT;
@@ -25,13 +24,8 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
 
     private final ObjectMapper objectMapper;
 
-    /**
-     * Ensures that the status purpose in the Status List Credential matches
-     * the expected purpose from the subject credential.
-     */
     @Override
     public void validateStatusPurposeMatches(String statusListCredentialPurpose, String expectedPurpose) {
-        // Log at debug to avoid noisy logs on happy path
         log.debug("Validating statusPurpose match. expectedPurpose='{}', statusListCredentialPurpose='{}'",
                 expectedPurpose, statusListCredentialPurpose);
 
@@ -56,92 +50,92 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
         log.debug("StatusPurpose match OK. purpose='{}'", expectedPurpose);
     }
 
-    /**
-     * Convenience method that parses a Status List Credential expressed as a JWT string
-     * (application/vc+jwt) and delegates to {@link #parse(SignedJWT)}.
-     *
-     * <p>This method performs syntactic JWT parsing only. All semantic validation and
-     * extraction logic is implemented in {@link #parse(SignedJWT)}.</p>
-     *
-     * @param jwtString the Status List Credential in vc+jwt string form
-     * @return parsed status list credential data
-     * @throws StatusListCredentialException if the JWT cannot be parsed
-     */
     @Override
     public StatusListCredentialData parse(String jwtString) {
+        log.debug("Parsing Status List Credential from JWT string. jwtLength={}", jwtString == null ? null : jwtString.length());
+
         try {
             SignedJWT signedJwt = SignedJWT.parse(jwtString);
+            log.debug("JWT string parsed to SignedJWT successfully");
             return parse(signedJwt);
         } catch (ParseException e) {
+            log.warn("Failed to parse JWT string into SignedJWT", e);
             throw new StatusListCredentialException(
                     "Error parsing Status List Credential JWT", e
             );
+        } catch (RuntimeException e) {
+            log.warn("Unexpected error while parsing JWT string into SignedJWT", e);
+            throw e;
         }
     }
 
-    /**
-     * Parses a Status List Credential already represented as a {@link SignedJWT} and
-     * extracts issuer, credentialSubject.statusPurpose and the decoded bitstring
-     * (credentialSubject.encodedList).
-     */
     @Override
     public StatusListCredentialData parse(SignedJWT signedJwt) {
+        log.debug("Parsing Status List Credential from SignedJWT. signedJwtNull={}", signedJwt == null);
+
         try {
             JsonNode claimsNode = objectMapper.valueToTree(
                     signedJwt.getJWTClaimsSet().toJSONObject()
             );
+            JsonNode credentialSubject = getRequiredObject(claimsNode, "credentialSubject");
+            log.debug("credentialSubject extracted. fields={}", credentialSubject.size());
 
-            JsonNode credentialSubject =
-                    getRequiredObject(claimsNode, "credentialSubject");
+            String statusPurpose = getRequiredText(credentialSubject, "statusPurpose");
 
-            String statusPurpose =
-                    getRequiredText(credentialSubject, "statusPurpose");
-
-            String encodedList =
-                    getRequiredText(credentialSubject, "encodedList");
+            String encodedList = getRequiredText(credentialSubject, "encodedList");
 
             byte[] rawBitstringBytes = decodeEncodedListToRawBytes(encodedList);
 
+            String issuer = signedJwt.getJWTClaimsSet().getIssuer();
+
             return new StatusListCredentialData(
-                    signedJwt.getJWTClaimsSet().getIssuer(),
+                    issuer,
                     statusPurpose,
                     rawBitstringBytes
             );
 
         } catch (ParseException e) {
+            log.warn("Failed to read JWT claims from SignedJWT", e);
             throw new StatusListCredentialException(
                     "Error reading Status List Credential JWT claims", e
             );
         }
     }
 
-    /**
-     * Returns true if the bit at bitIndex is set (LSB-first within each byte).
-     */
     public boolean isBitSet(byte[] rawBytes, int bitIndex) {
+        log.debug("Checking if bit is set. rawBytesNull={}, bitIndex={}", rawBytes == null, bitIndex);
+
         if (rawBytes == null) {
+            log.warn("rawBytes is null in isBitSet");
             throw new StatusListCredentialException("rawBytes cannot be null");
         }
         if (bitIndex < 0) {
+            log.warn("bitIndex is negative in isBitSet. bitIndex={}", bitIndex);
             throw new StatusListCredentialException("bitIndex must be >= 0");
         }
 
         int maxBits = rawBytes.length * 8;
         if (bitIndex >= maxBits) {
+            log.warn("bitIndex out of range in isBitSet. maxBits={}, bitIndex={}", maxBits, bitIndex);
             throw new StatusListCredentialException(
                     "bitIndex out of range. maxBits=" + maxBits + ", bitIndex=" + bitIndex
             );
         }
 
-        int byteIndex = bitIndex / 8;
-        int bitInByte = bitIndex % 8;
+        int byteIndex = bitIndex / 8; // Use MSB-first bit ordering within each byte
+        int bitInByte = 7 - (bitIndex % 8);
         int mask = 1 << bitInByte;
 
-        return (rawBytes[byteIndex] & mask) != 0;
+        boolean result = (rawBytes[byteIndex] & mask) != 0;
+        log.debug("Bit check computed. byteIndex={}, bitInByte={}, mask={}, result={}", byteIndex, bitInByte, mask, result);
+
+        return result;
     }
 
     public int maxBits(byte[] rawBytes) {
+
         if (rawBytes == null) {
+            log.warn("rawBytes is null in maxBits");
             throw new StatusListCredentialException("rawBytes cannot be null");
         }
         return rawBytes.length * 8;
@@ -151,20 +145,16 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
     // Internal helpers
     // ------------------------------------------------------------------------
 
-    private Object readClaimsSafely(SignedJWT signedJWT) {
-        try {
-            return signedJWT.getJWTClaimsSet().toJSONObject();
-        } catch (ParseException e) {
-            throw new StatusListCredentialException("Error reading JWT claims set", e);
-        }
-    }
-
     private JsonNode getRequiredObject(JsonNode parent, String field) {
+
         if (parent == null || parent.isNull()) {
+            log.warn("Missing JWT claims when reading required object field '{}'", field);
             throw new StatusListCredentialException("Missing JWT claims");
         }
         JsonNode node = parent.get(field);
         if (node == null || node.isNull() || !node.isObject()) {
+            log.warn("Missing or invalid object field '{}'. nodeNull={}, nodeIsNull={}, nodeIsObject={}",
+                    field, node == null, node != null && node.isNull(), node != null && node.isObject());
             throw new StatusListCredentialException("Missing or invalid '" + field + "'");
         }
         return node;
@@ -173,18 +163,30 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
     private String getRequiredText(JsonNode parent, String field) {
         JsonNode node = parent.get(field);
         if (node == null || !node.isTextual() || node.asText().isBlank()) {
+            log.warn("Missing or invalid text field '{}'. nodeNull={}, nodeIsTextual={}, textBlank={}",
+                    field,
+                    node == null,
+                    node != null && node.isTextual(),
+                    node != null && node.isTextual() && node.asText().isBlank());
             throw new StatusListCredentialException("Missing or invalid '" + field + "'");
         }
         return node.asText();
     }
 
     private byte[] decodeEncodedListToRawBytes(String encodedList) {
+        log.debug("Decoding encodedList to raw bytes. encodedListNull={}, encodedListBlank={}",
+                encodedList == null, encodedList != null && encodedList.isBlank());
+
         if (encodedList == null || encodedList.isBlank()) {
+            log.warn("encodedList is null or blank");
             throw new StatusListCredentialException("encodedList cannot be blank");
         }
 
         String payload = encodedList.trim();
+
         if (payload.charAt(0) != 'u') {
+            log.warn("encodedList does not start with multibase base64url prefix 'u'. firstChar='{}'",
+                    payload.isEmpty() ? null : payload.charAt(0));
             throw new StatusListCredentialException(
                     "encodedList must start with multibase base64url prefix 'u'"
             );
@@ -194,6 +196,7 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
         try {
             gzipped = Base64.getUrlDecoder().decode(payload.substring(1));
         } catch (IllegalArgumentException e) {
+            log.warn("encodedList is not valid base64url", e);
             throw new StatusListCredentialException("encodedList is not valid base64url", e);
         }
 
@@ -207,11 +210,14 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
 
             byte[] buffer = new byte[8 * 1024];
             int read;
+
             while ((read = gzip.read(buffer)) != -1) {
                 baos.write(buffer, 0, read);
             }
+
             return baos.toByteArray();
         } catch (IOException e) {
+            log.warn("Failed to gunzip content. inputLength={}", input == null ? null : input.length, e);
             throw new StatusListCredentialException("Failed to gunzip content", e);
         }
     }
