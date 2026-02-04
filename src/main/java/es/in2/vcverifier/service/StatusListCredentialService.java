@@ -1,7 +1,6 @@
 package es.in2.vcverifier.service;
 
 import com.nimbusds.jwt.SignedJWT;
-import es.in2.vcverifier.exception.StatusListCredentialException;
 import es.in2.vcverifier.model.StatusListCredentialData;
 
 public interface StatusListCredentialService {

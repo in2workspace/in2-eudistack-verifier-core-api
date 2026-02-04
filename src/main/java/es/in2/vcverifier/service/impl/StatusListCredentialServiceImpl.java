@@ -138,9 +138,7 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
             log.warn("rawBytes is null in maxBits");
             throw new StatusListCredentialException("rawBytes cannot be null");
         }
-        int maxBits = rawBytes.length * 8;
-
-        return maxBits;
+        return rawBytes.length * 8;
     }
 
     // ------------------------------------------------------------------------
@@ -212,11 +210,9 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
 
             byte[] buffer = new byte[8 * 1024];
             int read;
-            long totalRead = 0;
 
             while ((read = gzip.read(buffer)) != -1) {
                 baos.write(buffer, 0, read);
-                totalRead += read;
             }
 
             return baos.toByteArray();
