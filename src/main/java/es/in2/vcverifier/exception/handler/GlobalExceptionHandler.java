@@ -89,7 +89,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(StatusListCredentialException.class)
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public GlobalErrorMessage handleException(StatusListCredentialException ex) {
+    public GlobalErrorMessage handleStatusListCredentialException(StatusListCredentialException ex) {
         log.error("Error while handling Status List Credential ", ex.getMessage());
         return new GlobalErrorMessage("Error while handling Status List Credential ",ex.getMessage(),"");
     }
