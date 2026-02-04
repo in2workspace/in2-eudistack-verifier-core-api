@@ -380,4 +380,151 @@ class StatusListCredentialServiceImplTest {
         // Signature can be anything for parsing; claims parsing will fail due to non-JSON payload.
         return header + "." + payload + ".signature";
     }
+
+    @Test
+    void validateStatusPurposeMatches_whenExpectedNull_throws() {
+        StatusListCredentialException ex = assertThrows(
+                StatusListCredentialException.class,
+                () -> service.validateStatusPurposeMatches("revocation", null)
+        );
+        assertEquals("Expected statusPurpose cannot be blank", ex.getMessage());
+    }
+
+    @Test
+    void validateStatusPurposeMatches_whenActualNull_throws() {
+        StatusListCredentialException ex = assertThrows(
+                StatusListCredentialException.class,
+                () -> service.validateStatusPurposeMatches(null, "revocation")
+        );
+        assertEquals("Status List Credential statusPurpose can't be blank", ex.getMessage());
+    }
+
+    // ------------------------------------------------------------------------
+    // parse(String) - cover RuntimeException branch (null input)
+    // ------------------------------------------------------------------------
+
+    @Test
+    void parseString_whenJwtIsNull_throwsRuntimeException() {
+        // This covers the RuntimeException catch branch in parse(String)
+        assertThrows(NullPointerException.class, () -> service.parse((String) null));
+    }
+
+    // ------------------------------------------------------------------------
+    // parse(SignedJWT) - extra branches around JSON node validation
+    // ------------------------------------------------------------------------
+
+    @Test
+    void parseSignedJwt_whenCredentialSubjectExplicitNull_throws() throws Exception {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("credentialSubject", null);
+
+        SignedJWT jwt = buildSignedJwtWithClaims("did:example:issuer", claims);
+
+        StatusListCredentialException ex = assertThrows(
+                StatusListCredentialException.class,
+                () -> service.parse(jwt)
+        );
+
+        assertEquals("Missing or invalid 'credentialSubject'", ex.getMessage());
+    }
+
+    @Test
+    void parseSignedJwt_whenStatusPurposeIsNotTextual_throws() throws Exception {
+        Map<String, Object> credentialSubject = new HashMap<>();
+        credentialSubject.put("statusPurpose", 123); // not textual
+        credentialSubject.put("encodedList", multibaseBase64UrlGzip(new byte[] { 1, 2, 3 }));
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("credentialSubject", credentialSubject);
+
+        SignedJWT jwt = buildSignedJwtWithClaims("did:example:issuer", claims);
+
+        StatusListCredentialException ex = assertThrows(
+                StatusListCredentialException.class,
+                () -> service.parse(jwt)
+        );
+        assertEquals("Missing or invalid 'statusPurpose'", ex.getMessage());
+    }
+
+    @Test
+    void parseSignedJwt_whenEncodedListIsNotTextual_throws() throws Exception {
+        Map<String, Object> credentialSubject = new HashMap<>();
+        credentialSubject.put("statusPurpose", "revocation");
+        credentialSubject.put("encodedList", 999); // not textual
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("credentialSubject", credentialSubject);
+
+        SignedJWT jwt = buildSignedJwtWithClaims("did:example:issuer", claims);
+
+        StatusListCredentialException ex = assertThrows(
+                StatusListCredentialException.class,
+                () -> service.parse(jwt)
+        );
+        assertEquals("Missing or invalid 'encodedList'", ex.getMessage());
+    }
+
+    @Test
+    void parseSignedJwt_whenEncodedListIsBlankText_throws() throws Exception {
+        Map<String, Object> credentialSubject = new HashMap<>();
+        credentialSubject.put("statusPurpose", "revocation");
+        credentialSubject.put("encodedList", "   "); // textual but blank
+
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("credentialSubject", credentialSubject);
+
+        SignedJWT jwt = buildSignedJwtWithClaims("did:example:issuer", claims);
+
+        StatusListCredentialException ex = assertThrows(
+                StatusListCredentialException.class,
+                () -> service.parse(jwt)
+        );
+        assertEquals("Missing or invalid 'encodedList'", ex.getMessage());
+    }
+
+    // ------------------------------------------------------------------------
+    // decode/gunzip paths - reachable via parse(SignedJWT)
+    // ------------------------------------------------------------------------
+
+    @Test
+    void parseSignedJwt_whenEncodedListIsOnlyPrefixU_gunzipFails_throws() throws Exception {
+        // "u" is valid textual, passes getRequiredText (not blank),
+        // starts with 'u', base64 decode of empty string => empty byte[],
+        // gunzip fails => StatusListCredentialException("Failed to gunzip content")
+        SignedJWT jwt = buildSignedJwtWithCredentialSubject(
+                "did:example:issuer",
+                "revocation",
+                "u"
+        );
+
+        StatusListCredentialException ex = assertThrows(
+                StatusListCredentialException.class,
+                () -> service.parse(jwt)
+        );
+        assertEquals("Failed to gunzip content", ex.getMessage());
+        assertNotNull(ex.getCause());
+    }
+
+    @Test
+    void parseSignedJwt_whenLargeRawBytes_parsesSuccessfullyAndExercisesGunzipLoop() throws Exception {
+        // Ensures the gunzip read loop iterates multiple times (buffer is 8k).
+        byte[] raw = new byte[20_000];
+        for (int i = 0; i < raw.length; i++) {
+            raw[i] = (byte) (i & 0xFF);
+        }
+
+        String encodedList = multibaseBase64UrlGzip(raw);
+
+        SignedJWT jwt = buildSignedJwtWithCredentialSubject(
+                "https://issuer.example",
+                "revocation",
+                encodedList
+        );
+
+        StatusListCredentialData data = service.parse(jwt);
+
+        assertEquals("https://issuer.example", data.issuer());
+        assertEquals("revocation", data.statusPurpose());
+        assertArrayEquals(raw, data.rawBitstringBytes());
+    }
 }
