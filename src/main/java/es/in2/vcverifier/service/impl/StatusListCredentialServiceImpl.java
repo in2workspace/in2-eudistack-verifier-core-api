@@ -36,7 +36,7 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
 
         if (statusListCredentialPurpose == null || statusListCredentialPurpose.isBlank()) {
             log.warn("Status List Credential statusPurpose is missing or blank");
-            throw new StatusListCredentialException("Status List Credential statusPurpose can't be blank");
+            throw new StatusListCredentialException("Status List Credential statusPurpose cannot be blank");
         }
 
         if (!statusListCredentialPurpose.equals(expectedPurpose)) {
