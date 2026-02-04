@@ -93,7 +93,7 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
     }
 
     // Legacy PlainListEntry status list data
-    // It can be removed once the last credential of this type expires in DOME.
+    // TODO remove once the last credential of this type expires in DOME.
     public List<String> getCredentialStatusListData(String url) {
         try {
             // Step 1: Send HTTP request to fetch issuer data
