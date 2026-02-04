@@ -25,13 +25,8 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
 
     private final ObjectMapper objectMapper;
 
-    /**
-     * Ensures that the status purpose in the Status List Credential matches
-     * the expected purpose from the subject credential.
-     */
     @Override
     public void validateStatusPurposeMatches(String statusListCredentialPurpose, String expectedPurpose) {
-        // Log at debug to avoid noisy logs on happy path
         log.debug("Validating statusPurpose match. expectedPurpose='{}', statusListCredentialPurpose='{}'",
                 expectedPurpose, statusListCredentialPurpose);
 
@@ -56,17 +51,6 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
         log.debug("StatusPurpose match OK. purpose='{}'", expectedPurpose);
     }
 
-    /**
-     * Convenience method that parses a Status List Credential expressed as a JWT string
-     * (application/vc+jwt) and delegates to {@link #parse(SignedJWT)}.
-     *
-     * <p>This method performs syntactic JWT parsing only. All semantic validation and
-     * extraction logic is implemented in {@link #parse(SignedJWT)}.</p>
-     *
-     * @param jwtString the Status List Credential in vc+jwt string form
-     * @return parsed status list credential data
-     * @throws StatusListCredentialException if the JWT cannot be parsed
-     */
     @Override
     public StatusListCredentialData parse(String jwtString) {
         try {
@@ -110,9 +94,6 @@ public class StatusListCredentialServiceImpl implements StatusListCredentialServ
         }
     }
 
-    /**
-     * Returns true if the bit at bitIndex is set (LSB-first within each byte).
-     */
     public boolean isBitSet(byte[] rawBytes, int bitIndex) {
         if (rawBytes == null) {
             throw new StatusListCredentialException("rawBytes cannot be null");
