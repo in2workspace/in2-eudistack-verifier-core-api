@@ -50,7 +50,7 @@ class StatusListCredentialServiceImplTest {
                 StatusListCredentialException.class,
                 () -> service.validateStatusPurposeMatches(" ", "revocation")
         );
-        assertEquals("Status List Credential statusPurpose cannot be blank", ex.getMessage());
+        assertEquals("Status List Credential statusPurpose can't be blank", ex.getMessage());
     }
 
     @Test
