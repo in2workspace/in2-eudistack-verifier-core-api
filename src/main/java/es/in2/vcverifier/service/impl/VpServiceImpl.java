@@ -3,6 +3,8 @@ package es.in2.vcverifier.service.impl;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.Payload;
+import com.nimbusds.jose.jwk.ECKey;
+import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.vcverifier.exception.*;
 import es.in2.vcverifier.model.credentials.lear.LEARCredential;
@@ -126,7 +128,6 @@ public class VpServiceImpl implements VpService {
         log.info("Mandator OrganizationIdentifier {} is valid and allowed", mandatorOrganizationIdentifier);
 
         // Step 10: Validate the VP's signature (PoP) and cryptographic binding
-
         SignedJWT vpJwt;
         try {
             vpJwt = SignedJWT.parse(verifiablePresentation);
@@ -145,40 +146,187 @@ public class VpServiceImpl implements VpService {
             throw new InvalidVPtokenException("Cannot read vp_token claims");
         }
 
-        String holderDid = extractDidFromKidIssSub(vpKid, vpIss, vpSub);
-        holderDid = normalizeDid(holderDid);
+        // 10.1 Try legacy DID-based holder resolution
+        String holderDid = normalizeDid(extractDidFromKidIssSub(vpKid, vpIss, vpSub));
 
-        if (holderDid == null || holderDid.isBlank()) {
-            throw new InvalidScopeException("Cannot extract holder DID from VP (kid/iss/sub)");
+        validateHolderPopAndBinding(
+                verifiablePresentation,
+                vpJwt,
+                jwtCredential,
+                learCredential,
+                vcSub,
+                holderDid
+        );
+
+        log.info("Verifiable Presentation validation completed successfully");
+
+    }
+
+    private void validateHolderPopAndBinding(
+            String verifiablePresentation,
+            SignedJWT vpJwt,
+            SignedJWT vcJwt,
+            LEARCredential learCredential,
+            String vcSub,
+            String holderDid
+    ) {
+        if (holderDid != null && !holderDid.isBlank()) {
+            validateDidBasedPopAndBinding(verifiablePresentation, learCredential, vcSub, holderDid);
+            return;
         }
 
+        validateJwkBasedPopAndBinding(verifiablePresentation, vpJwt, vcJwt);
+    }
+    private void validateJwkBasedPopAndBinding(
+            String verifiablePresentation,
+            SignedJWT vpJwt,
+            SignedJWT vcJwt
+    ) {
+        log.info("[BIND] VP holder DID not available via kid/iss/sub; falling back to JWK binding (vc.cnf.jwk vs vp.holder.jwk)");
+
+        JWK vpHolderJwk = requireVpHolderJwk(vpJwt);
+        JWK vcCnfJwk = requireVcCnfJwk(vcJwt);
+
+        ensureJwkBindingMatches(vpHolderJwk, vcCnfJwk);
+
+        log.info("Cryptographic binding validated: VP holder JWK matches VC cnf.jwk");
+
+        PublicKey holderPublicKey = toEcPublicKeyOrThrow(vpHolderJwk);
+        jwtService.verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
+
+        log.info("VP's signature is valid, holder key confirmed via vp.holder.jwk");
+    }
+
+    private JWK requireVpHolderJwk(SignedJWT vpJwt) {
+        JWK jwk = extractVpHolderJwk(vpJwt);
+        if (jwk == null) {
+            throw new InvalidScopeException("Cannot extract holder JWK from VP (vp.holder.jwk missing)");
+        }
+        return jwk;
+    }
+
+    private JWK requireVcCnfJwk(SignedJWT vcJwt) {
+        JWK jwk = extractVcCnfJwk(vcJwt);
+        if (jwk == null) {
+            throw new InvalidScopeException("Cannot extract cnf.jwk from VC (cnf.jwk missing)");
+        }
+        return jwk;
+    }
+
+    private void ensureJwkBindingMatches(JWK vpHolderJwk, JWK vcCnfJwk) {
+        if (!jwkThumbprintEquals(vpHolderJwk, vcCnfJwk)) {
+            throw new InvalidScopeException("Cryptographic binding mismatch: VP holder JWK != VC cnf.jwk");
+        }
+    }
+
+    // todo review error handling
+    private PublicKey toEcPublicKeyOrThrow(JWK jwk) {
+        try {
+            if (!(jwk instanceof ECKey ecKey)) {
+                throw new InvalidVPtokenException("vp.holder.jwk is not an EC key");
+            }
+            return ecKey.toECPublicKey();
+        } catch (Exception e) {
+            throw new InvalidVPtokenException("Cannot build public key from vp.holder.jwk");
+        }
+    }
+
+    private void validateDidBasedPopAndBinding(
+            String verifiablePresentation,
+            LEARCredential learCredential,
+            String vcSub,
+            String holderDid
+    ) {
         log.info("[BIND] VP holder DID resolved as {}", holderDid);
 
-        // PoP: verify VP signature with holder DID
-        PublicKey holderPublicKey = didService.getPublicKeyFromDid(holderDid);
-        jwtService.verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
-        log.info("VP's signature is valid, holder DID {} confirmed", holderDid);
+        verifyVpSignatureWithHolderDid(verifiablePresentation, holderDid);
 
-        // Binding: VC bound DID (new first, then legacy)
         String boundDidFromVc = extractBoundDidFromCredential(learCredential, vcSub);
-
-        if (boundDidFromVc == null || boundDidFromVc.isBlank()) {
-            throw new InvalidScopeException("Credential missing cryptographic binding DID (credentialSubject.id or vc.jwt.sub or mandatee.id)");
-        }
+        ensureBoundDidPresent(boundDidFromVc);
 
         log.info("[BIND] VC bound DID resolved as {}", boundDidFromVc);
 
-        // 10.4 Enforce binding: holder DID must match VC bound DID
+        ensureDidBindingMatches(holderDid, boundDidFromVc);
+
+        log.info("Cryptographic binding validated: VP holder DID matches VC bound DID");
+    }
+
+    private void verifyVpSignatureWithHolderDid(String verifiablePresentation, String holderDid) {
+        PublicKey holderPublicKey = didService.getPublicKeyFromDid(holderDid);
+        jwtService.verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
+        log.info("VP's signature is valid, holder DID {} confirmed", holderDid);
+    }
+
+    private void ensureBoundDidPresent(String boundDidFromVc) {
+        if (boundDidFromVc == null || boundDidFromVc.isBlank()) {
+            throw new InvalidScopeException(
+                    "Credential missing cryptographic binding DID (credentialSubject.id or vc.jwt.sub or mandatee.id)"
+            );
+        }
+    }
+
+    private void ensureDidBindingMatches(String holderDid, String boundDidFromVc) {
         if (!holderDid.equals(boundDidFromVc)) {
             throw new InvalidScopeException(
                     "Cryptographic binding mismatch: VP holder DID (" + holderDid + ") != VC bound DID (" + boundDidFromVc + ")"
             );
         }
-
-        log.info("Cryptographic binding validated: VP holder DID matches VC bound DID");
-        log.info("Verifiable Presentation validation completed successfully");
-
     }
+
+    private JWK extractVpHolderJwk(SignedJWT vpJwt) {
+        try {
+            Object vpObj = vpJwt.getJWTClaimsSet().getClaim("vp");
+            if (!(vpObj instanceof Map<?, ?> vpMap)) {
+                return null;
+            }
+
+            Object holderObj = vpMap.get("holder");
+            if (!(holderObj instanceof Map<?, ?> holderMap)) {
+                return null;
+            }
+
+            Object jwkObj = holderMap.get("jwk");
+            if (!(jwkObj instanceof Map<?, ?> jwkMap)) {
+                return null;
+            }
+
+            return JWK.parse((Map<String, Object>) jwkMap);
+        } catch (Exception e) {
+            log.warn("Cannot extract vp.holder.jwk", e);
+            return null;
+        }
+    }
+
+    private JWK extractVcCnfJwk(SignedJWT vcJwt) {
+        try {
+            Object cnfObj = vcJwt.getJWTClaimsSet().getClaim("cnf");
+            if (!(cnfObj instanceof Map<?, ?> cnfMap)) {
+                return null;
+            }
+
+            Object jwkObj = cnfMap.get("jwk");
+            if (!(jwkObj instanceof Map<?, ?> jwkMap)) {
+                return null;
+            }
+
+            return JWK.parse((Map<String, Object>) jwkMap);
+        } catch (Exception e) {
+            log.warn("Cannot extract cnf.jwk from VC", e);
+            return null;
+        }
+    }
+
+    private boolean jwkThumbprintEquals(JWK a, JWK b) {
+        try {
+            String ta = a.computeThumbprint("SHA-256").toString();
+            String tb = b.computeThumbprint("SHA-256").toString();
+            return ta.equals(tb);
+        } catch (Exception e) {
+            log.warn("Cannot compare JWK thumbprints", e);
+            return false;
+        }
+    }
+
 
     @Override
     public Object getCredentialFromTheVerifiablePresentation(String verifiablePresentation) {
