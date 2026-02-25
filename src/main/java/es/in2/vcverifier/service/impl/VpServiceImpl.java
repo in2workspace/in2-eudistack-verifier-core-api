@@ -158,6 +158,8 @@ public class VpServiceImpl implements VpService {
                 holderDid
         );
 
+        log.info("Verifiable Presentation validation completed successfully");
+
     }
 
     private void validateHolderPopAndBinding(
@@ -217,6 +219,7 @@ public class VpServiceImpl implements VpService {
         }
     }
 
+    // todo review error handling
     private PublicKey toEcPublicKeyOrThrow(JWK jwk) {
         try {
             if (!(jwk instanceof ECKey ecKey)) {
@@ -270,7 +273,7 @@ public class VpServiceImpl implements VpService {
         }
     }
 
-    private com.nimbusds.jose.jwk.JWK extractVpHolderJwk(SignedJWT vpJwt) {
+    private JWK extractVpHolderJwk(SignedJWT vpJwt) {
         try {
             Object vpObj = vpJwt.getJWTClaimsSet().getClaim("vp");
             if (!(vpObj instanceof Map<?, ?> vpMap)) {
@@ -287,14 +290,14 @@ public class VpServiceImpl implements VpService {
                 return null;
             }
 
-            return com.nimbusds.jose.jwk.JWK.parse((Map<String, Object>) jwkMap);
+            return JWK.parse((Map<String, Object>) jwkMap);
         } catch (Exception e) {
             log.warn("Cannot extract vp.holder.jwk", e);
             return null;
         }
     }
 
-    private com.nimbusds.jose.jwk.JWK extractVcCnfJwk(SignedJWT vcJwt) {
+    private JWK extractVcCnfJwk(SignedJWT vcJwt) {
         try {
             Object cnfObj = vcJwt.getJWTClaimsSet().getClaim("cnf");
             if (!(cnfObj instanceof Map<?, ?> cnfMap)) {
@@ -306,14 +309,14 @@ public class VpServiceImpl implements VpService {
                 return null;
             }
 
-            return com.nimbusds.jose.jwk.JWK.parse((Map<String, Object>) jwkMap);
+            return JWK.parse((Map<String, Object>) jwkMap);
         } catch (Exception e) {
             log.warn("Cannot extract cnf.jwk from VC", e);
             return null;
         }
     }
 
-    private boolean jwkThumbprintEquals(com.nimbusds.jose.jwk.JWK a, com.nimbusds.jose.jwk.JWK b) {
+    private boolean jwkThumbprintEquals(JWK a, JWK b) {
         try {
             String ta = a.computeThumbprint("SHA-256").toString();
             String tb = b.computeThumbprint("SHA-256").toString();
