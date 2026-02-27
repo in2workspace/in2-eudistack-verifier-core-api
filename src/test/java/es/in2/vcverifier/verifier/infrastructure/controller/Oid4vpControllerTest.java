@@ -4,7 +4,7 @@ import es.in2.vcverifier.verifier.infrastructure.controller.Oid4vpController;
 import es.in2.vcverifier.shared.domain.exception.ResourceNotFoundException;
 import es.in2.vcverifier.oauth2.domain.model.AuthorizationRequestJWT;
 import es.in2.vcverifier.verifier.domain.service.AuthorizationResponseProcessorService;
-import es.in2.vcverifier.config.CacheStore;
+import es.in2.vcverifier.shared.config.CacheStore;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

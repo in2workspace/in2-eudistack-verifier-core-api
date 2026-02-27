@@ -7,31 +7,37 @@ import es.in2.vcverifier.verifier.domain.model.issuer.IssuerCredentialsCapabilit
 import es.in2.vcverifier.verifier.domain.service.TrustedIssuersProvider;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 /**
  * Resolves trusted issuer capabilities from a local YAML file.
+ * If an external filesystem path is configured, reads from there;
+ * otherwise falls back to the classpath resource.
  * Supports wildcard "*" to trust all issuers (useful for development).
  */
 @Slf4j
 public class LocalTrustedIssuersProvider implements TrustedIssuersProvider {
 
+    private static final String CLASSPATH_RESOURCE = "local/trusted-issuers.yaml";
     private final Map<String, List<IssuerCredentialsCapabilities>> issuersMap;
     private final boolean trustAll;
 
     public LocalTrustedIssuersProvider() {
-        this("local/trusted-issuers.yaml");
+        this(null);
     }
 
-    LocalTrustedIssuersProvider(String resourcePath) {
+    public LocalTrustedIssuersProvider(String externalPath) {
         ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+        try (InputStream is = openInputStream(externalPath)) {
             if (is == null) {
-                log.warn("Local trusted issuers file not found: {}. Trusting all issuers.", resourcePath);
+                log.warn("Local trusted issuers file not found. Trusting all issuers.");
                 this.issuersMap = Collections.emptyMap();
                 this.trustAll = true;
                 return;
@@ -49,6 +55,19 @@ public class LocalTrustedIssuersProvider implements TrustedIssuersProvider {
         } catch (IOException e) {
             throw new IllegalStateException("Failed to load local trusted issuers YAML", e);
         }
+    }
+
+    private InputStream openInputStream(String externalPath) throws IOException {
+        if (externalPath != null && !externalPath.isBlank()) {
+            Path path = Path.of(externalPath);
+            if (Files.exists(path)) {
+                log.info("Loading trusted issuers from external file: {}", externalPath);
+                return new FileInputStream(path.toFile());
+            }
+            log.warn("External trusted issuers file not found: {}. Falling back to classpath.", externalPath);
+        }
+        log.info("Loading trusted issuers from classpath: {}", CLASSPATH_RESOURCE);
+        return getClass().getClassLoader().getResourceAsStream(CLASSPATH_RESOURCE);
     }
 
     @Override

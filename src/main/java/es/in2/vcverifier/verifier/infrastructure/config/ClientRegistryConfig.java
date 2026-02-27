@@ -1,7 +1,7 @@
 package es.in2.vcverifier.verifier.infrastructure.config;
 
 import es.in2.vcverifier.verifier.domain.service.ClientRegistryProvider;
-import es.in2.vcverifier.config.BackendConfig;
+import es.in2.vcverifier.shared.config.BackendConfig;
 import es.in2.vcverifier.verifier.infrastructure.adapter.clientregistry.LocalClientRegistryProvider;
 import es.in2.vcverifier.verifier.infrastructure.adapter.clientregistry.RemoteClientRegistryProvider;
 import lombok.extern.slf4j.Slf4j;
@@ -25,8 +25,8 @@ public class ClientRegistryConfig {
 
     @Bean
     @ConditionalOnMissingBean(ClientRegistryProvider.class)
-    public ClientRegistryProvider localClientRegistryProvider() {
+    public ClientRegistryProvider localClientRegistryProvider(BackendConfig backendConfig) {
         log.info("Using Local Client Registry Provider (YAML)");
-        return new LocalClientRegistryProvider();
+        return new LocalClientRegistryProvider(backendConfig.getLocalClientsPath());
     }
 }

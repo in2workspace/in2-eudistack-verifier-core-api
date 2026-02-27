@@ -1,5 +1,5 @@
 package es.in2.vcverifier.shared.config;
-import es.in2.vcverifier.config.JtiTokenCache;
+import es.in2.vcverifier.shared.config.JtiTokenCache;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

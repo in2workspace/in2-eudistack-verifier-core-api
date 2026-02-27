@@ -1,7 +1,7 @@
 package es.in2.vcverifier.verifier.infrastructure.adapter;
 
 
-import es.in2.vcverifier.config.FrontendConfig;
+import es.in2.vcverifier.shared.config.FrontendConfig;
 import es.in2.vcverifier.verifier.infrastructure.adapter.TranslationServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;

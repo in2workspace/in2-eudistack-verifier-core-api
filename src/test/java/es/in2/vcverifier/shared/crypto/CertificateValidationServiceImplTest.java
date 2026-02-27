@@ -1,7 +1,7 @@
 package es.in2.vcverifier.shared.crypto;
 import es.in2.vcverifier.shared.crypto.CertificateValidationServiceImpl;
 
-import es.in2.vcverifier.verifier.domain.exception.MismatchOrganizationIdentifierException;
+import es.in2.vcverifier.shared.domain.exception.MismatchOrganizationIdentifierException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

@@ -3,7 +3,7 @@ import es.in2.vcverifier.verifier.domain.service.TrustFrameworkService;
 import es.in2.vcverifier.shared.crypto.CertificateValidationService;
 import es.in2.vcverifier.shared.crypto.DIDService;
 import es.in2.vcverifier.shared.crypto.JWTService;
-import es.in2.vcverifier.config.JtiTokenCache;
+import es.in2.vcverifier.shared.config.JtiTokenCache;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.Payload;
@@ -327,7 +327,7 @@ class VpSecurityTest {
         @Test
         @DisplayName("JtiTokenCache rejects duplicate JTI values")
         void jtiTokenCache_rejectsDuplicate() {
-            var cache = new es.in2.vcverifier.config.JtiTokenCache(new HashSet<>());
+            var cache = new es.in2.vcverifier.shared.config.JtiTokenCache(new HashSet<>());
             cache.addJti("unique-jti-1");
             assertTrue(cache.isJtiPresent("unique-jti-1"));
             assertFalse(cache.isJtiPresent("unique-jti-2"));

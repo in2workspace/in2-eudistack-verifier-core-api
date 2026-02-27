@@ -1,6 +1,6 @@
 package es.in2.vcverifier.shared.crypto;
 
-import es.in2.vcverifier.verifier.domain.model.sdjwt.SdJwtVerificationResult;
+import es.in2.vcverifier.shared.domain.model.sdjwt.SdJwtVerificationResult;
 
 /**
  * Service for verifying SD-JWT VC presentations.

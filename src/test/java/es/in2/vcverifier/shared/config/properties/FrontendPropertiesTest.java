@@ -1,5 +1,5 @@
 package es.in2.vcverifier.shared.config.properties;
-import es.in2.vcverifier.config.properties.FrontendProperties;
+import es.in2.vcverifier.shared.config.properties.FrontendProperties;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;

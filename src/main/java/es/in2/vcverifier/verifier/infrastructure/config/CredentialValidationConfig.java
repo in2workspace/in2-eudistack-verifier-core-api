@@ -1,5 +1,6 @@
 package es.in2.vcverifier.verifier.infrastructure.config;
 
+import es.in2.vcverifier.shared.config.BackendConfig;
 import es.in2.vcverifier.verifier.domain.service.*;
 import es.in2.vcverifier.shared.crypto.*;
 import es.in2.vcverifier.verifier.infrastructure.adapter.schema.JsonSchemaCredentialValidator;
@@ -17,9 +18,9 @@ import java.util.List;
 public class CredentialValidationConfig {
 
     @Bean
-    public CredentialSchemaResolver localSchemaResolver() {
+    public CredentialSchemaResolver localSchemaResolver(BackendConfig backendConfig) {
         log.info("Registering Local Schema Resolver");
-        return new LocalSchemaResolver();
+        return new LocalSchemaResolver(backendConfig.getLocalSchemasDir());
     }
 
     @Bean

@@ -1,8 +1,8 @@
 // Comments are in English as requested
 package es.in2.vcverifier.oauth2.infrastructure.controller;
 
-import es.in2.vcverifier.config.FrontendConfig;
-import es.in2.vcverifier.controller.ClientErrorController;
+import es.in2.vcverifier.shared.config.FrontendConfig;
+import es.in2.vcverifier.oauth2.infrastructure.controller.ClientErrorController;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

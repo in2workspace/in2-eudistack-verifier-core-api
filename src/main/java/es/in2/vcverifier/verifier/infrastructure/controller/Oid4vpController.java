@@ -1,6 +1,6 @@
 package es.in2.vcverifier.verifier.infrastructure.controller;
 
-import es.in2.vcverifier.config.CacheStore;
+import es.in2.vcverifier.shared.config.CacheStore;
 import es.in2.vcverifier.shared.domain.exception.ResourceNotFoundException;
 import es.in2.vcverifier.oauth2.domain.model.AuthorizationRequestJWT;
 import es.in2.vcverifier.verifier.domain.service.AuthorizationResponseProcessorService;

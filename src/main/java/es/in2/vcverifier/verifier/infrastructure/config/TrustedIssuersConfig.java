@@ -1,7 +1,7 @@
 package es.in2.vcverifier.verifier.infrastructure.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import es.in2.vcverifier.config.BackendConfig;
+import es.in2.vcverifier.shared.config.BackendConfig;
 import es.in2.vcverifier.verifier.domain.service.TrustedIssuersProvider;
 import es.in2.vcverifier.verifier.infrastructure.adapter.trustframework.EbsiV4TrustedIssuersProvider;
 import es.in2.vcverifier.verifier.infrastructure.adapter.trustframework.LocalTrustedIssuersProvider;
@@ -26,8 +26,8 @@ public class TrustedIssuersConfig {
 
     @Bean
     @ConditionalOnMissingBean(TrustedIssuersProvider.class)
-    public TrustedIssuersProvider localTrustedIssuersProvider() {
+    public TrustedIssuersProvider localTrustedIssuersProvider(BackendConfig backendConfig) {
         log.info("Using Local Trusted Issuers Provider (YAML)");
-        return new LocalTrustedIssuersProvider();
+        return new LocalTrustedIssuersProvider(backendConfig.getLocalTrustedIssuersPath());
     }
 }

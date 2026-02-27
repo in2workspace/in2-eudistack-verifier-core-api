@@ -1,7 +1,7 @@
 package es.in2.vcverifier.verifier.infrastructure.controller;
 
-import es.in2.vcverifier.config.FrontendConfig;
-import es.in2.vcverifier.config.I18nConfig;
+import es.in2.vcverifier.shared.config.FrontendConfig;
+import es.in2.vcverifier.shared.config.I18nConfig;
 import es.in2.vcverifier.verifier.infrastructure.controller.ResolverController;
 import es.in2.vcverifier.shared.crypto.DIDService;
 import org.junit.jupiter.api.BeforeEach;

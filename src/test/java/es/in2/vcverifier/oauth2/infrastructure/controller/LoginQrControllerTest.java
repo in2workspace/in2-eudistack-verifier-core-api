@@ -1,8 +1,8 @@
 // Comments are in English as requested
 package es.in2.vcverifier.oauth2.infrastructure.controller;
 
-import es.in2.vcverifier.config.FrontendConfig;
-import es.in2.vcverifier.controller.LoginQrController;
+import es.in2.vcverifier.shared.config.FrontendConfig;
+import es.in2.vcverifier.oauth2.infrastructure.controller.LoginQrController;
 import es.in2.vcverifier.shared.domain.exception.QRCodeGenerationException;
 import net.glxn.qrgen.javase.QRCode;
 import org.junit.jupiter.api.Test;

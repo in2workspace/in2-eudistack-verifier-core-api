@@ -2,9 +2,9 @@ package es.in2.vcverifier.verifier.infrastructure.adapter.trustframework;
 
 import es.in2.vcverifier.verifier.domain.exception.IssuerNotAuthorizedException;
 import es.in2.vcverifier.verifier.domain.model.issuer.IssuerCredentialsCapabilities;
-import es.in2.vcverifier.verifier.infrastructure.adapter.trustframework.LocalTrustedIssuersProvider;
 import org.junit.jupiter.api.Test;
 
+import java.net.URL;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -26,7 +26,7 @@ class LocalTrustedIssuersProviderTest {
 
     @Test
     void missingFile_defaultsToTrustAll() {
-        LocalTrustedIssuersProvider provider = new LocalTrustedIssuersProvider("nonexistent/file.yaml");
+        LocalTrustedIssuersProvider provider = new LocalTrustedIssuersProvider("/nonexistent/file.yaml");
 
         List<IssuerCredentialsCapabilities> capabilities = provider.getIssuerCapabilities("did:elsi:ANY");
 
@@ -36,8 +36,8 @@ class LocalTrustedIssuersProviderTest {
 
     @Test
     void specificIssuers_returnsCapabilities() {
-        // Use test resource with specific issuers
-        LocalTrustedIssuersProvider provider = new LocalTrustedIssuersProvider("test-fixtures/specific-issuers.yaml");
+        String path = resolveTestFixture("test-fixtures/specific-issuers.yaml");
+        LocalTrustedIssuersProvider provider = new LocalTrustedIssuersProvider(path);
 
         List<IssuerCredentialsCapabilities> capabilities = provider.getIssuerCapabilities("did:elsi:VATES-12345678");
 
@@ -48,9 +48,16 @@ class LocalTrustedIssuersProviderTest {
 
     @Test
     void specificIssuers_unknownIssuer_throwsException() {
-        LocalTrustedIssuersProvider provider = new LocalTrustedIssuersProvider("test-fixtures/specific-issuers.yaml");
+        String path = resolveTestFixture("test-fixtures/specific-issuers.yaml");
+        LocalTrustedIssuersProvider provider = new LocalTrustedIssuersProvider(path);
 
         assertThrows(IssuerNotAuthorizedException.class,
                 () -> provider.getIssuerCapabilities("did:elsi:UNKNOWN"));
+    }
+
+    private static String resolveTestFixture(String classpathResource) {
+        URL url = LocalTrustedIssuersProviderTest.class.getClassLoader().getResource(classpathResource);
+        assertNotNull(url, "Test fixture not found on classpath: " + classpathResource);
+        return url.getPath();
     }
 }

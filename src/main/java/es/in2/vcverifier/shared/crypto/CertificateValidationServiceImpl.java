@@ -5,7 +5,7 @@ import com.nimbusds.jose.crypto.RSASSAVerifier;
 import com.nimbusds.jose.crypto.impl.CriticalHeaderParamsDeferral;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.vcverifier.shared.domain.exception.JWTVerificationException;
-import es.in2.vcverifier.verifier.domain.exception.MismatchOrganizationIdentifierException;
+import es.in2.vcverifier.shared.domain.exception.MismatchOrganizationIdentifierException;
 import es.in2.vcverifier.shared.crypto.CertificateValidationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

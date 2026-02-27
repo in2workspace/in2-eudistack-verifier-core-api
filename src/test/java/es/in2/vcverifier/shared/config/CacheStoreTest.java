@@ -1,5 +1,5 @@
 package es.in2.vcverifier.shared.config;
-import es.in2.vcverifier.config.CacheStore;
+import es.in2.vcverifier.shared.config.CacheStore;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

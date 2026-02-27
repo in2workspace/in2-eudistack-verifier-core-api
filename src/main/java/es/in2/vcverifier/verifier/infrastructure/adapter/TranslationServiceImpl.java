@@ -1,6 +1,6 @@
 package es.in2.vcverifier.verifier.infrastructure.adapter;
 
-import es.in2.vcverifier.config.FrontendConfig;
+import es.in2.vcverifier.shared.config.FrontendConfig;
 import es.in2.vcverifier.verifier.domain.service.TranslationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

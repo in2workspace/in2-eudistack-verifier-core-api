@@ -1,5 +1,5 @@
 package es.in2.vcverifier.oauth2.infrastructure.filter;
-import es.in2.vcverifier.security.filters.CustomErrorResponseHandler;
+import es.in2.vcverifier.oauth2.infrastructure.filter.CustomErrorResponseHandler;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

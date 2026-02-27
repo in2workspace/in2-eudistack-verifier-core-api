@@ -1,7 +1,7 @@
 package es.in2.vcverifier.verifier.infrastructure.adapter.trustframework;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import es.in2.vcverifier.config.BackendConfig;
+import es.in2.vcverifier.shared.config.BackendConfig;
 import es.in2.vcverifier.shared.domain.exception.FailedCommunicationException;
 import es.in2.vcverifier.verifier.domain.exception.IssuerNotAuthorizedException;
 import es.in2.vcverifier.shared.domain.exception.JsonConversionException;

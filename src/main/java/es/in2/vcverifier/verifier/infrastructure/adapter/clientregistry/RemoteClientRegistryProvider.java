@@ -2,7 +2,7 @@ package es.in2.vcverifier.verifier.infrastructure.adapter.clientregistry;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import es.in2.vcverifier.config.BackendConfig;
+import es.in2.vcverifier.shared.config.BackendConfig;
 import es.in2.vcverifier.verifier.domain.exception.RemoteFileFetchException;
 import es.in2.vcverifier.verifier.domain.model.ExternalTrustedListYamlData;
 import es.in2.vcverifier.verifier.domain.service.ClientRegistryProvider;

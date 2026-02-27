@@ -1,6 +1,6 @@
 package es.in2.vcverifier.shared.config;
-import es.in2.vcverifier.config.I18nConfig;
-import es.in2.vcverifier.config.FrontendConfig;
+import es.in2.vcverifier.shared.config.I18nConfig;
+import es.in2.vcverifier.shared.config.FrontendConfig;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;

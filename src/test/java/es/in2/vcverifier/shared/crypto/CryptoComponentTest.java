@@ -4,7 +4,7 @@ import es.in2.vcverifier.shared.crypto.CryptoComponent;
 import com.nimbusds.jose.jwk.Curve;
 import com.nimbusds.jose.jwk.ECKey;
 import com.nimbusds.jose.jwk.KeyUse;
-import es.in2.vcverifier.config.BackendConfig;
+import es.in2.vcverifier.shared.config.BackendConfig;
 import org.junit.jupiter.api.Test;
 
 import java.security.KeyPairGenerator;

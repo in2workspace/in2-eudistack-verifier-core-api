@@ -8,23 +8,37 @@ import com.networknt.schema.SpecVersion;
 import es.in2.vcverifier.verifier.domain.service.CredentialSchemaResolver;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.FileInputStream;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Resolves JSON Schemas from local classpath resources.
- * Schemas are expected at: schemas/{credentialType}.{version}.json
+ * Resolves JSON Schemas from local resources.
+ * If an external schemas directory is configured, reads from there;
+ * otherwise falls back to classpath resources.
+ * Schemas are expected as: {credentialType}.{version}.json
  * <p>
  * Context-to-version mapping is maintained internally.
  */
 @Slf4j
 public class LocalSchemaResolver implements CredentialSchemaResolver {
 
-    private static final String SCHEMA_BASE_PATH = "schemas/";
+    private static final String CLASSPATH_SCHEMA_BASE = "schemas/";
     private final Map<String, JsonSchema> cache = new ConcurrentHashMap<>();
+    private final String externalSchemasDir;
+
+    public LocalSchemaResolver() {
+        this(null);
+    }
+
+    public LocalSchemaResolver(String externalSchemasDir) {
+        this.externalSchemasDir = externalSchemasDir;
+    }
 
     // Context URL -> (credentialType, version) mapping
     private static final Map<String, CredentialTypeVersion> CONTEXT_MAP = Map.of(
@@ -60,8 +74,8 @@ public class LocalSchemaResolver implements CredentialSchemaResolver {
             return Optional.empty();
         }
 
-        String schemaPath = SCHEMA_BASE_PATH + typeVersion.type() + "." + typeVersion.version() + ".json";
-        return Optional.ofNullable(cache.computeIfAbsent(schemaPath, this::loadSchema));
+        String schemaFileName = typeVersion.type() + "." + typeVersion.version() + ".json";
+        return Optional.ofNullable(cache.computeIfAbsent(schemaFileName, this::loadSchema));
     }
 
     /**
@@ -98,18 +112,36 @@ public class LocalSchemaResolver implements CredentialSchemaResolver {
         return null;
     }
 
-    private JsonSchema loadSchema(String schemaPath) {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(schemaPath)) {
+    private JsonSchema loadSchema(String schemaFileName) {
+        // Try external directory first
+        if (externalSchemasDir != null && !externalSchemasDir.isBlank()) {
+            Path externalFile = Path.of(externalSchemasDir, schemaFileName);
+            if (Files.exists(externalFile)) {
+                try (InputStream is = new FileInputStream(externalFile.toFile())) {
+                    JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012);
+                    JsonSchema schema = factory.getSchema(is, new com.networknt.schema.SchemaValidatorsConfig.Builder().build());
+                    log.info("Loaded JSON Schema from external file: {}", externalFile);
+                    return schema;
+                } catch (Exception e) {
+                    log.error("Failed to load JSON Schema from external file {}: {}", externalFile, e.getMessage());
+                    // Fall through to classpath
+                }
+            }
+        }
+
+        // Fallback to classpath
+        String classpathPath = CLASSPATH_SCHEMA_BASE + schemaFileName;
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream(classpathPath)) {
             if (is == null) {
-                log.warn("Schema not found on classpath: {}", schemaPath);
+                log.warn("Schema not found on classpath: {}", classpathPath);
                 return null;
             }
             JsonSchemaFactory factory = JsonSchemaFactory.getInstance(SpecVersion.VersionFlag.V202012);
-            JsonSchema schema = factory.getSchema(SchemaLocation.of("classpath:" + schemaPath), new com.networknt.schema.SchemaValidatorsConfig.Builder().build());
-            log.info("Loaded JSON Schema from classpath: {}", schemaPath);
+            JsonSchema schema = factory.getSchema(SchemaLocation.of("classpath:" + classpathPath), new com.networknt.schema.SchemaValidatorsConfig.Builder().build());
+            log.info("Loaded JSON Schema from classpath: {}", classpathPath);
             return schema;
         } catch (Exception e) {
-            log.error("Failed to load JSON Schema from {}: {}", schemaPath, e.getMessage());
+            log.error("Failed to load JSON Schema from {}: {}", classpathPath, e.getMessage());
             return null;
         }
     }

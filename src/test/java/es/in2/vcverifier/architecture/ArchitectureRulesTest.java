@@ -68,6 +68,64 @@ class ArchitectureRulesTest {
                     .because("Exceptions should be standalone and not depend on services")
                     .check(importedClasses);
         }
+
+        @Test
+        @DisplayName("Application must not depend on infrastructure")
+        void applicationMustNotDependOnInfrastructure() {
+            noClasses()
+                    .that().resideInAPackage("..application..")
+                    .should().dependOnClassesThat().resideInAPackage("..infrastructure..")
+                    .because("Application orchestrates domain, not infrastructure")
+                    .check(importedClasses);
+        }
+    }
+
+    // --- Bounded context isolation rules ---
+
+    @Nested
+    @DisplayName("Bounded context isolation")
+    class BoundedContextIsolation {
+
+        @Test
+        @DisplayName("Verifier domain must not depend on OAuth2 domain")
+        void verifierDomainMustNotDependOnOauth2Domain() {
+            noClasses()
+                    .that().resideInAPackage("..verifier.domain..")
+                    .should().dependOnClassesThat().resideInAPackage("..oauth2.domain..")
+                    .because("Verifier bounded context must be isolated from OAuth2 bounded context at domain level")
+                    .check(importedClasses);
+        }
+
+        @Test
+        @DisplayName("OAuth2 domain must not depend on verifier domain")
+        void oauth2DomainMustNotDependOnVerifierDomain() {
+            noClasses()
+                    .that().resideInAPackage("..oauth2.domain..")
+                    .should().dependOnClassesThat().resideInAPackage("..verifier.domain..")
+                    .because("OAuth2 bounded context must be isolated from Verifier bounded context at domain level")
+                    .check(importedClasses);
+        }
+
+        @Test
+        @DisplayName("Shared domain and config must not depend on verifier or oauth2")
+        void sharedDomainMustNotDependOnBoundedContexts() {
+            noClasses()
+                    .that().resideInAPackage("..shared.domain..")
+                    .and().resideOutsideOfPackage("..exception.handler..")
+                    .should().dependOnClassesThat().resideInAnyPackage("..verifier..", "..oauth2..")
+                    .because("Shared domain (except global exception handler) must be independent of bounded contexts")
+                    .check(importedClasses);
+        }
+
+        @Test
+        @DisplayName("Shared config must not depend on verifier or oauth2")
+        void sharedConfigMustNotDependOnBoundedContexts() {
+            noClasses()
+                    .that().resideInAPackage("..shared.config..")
+                    .should().dependOnClassesThat().resideInAnyPackage("..verifier..", "..oauth2..")
+                    .because("Shared config must be independent of bounded contexts")
+                    .check(importedClasses);
+        }
     }
 
     // --- Naming conventions ---
@@ -98,12 +156,12 @@ class ArchitectureRulesTest {
         }
 
         @Test
-        @DisplayName("Classes annotated with @Configuration should reside in config, security, or infrastructure package")
+        @DisplayName("Classes annotated with @Configuration should reside in config or crypto package")
         void configClassesShouldBeInConfigPackage() {
             classes()
                     .that().areAnnotatedWith(org.springframework.context.annotation.Configuration.class)
-                    .should().resideInAnyPackage("..config..", "..security..", "..infrastructure..", "..crypto..")
-                    .because("Configuration classes should be in config, security, or infrastructure packages")
+                    .should().resideInAnyPackage("..config..", "..crypto..")
+                    .because("Configuration classes should be in config or crypto packages")
                     .check(importedClasses);
         }
     }

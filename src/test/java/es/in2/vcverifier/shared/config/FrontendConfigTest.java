@@ -1,7 +1,7 @@
 package es.in2.vcverifier.shared.config;
-import es.in2.vcverifier.config.FrontendConfig;
+import es.in2.vcverifier.shared.config.FrontendConfig;
 
-import es.in2.vcverifier.config.properties.FrontendProperties;
+import es.in2.vcverifier.shared.config.properties.FrontendProperties;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;

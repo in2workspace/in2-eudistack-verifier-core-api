@@ -2,9 +2,9 @@ package es.in2.vcverifier.oauth2.infrastructure.adapter;
 import es.in2.vcverifier.shared.crypto.JWTService;
 
 import com.nimbusds.jose.Payload;
-import es.in2.vcverifier.config.BackendConfig;
-import es.in2.vcverifier.config.JtiTokenCache;
-import es.in2.vcverifier.service.impl.ClientAssertionValidationServiceImpl;
+import es.in2.vcverifier.shared.config.BackendConfig;
+import es.in2.vcverifier.shared.config.JtiTokenCache;
+import es.in2.vcverifier.oauth2.infrastructure.adapter.ClientAssertionValidationServiceImpl;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;

@@ -1,5 +1,5 @@
 # Stage 1
-FROM docker.io/gradle:8.4.0 AS temp_build
+FROM docker.io/gradle:9.1.0-jdk25 AS temp_build
 ARG SKIP_TESTS=false
 WORKDIR /home/gradle/src
 # Copy the project files
@@ -15,7 +15,7 @@ RUN if [ "$SKIP_TESTS" = "true" ]; then \
   fi
 
 # Stage 2
-FROM bellsoft/liberica-openjdk-alpine-musl:17
+FROM eclipse-temurin:25-jre-alpine
 RUN addgroup -S nonroot \
     && adduser -S nonroot -G nonroot
 USER nonroot

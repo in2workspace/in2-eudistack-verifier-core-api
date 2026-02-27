@@ -1,4 +1,4 @@
-package es.in2.vcverifier.verifier.domain.model.sdjwt;
+package es.in2.vcverifier.shared.domain.model.sdjwt;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
