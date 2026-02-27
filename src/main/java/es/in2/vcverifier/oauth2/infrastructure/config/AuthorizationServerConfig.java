@@ -9,6 +9,7 @@ import com.nimbusds.jose.proc.SecurityContext;
 import es.in2.vcverifier.shared.crypto.CryptoComponent;
 import es.in2.vcverifier.shared.config.BackendConfig;
 import es.in2.vcverifier.shared.config.CacheStore;
+import es.in2.vcverifier.shared.config.FrontendConfig;
 import es.in2.vcverifier.oauth2.application.workflow.ClientCredentialsValidationWorkflow;
 import es.in2.vcverifier.oauth2.application.workflow.TokenGenerationWorkflow;
 import es.in2.vcverifier.oauth2.domain.model.AuthorizationCodeData;
@@ -64,6 +65,7 @@ public class AuthorizationServerConfig {
     private final CacheStore<RefreshTokenDataCache> refreshTokenDataCacheCacheStore;
     private final HttpClient httpClient;
     private final AuthorizationRequestBuildWorkflow authorizationRequestBuildWorkflow;
+    private final FrontendConfig frontendConfig;
     private final ClientCredentialsValidationWorkflow clientCredentialsValidationWorkflow;
     private final TokenGenerationWorkflow tokenGenerationWorkflow;
 
@@ -80,7 +82,7 @@ public class AuthorizationServerConfig {
                                 // Adds an AuthenticationConverter (pre-processor) used when attempting to extract
                                 // an OAuth2 authorization request (or consent) from HttpServletRequest to an instance
                                 // of OAuth2AuthorizationCodeRequestAuthenticationToken or OAuth2AuthorizationConsentAuthenticationToken.
-                                .authorizationRequestConverter(new CustomAuthorizationRequestConverter(didService,jwtService,cacheStoreForOAuth2AuthorizationRequest,backendConfig,registeredClientRepository, IS_NONCE_REQUIRED_ON_FAPI_PROFILE,httpClient,authorizationRequestBuildWorkflow))
+                                .authorizationRequestConverter(new CustomAuthorizationRequestConverter(didService,jwtService,cacheStoreForOAuth2AuthorizationRequest,backendConfig,registeredClientRepository, IS_NONCE_REQUIRED_ON_FAPI_PROFILE,httpClient,authorizationRequestBuildWorkflow,frontendConfig))
                                 .errorResponseHandler(new CustomErrorResponseHandler())
                 )
                 .tokenEndpoint(tokenEndpoint ->

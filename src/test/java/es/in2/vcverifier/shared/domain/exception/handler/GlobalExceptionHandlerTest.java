@@ -49,17 +49,6 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
-    void testHandleQRCodeGenerationException() {
-        QRCodeGenerationException exception = new QRCodeGenerationException("QR Code Generation Failed");
-
-        GlobalErrorMessage response = globalExceptionHandler.handleQRCodeGenerationException(exception);
-
-        assertThat(response.title()).isEqualTo("QR Code Generation Failed");
-        assertThat(response.message()).isEmpty();
-        assertThat(response.path()).isEmpty();
-    }
-
-    @Test
     void testHandleCredentialRevokedException() {
         CredentialRevokedException exception = new CredentialRevokedException("Credential revoked");
 

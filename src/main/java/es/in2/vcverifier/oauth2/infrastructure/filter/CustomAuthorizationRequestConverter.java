@@ -4,6 +4,7 @@ import com.nimbusds.jose.Payload;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.vcverifier.shared.config.BackendConfig;
 import es.in2.vcverifier.shared.config.CacheStore;
+import es.in2.vcverifier.shared.config.FrontendConfig;
 import es.in2.vcverifier.oauth2.domain.model.AuthorizationContext;
 import es.in2.vcverifier.shared.crypto.DIDService;
 import es.in2.vcverifier.shared.crypto.JWTService;
@@ -53,6 +54,7 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
     private final boolean isNonceRequiredOnFapiProfile;
     private final HttpClient httpClient;
     private final AuthorizationRequestBuildWorkflow authorizationRequestBuildWorkflow;
+    private final FrontendConfig frontendConfig;
 
     @Override
     public Authentication convert(HttpServletRequest request) {
@@ -150,7 +152,8 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
      */
     private Authentication throwRedirectAuthentication(String state, AuthorizationRequestBuildWorkflow.Result result) {
         String redirectUrl = String.format(
-                LOGIN_ENDPOINT + "?authRequest=%s&state=%s&homeUri=%s",
+                "%s/login?authRequest=%s&state=%s&homeUri=%s",
+                frontendConfig.getPortalUrl(),
                 URLEncoder.encode(result.openid4vpUrl(), StandardCharsets.UTF_8),
                 URLEncoder.encode(state, StandardCharsets.UTF_8),
                 URLEncoder.encode(result.homeUri(), StandardCharsets.UTF_8)
@@ -165,7 +168,8 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
     private void throwInvalidClientAuthenticationException(String errorMessage, String clientName,
                                                            String errorCode, String originalRequestURL) {
         String redirectUrl = String.format(
-                CLIENT_ERROR_ENDPOINT + "?errorCode=%s&errorMessage=%s&clientUrl=%s&originalRequestURL=%s",
+                "%s/error?errorCode=%s&errorMessage=%s&clientUrl=%s&originalRequestURL=%s",
+                frontendConfig.getPortalUrl(),
                 URLEncoder.encode(errorCode, StandardCharsets.UTF_8),
                 URLEncoder.encode(errorMessage, StandardCharsets.UTF_8),
                 URLEncoder.encode(clientName, StandardCharsets.UTF_8),

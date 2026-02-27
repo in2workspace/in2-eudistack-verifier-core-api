@@ -15,8 +15,6 @@ public class Constants {
     public static final String AUTHORIZATION_RESPONSE_ENDPOINT= "/oid4vp/auth-response";
     public static final String DID_ELSI_PREFIX = "did:elsi:";
     public static final String MINUTES = "MINUTES";
-    public static final String LOGIN_ENDPOINT = "/login";
-    public static final String CLIENT_ERROR_ENDPOINT = "/client-error";
     public static final String REQUIRED_EXTERNAL_USER_AUTHENTICATION = "required_external_user_authentication";
     public static final String INVALID_CLIENT_AUTHENTICATION = "invalid_client_authentication";
     public static final String LOG_ERROR_FORMAT = "{} - {}";

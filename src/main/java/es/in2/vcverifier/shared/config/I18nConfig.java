@@ -12,15 +12,14 @@ import org.springframework.web.servlet.LocaleResolver;
 @Configuration
 public class I18nConfig implements WebMvcConfigurer {
     @Bean
-    public LocaleResolver localeResolver(FrontendConfig frontendConfig) {
+    public LocaleResolver localeResolver() {
         AcceptHeaderLocaleResolver r = new AcceptHeaderLocaleResolver();
         r.setSupportedLocales(List.of(
                 Locale.forLanguageTag("en"),
                 Locale.forLanguageTag("es"),
                 Locale.forLanguageTag("ca")
         ));
-
-        r.setDefaultLocale(Locale.forLanguageTag(frontendConfig.getDefaultLang()));
+        r.setDefaultLocale(Locale.ENGLISH);
         return r;
     }
 }

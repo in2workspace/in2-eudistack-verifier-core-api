@@ -13,9 +13,9 @@ import es.in2.vcverifier.shared.domain.model.sdjwt.SdJwtVerificationResult;
 import es.in2.vcverifier.verifier.domain.service.AuthorizationResponseProcessorService;
 import es.in2.vcverifier.shared.crypto.SdJwtVerificationService;
 import es.in2.vcverifier.verifier.domain.service.VpService;
+import es.in2.vcverifier.oauth2.infrastructure.adapter.SseEmitterStore;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
@@ -53,7 +53,7 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
     private final ObjectMapper objectMapper;
     private final RegisteredClientRepository registeredClientRepository;
     private final OAuth2AuthorizationService oAuth2AuthorizationService;
-    private final SimpMessagingTemplate messagingTemplate;
+    private final SseEmitterStore sseEmitterStore;
     private final CacheStore<String> cacheForNonceByState;
     private final BackendConfig backendConfig;
 
@@ -173,8 +173,8 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
         //Perform the redirection using HttpServletResponse
         log.info("Redirecting to URL: {}", redirectUrl);
 
-        // Enviar la URL de redirección al cliente a través del WebSocket
-        messagingTemplate.convertAndSend("/oidc/redirection/" + state, redirectUrl);
+        // Send the redirect URL to the browser via SSE
+        sseEmitterStore.send(state, redirectUrl);
 
     }
 

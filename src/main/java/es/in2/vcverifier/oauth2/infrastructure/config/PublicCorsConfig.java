@@ -25,6 +25,7 @@ public class PublicCorsConfig {
         source.registerCorsConfiguration("/health", publicConfig);
         source.registerCorsConfiguration("/oid4vp/auth-request/**", publicConfig);
         source.registerCorsConfiguration("/oid4vp/auth-response", publicConfig);
+        source.registerCorsConfiguration("/api/login/**", publicConfig);
         return source;
     }
     

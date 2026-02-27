@@ -1,12 +1,7 @@
 package es.in2.vcverifier.verifier.infrastructure.adapter;
 
-
-import es.in2.vcverifier.shared.config.FrontendConfig;
-import es.in2.vcverifier.verifier.infrastructure.adapter.TranslationServiceImpl;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Captor;
@@ -28,9 +23,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 class TranslationServiceImplTest {
 
     @Mock
-    private FrontendConfig frontendConfig;
-
-    @Mock
     private MessageSource messageSource;
 
     private TranslationServiceImpl service;
@@ -43,80 +35,50 @@ class TranslationServiceImplTest {
 
     @BeforeEach
     void setUp() {
-        service = new TranslationServiceImpl(frontendConfig, messageSource);
+        service = new TranslationServiceImpl(messageSource);
     }
 
-    @ParameterizedTest(name = "getLocale() with config=''{0}'' -> ''{1}''")
-    @CsvSource({
-            "en,en",
-            "es,es",
-            "' EN ',en",
-            "Es,es",
-            "FR,en",
-            "'',en",
-            "'   ',en",
-            "NULL,en"
-    })
-    @DisplayName("getLocale() resolves locale with trimming, case-insensitivity and fallback")
-    void getLocale_resolvesAndFallsBack(String configured, String expected) {
-        // Arrange
-        when(frontendConfig.getDefaultLang()).thenReturn(configured);
-
-        // Act
-        String actual = service.getLocale();
-
-        // Assert
-        assertEquals(expected, actual);
+    @Test
+    @DisplayName("getLocale() always returns 'en'")
+    void getLocale_alwaysReturnsEnglish() {
+        assertEquals("en", service.getLocale());
     }
 
     @Test
     @DisplayName("translate() returns localized message from MessageSource with correct args and locale")
     void translate_returnsMessage_andUsesLocaleAndArgs() {
-        // Arrange
-        when(frontendConfig.getDefaultLang()).thenReturn("es");
-        // Use a lenient stub on messageSource so we can verify captors afterwards
         when(messageSource.getMessage(eq("greeting"), any(), any()))
-                .thenReturn("Hola, Roger");
+                .thenReturn("Hello, Roger");
 
-        // Act
         String result = service.translate("greeting", "Roger");
 
-        // Assert
-        assertThat(result).isEqualTo("Hola, Roger");
+        assertThat(result).isEqualTo("Hello, Roger");
 
-        // Verify that MessageSource was called with the expected code, args, and locale
         verify(messageSource).getMessage(eq("greeting"), argsCaptor.capture(), localeCaptor.capture());
 
-        // Check args were propagated as-is (single chained assertion)
         Object[] passedArgs = argsCaptor.getValue();
         assertThat(passedArgs)
                 .isNotNull()
                 .hasSize(1)
                 .containsExactly("Roger");
 
-        // Check locale derived from getLocale() is Spanish (single chained assertion)
         Locale passedLocale = localeCaptor.getValue();
         assertThat(passedLocale)
                 .isNotNull()
                 .extracting(Locale::getLanguage)
-                .isEqualTo("es");
+                .isEqualTo("en");
     }
 
     @Test
     @DisplayName("translate() falls back to code when message is missing")
     void translate_fallsBackToCodeOnMissingMessage() {
-        // Arrange
-        when(frontendConfig.getDefaultLang()).thenReturn("en");
         when(messageSource.getMessage(eq("missing.key"), any(), any()))
                 .thenThrow(new NoSuchMessageException("missing.key"));
 
-        // Act
         String result = service.translate("missing.key", 123);
 
-        // Assert
         assertThat(result).isEqualTo("missing.key");
 
-        // Also verify locale used was English
         verify(messageSource).getMessage(eq("missing.key"), any(), localeCaptor.capture());
         assertThat(localeCaptor.getValue().getLanguage()).isEqualTo("en");
     }

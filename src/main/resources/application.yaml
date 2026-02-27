@@ -1,11 +1,6 @@
 spring:
   application:
     name: VC Verifier
-  web:
-    resources:
-      static-locations:
-        - classpath:/static/
-        - classpath:/resources/
 
 server:
   port: 8082
@@ -46,20 +41,7 @@ management:
 # ──────────────────────────────────────────────────────────
 verifier:
   frontend:
-    urls:
-      onboarding: http://localhost:4200
-      support: http://localhost:4200
-      wallet: http://localhost:4200
-    colors:
-      primary: "#2D58A7"
-      primaryContrast: "#ffffff"
-      secondary: "#14274A"
-      secondaryContrast: "#00ADD3"
-    assets:
-      baseUrl: http://localhost:4200/assets
-      logoPath: logo.png
-      faviconPath: favicon.ico
-    defaultLang: en
+    portalUrl: http://localhost:4200
   backend:
     url: http://localhost:8082
     identity:

@@ -56,7 +56,6 @@ repositories {
 
 dependencies {
 	// Starters
-	implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-authorization-server'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-actuator'
@@ -70,13 +69,9 @@ dependencies {
 	implementation 'org.json:json:20230227'
 	// JSON Schema validation
 	implementation 'com.networknt:json-schema-validator:1.5.6'
-	// QR GENERATOR
-	implementation 'com.github.kenglxn.QRGen:javase:3.0.1'
 	// DevTools
 	compileOnly 'org.projectlombok:lombok'
 	annotationProcessor 'org.projectlombok:lombok'
-	// Websocket
-	implementation 'org.springframework.boot:spring-boot-starter-websocket'
 	// Testing
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'

@@ -32,13 +32,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return new GlobalErrorMessage("","","");
     }
 
-    @ExceptionHandler(QRCodeGenerationException.class)
-    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
-    public GlobalErrorMessage handleQRCodeGenerationException(QRCodeGenerationException ex) {
-        log.error("QR Code Generation Failed", ex);
-        return new GlobalErrorMessage("QR Code Generation Failed","","");
-    }
-
     @ExceptionHandler(CredentialRevokedException.class)
     @ResponseStatus(HttpStatus.FORBIDDEN)
     public GlobalErrorMessage handleException(CredentialRevokedException ex) {

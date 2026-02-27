@@ -1,19 +1,6 @@
 verifier:
   frontend:
-    urls:
-      onboarding: https://example.com/onboarding
-      support: https://example.com/support
-      wallet: https://example.com/wallet
-    colors:
-      primary: "#FF0000"
-      primaryContrast: "#FFFFFF"
-      secondary: "#00ADD3"
-      secondaryContrast: "#000000"
-    assets:
-      baseUrl: https://cdn.example.com/assets
-      logoPath: logo.png
-      faviconPath: favicon.ico
-    defaultLang: en
+    portalUrl: http://localhost:4200
   backend:
     url: https://raw.githubusercontent.com
     identity:

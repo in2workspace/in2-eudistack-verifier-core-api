@@ -6,6 +6,7 @@ import com.nimbusds.jose.Payload;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.vcverifier.shared.config.BackendConfig;
 import es.in2.vcverifier.shared.config.CacheStore;
+import es.in2.vcverifier.shared.config.FrontendConfig;
 import es.in2.vcverifier.shared.crypto.DIDService;
 import es.in2.vcverifier.shared.crypto.JWTService;
 import es.in2.vcverifier.verifier.application.workflow.AuthorizationRequestBuildWorkflow;
@@ -36,7 +37,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static es.in2.vcverifier.shared.domain.util.Constants.CLIENT_ERROR_ENDPOINT;
 import static es.in2.vcverifier.shared.domain.util.Constants.REQUEST_URI;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -66,12 +66,16 @@ class CustomAuthorizationRequestConverterTest {
     @Mock
     private AuthorizationRequestBuildWorkflow authorizationRequestBuildWorkflow;
 
+    @Mock
+    private FrontendConfig frontendConfig;
+
     private boolean isNonceRequiredOnFapiProfile = true;
 
     private CustomAuthorizationRequestConverter converter;
 
     @BeforeEach
     void setUp() {
+        lenient().when(frontendConfig.getPortalUrl()).thenReturn("http://localhost:4200");
         converter = new CustomAuthorizationRequestConverter(
                 didService,
                 jwtService,
@@ -80,7 +84,8 @@ class CustomAuthorizationRequestConverterTest {
                 registeredClientRepository,
                 isNonceRequiredOnFapiProfile,
                 httpClient,
-                authorizationRequestBuildWorkflow
+                authorizationRequestBuildWorkflow,
+                frontendConfig
         );
     }
 

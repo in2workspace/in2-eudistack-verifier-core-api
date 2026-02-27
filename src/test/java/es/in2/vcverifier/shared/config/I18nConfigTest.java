@@ -1,6 +1,4 @@
 package es.in2.vcverifier.shared.config;
-import es.in2.vcverifier.shared.config.I18nConfig;
-import es.in2.vcverifier.shared.config.FrontendConfig;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
@@ -12,17 +10,11 @@ import java.util.List;
 import java.util.Locale;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 class I18nConfigTest {
 
     private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-            .withUserConfiguration(I18nConfig.class)
-            .withBean(FrontendConfig.class, () -> {
-                FrontendConfig fc = mock(FrontendConfig.class);
-                when(fc.getDefaultLang()).thenReturn("ca");
-                return fc;
-            });
+            .withUserConfiguration(I18nConfig.class);
 
     @Test
     void localeResolver_shouldBeAcceptHeaderLocaleResolver_withConfiguredSupportedLocales_andDefaultViaResolution() {
@@ -43,18 +35,18 @@ class I18nConfigTest {
             );
             assertEquals(expectedSupported, ahlr.getSupportedLocales());
 
-            // Default locale: resolve with no Accept-Language header
+            // Default locale: resolve with no Accept-Language header -> English
             MockHttpServletRequest reqNoHeader = new MockHttpServletRequest();
             Locale resolvedNoHeader = ahlr.resolveLocale(reqNoHeader);
-            assertEquals(Locale.forLanguageTag("ca"), resolvedNoHeader,
-                    "When no Accept-Language is present, resolver should return the configured default (ca)");
+            assertEquals(Locale.ENGLISH, resolvedNoHeader,
+                    "When no Accept-Language is present, resolver should return English");
 
-            // If header is unsupported -> fallback to default
+            // If header is unsupported -> fallback to default (English)
             MockHttpServletRequest reqUnsupported = new MockHttpServletRequest();
             reqUnsupported.addHeader("Accept-Language", "fr-FR");
             Locale resolvedUnsupported = ahlr.resolveLocale(reqUnsupported);
-            assertEquals(Locale.forLanguageTag("ca"), resolvedUnsupported,
-                    "When Accept-Language is unsupported, it should fall back to default (ca)");
+            assertEquals(Locale.ENGLISH, resolvedUnsupported,
+                    "When Accept-Language is unsupported, it should fall back to English");
 
             // If header is supported -> honor it
             MockHttpServletRequest reqSupported = new MockHttpServletRequest();
@@ -63,25 +55,5 @@ class I18nConfigTest {
             assertEquals(Locale.forLanguageTag("es"), resolvedSupported,
                     "When Accept-Language is supported, it should resolve to that locale (es)");
         });
-    }
-
-    @Test
-    void localeResolver_shouldHonorDifferentFrontendDefaultLanguage_viaResolution() {
-        new ApplicationContextRunner()
-                .withUserConfiguration(I18nConfig.class)
-                .withBean(FrontendConfig.class, () -> {
-                    FrontendConfig fc = mock(FrontendConfig.class);
-                    when(fc.getDefaultLang()).thenReturn("es");
-                    return fc;
-                })
-                .run(ctx -> {
-                    AcceptHeaderLocaleResolver ahlr = (AcceptHeaderLocaleResolver) ctx.getBean(LocaleResolver.class);
-
-                    // Resolve with no header -> should match FrontendConfig default ("es")
-                    MockHttpServletRequest reqNoHeader = new MockHttpServletRequest();
-                    Locale resolved = ahlr.resolveLocale(reqNoHeader);
-                    assertEquals(Locale.forLanguageTag("es"), resolved,
-                            "Default via FrontendConfig.getDefaultLang() must be used when no header is present");
-                });
     }
 }

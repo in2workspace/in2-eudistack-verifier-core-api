@@ -29,11 +29,8 @@ public class SecurityConfig {
                         .requestMatchers("/prometheus").permitAll()
                         .requestMatchers("/oid4vp/auth-request/*").permitAll()
                         .requestMatchers("/oid4vp/auth-response").permitAll()
-                        .requestMatchers("/login").permitAll()
-                        .requestMatchers("/client-error").permitAll()
                         .requestMatchers("/oidc/did/*").permitAll()
-                        .requestMatchers("/qr-socket/**").permitAll()
-                        .requestMatchers("/img/**").permitAll()
+                        .requestMatchers("/api/login/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .csrf(csrf -> csrf
@@ -51,11 +48,8 @@ public class SecurityConfig {
                 new AntPathRequestMatcher("/prometheus"),
                 new AntPathRequestMatcher("/oid4vp/auth-request/**"),
                 new AntPathRequestMatcher("/oid4vp/auth-response"),
-                new AntPathRequestMatcher("/login"),
-                new AntPathRequestMatcher("/client-error"),
                 new AntPathRequestMatcher("/oidc/did/**"),
-                new AntPathRequestMatcher("/qr-socket/**"),
-                new AntPathRequestMatcher("/img/**")
+                new AntPathRequestMatcher("/api/login/**")
         };
 
         @Override

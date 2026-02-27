@@ -1,6 +1,7 @@
 package es.in2.vcverifier.verifier.infrastructure.adapter;
 import es.in2.vcverifier.verifier.domain.service.VpService;
 import es.in2.vcverifier.shared.crypto.SdJwtVerificationService;
+import es.in2.vcverifier.oauth2.infrastructure.adapter.SseEmitterStore;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.JOSEException;
@@ -23,7 +24,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
 import org.springframework.security.oauth2.core.OAuth2ErrorCodes;
@@ -69,7 +69,7 @@ class AuthorizationResponseProcessorServiceImplTest {
     private OAuth2AuthorizationService oAuth2AuthorizationService;
 
     @Mock
-    private SimpMessagingTemplate messagingTemplate;
+    private SseEmitterStore sseEmitterStore;
 
     @Mock
     private CacheStore<AuthorizationCodeData> cacheStoreForAuthorizationCodeData;
@@ -90,7 +90,7 @@ class AuthorizationResponseProcessorServiceImplTest {
                 new ObjectMapper(),
                 registeredClientRepository,
                 oAuth2AuthorizationService,
-                messagingTemplate,
+                sseEmitterStore,
                 cacheForNonceByState,
                 backendConfig
         );
@@ -144,9 +144,11 @@ class AuthorizationResponseProcessorServiceImplTest {
         authorizationResponseProcessorService.processAuthResponse(state, vpToken);
 
         // Assert
+        ArgumentCaptor<String> stateCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<String> redirectUrlCaptor = ArgumentCaptor.forClass(String.class);
-        verify(messagingTemplate).convertAndSend(eq("/oidc/redirection/" + state), redirectUrlCaptor.capture());
+        verify(sseEmitterStore).send(stateCaptor.capture(), redirectUrlCaptor.capture());
 
+        assertEquals(state, stateCaptor.getValue());
         String redirectUrl = redirectUrlCaptor.getValue();
         assertNotNull(redirectUrl);
         assertTrue(redirectUrl.contains("code="));
@@ -519,7 +521,7 @@ class AuthorizationResponseProcessorServiceImplTest {
         assertEquals(chall,  saved.getAttribute(PkceParameterNames.CODE_CHALLENGE));
         assertEquals(method, saved.getAttribute(PkceParameterNames.CODE_CHALLENGE_METHOD));
 
-        verify(messagingTemplate).convertAndSend(startsWith("/oidc/redirection/" + state), contains("code="));
+        verify(sseEmitterStore).send(eq(state), contains("code="));
     }
 
     @Test

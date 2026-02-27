@@ -1,10 +1,8 @@
 package es.in2.vcverifier.verifier.infrastructure.controller;
 
-import es.in2.vcverifier.shared.config.FrontendConfig;
 import es.in2.vcverifier.shared.config.I18nConfig;
 import es.in2.vcverifier.verifier.infrastructure.controller.ResolverController;
 import es.in2.vcverifier.shared.crypto.DIDService;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,14 +39,6 @@ class ResolverControllerTest {
 
     @MockBean
     private DIDService didService;
-
-    @MockBean
-    private FrontendConfig frontendConfig;
-
-    @BeforeEach
-    void setUp() {
-        when(frontendConfig.getDefaultLang()).thenReturn("en");
-    }
 
     @Test
     void testResolveDid() throws Exception {
