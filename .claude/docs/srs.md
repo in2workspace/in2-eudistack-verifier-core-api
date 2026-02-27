@@ -5,7 +5,8 @@
 **Proyecto**: `in2-eudistack-verifier-core-api`
 **Rama de trabajo**: `feature/refactor-ai`
 **Version actual**: 2.1.0
-**Stack**: Spring Boot 3.3.2 (Authorization Server) | Java 17 | Gradle 8.8
+**Stack**: Spring Boot 3.5.11 (Authorization Server) | Java 25 | Gradle 9.1.0
+**Arquitectura**: Hexagonal (Ports & Adapters) + 2 Bounded Contexts + shared
 **Ultima actualizacion**: 2026-02-27
 
 ---
@@ -59,61 +60,114 @@ Wallet                    Verifier                    Relying Party (RP)
 
 ### 2.1 Estructura de paquetes
 
+Arquitectura hexagonal con 2 bounded contexts (`verifier/`, `oauth2/`) + modulo `shared/`.
+
 ```
 es.in2.vcverifier/
-├── VCVerifierApplication.java
-├── component/
-│   └── CryptoComponent.java              # EC key management (P-256)
-├── config/
-│   ├── BackendConfig.java                 # Backend properties accessor
-│   ├── CacheStoreConfig.java              # Guava cache beans
-│   ├── ClientLoaderConfig.java            # OIDC client loading + refresh
-│   ├── I18nConfig.java                    # i18n (en, es, ca)
-│   ├── WebSocketConfig.java               # WS for QR login
-│   └── properties/
-│       ├── BackendProperties.java         # @ConfigurationProperties
-│       └── FrontendProperties.java
-├── controller/
-│   ├── LoginQrController.java             # QR generation endpoints
-│   ├── Oid4vpController.java              # /oid4vp/* endpoints
-│   ├── ResolverController.java            # did:key resolver
-│   └── ClientErrorController.java
-├── security/
-│   ├── SecurityConfig.java                # Spring Security filter chain
-│   ├── AuthorizationServerConfig.java     # OAuth2 server config
-│   └── filters/
-│       ├── CustomAuthorizationRequestConverter.java  # Auth request handling
-│       ├── CustomAuthenticationProvider.java          # Token generation
-│       └── CustomTokenRequestConverter.java           # Token request handling
-├── service/
-│   ├── TrustFrameworkService.java         # Trust framework interface
-│   ├── VpService.java                     # VP validation interface
-│   ├── JWTService.java                    # JWT operations interface
-│   ├── DIDService.java                    # DID resolution interface
-│   └── impl/
-│       ├── TrustFrameworkServiceImpl.java # All external HTTP calls
-│       ├── VpServiceImpl.java             # VP/VC validation logic
-│       ├── JWTServiceImpl.java            # JWT sign/verify
-│       └── DIDServiceImpl.java            # did:key resolution
-├── model/
-│   ├── credentials/lear/
-│   │   ├── LEARCredential.java            # Base interface
-│   │   ├── employee/
-│   │   │   ├── LEARCredentialEmployee.java
-│   │   │   ├── LEARCredentialEmployeeV1.java
-│   │   │   ├── LEARCredentialEmployeeV2.java
-│   │   │   └── LEARCredentialEmployeeV3.java
-│   │   └── machine/
-│   │       ├── LEARCredentialMachine.java
-│   │       ├── LEARCredentialMachineV1.java
-│   │       └── LEARCredentialMachineV2.java
-│   ├── issuer/                            # EBSI issuer response models
-│   ├── ExternalTrustedListYamlData.java   # Client registry YAML model
-│   ├── RevokedCredentialIds.java          # Legacy revocation model
-│   └── ...
-├── exception/                             # Custom exceptions
-└── util/
-    └── Constants.java                     # Hardcoded contexts, timeouts
+├── VerifierApplication.java
+│
+├── verifier/                              # BC1: Verificacion OID4VP + credenciales (96 ficheros)
+│   ├── domain/
+│   │   ├── model/
+│   │   │   ├── credentials/lear/         # LEARCredential POJOs (employee V1-V3, machine V1-V2)
+│   │   │   ├── dcql/                     # DCQL query models
+│   │   │   ├── enums/                    # LEARCredentialType
+│   │   │   ├── issuer/                   # EBSI issuer response models
+│   │   │   ├── validation/               # ExtractedClaims, ValidationResult
+│   │   │   ├── ClientData.java
+│   │   │   ├── ExternalTrustedListYamlData.java
+│   │   │   └── StatusListCredentialData.java
+│   │   ├── service/                      # Ports (interfaces)
+│   │   │   ├── VpService.java            # VP validation pipeline
+│   │   │   ├── TrustFrameworkService.java
+│   │   │   ├── CredentialValidator.java
+│   │   │   ├── CredentialSchemaResolver.java
+│   │   │   ├── ClaimsExtractor.java
+│   │   │   ├── TrustedIssuersProvider.java
+│   │   │   ├── ClientRegistryProvider.java
+│   │   │   ├── StatusListCredentialService.java
+│   │   │   ├── TranslationService.java
+│   │   │   └── AuthorizationResponseProcessorService.java
+│   │   └── exception/                    # Credential*, InvalidVP*, Issuer* exceptions
+│   ├── application/
+│   │   └── workflow/
+│   │       ├── AuthorizationRequestBuildWorkflow.java  # OID4VP JWT + URL generation
+│   │       └── VerifyPresentationWorkflow.java         # VP validation entry point
+│   └── infrastructure/
+│       ├── controller/
+│       │   ├── Oid4vpController.java     # /oid4vp/* endpoints
+│       │   └── ResolverController.java   # did:key resolver
+│       ├── adapter/
+│       │   ├── VpServiceImpl.java        # VP/VC validation (10-step pipeline)
+│       │   ├── AuthorizationResponseProcessorServiceImpl.java
+│       │   ├── TranslationServiceImpl.java
+│       │   ├── claims/LearCredentialClaimsExtractor.java
+│       │   ├── clientregistry/{Local,Remote}ClientRegistryProvider.java
+│       │   ├── schema/{JsonSchemaCredentialValidator,LocalSchemaResolver}.java
+│       │   ├── statuslist/StatusListCredentialServiceImpl.java
+│       │   └── trustframework/{TrustFrameworkServiceImpl,EbsiV4,Local}*.java
+│       └── config/
+│           ├── TrustedIssuersConfig.java
+│           ├── CredentialValidationConfig.java
+│           └── ClientRegistryConfig.java
+│
+├── oauth2/                                # BC2: OAuth2 Authorization Server (28 ficheros)
+│   ├── domain/
+│   │   ├── model/                        # AuthorizationCodeData, AuthorizationRequestJWT, RefreshTokenDataCache...
+│   │   ├── service/
+│   │   │   └── ClientAssertionValidationService.java
+│   │   └── exception/                    # UnsupportedGrantType, LoginTimeout, RequestMismatch...
+│   ├── application/
+│   │   └── workflow/
+│   │       ├── TokenGenerationWorkflow.java               # Claims extraction + token generation
+│   │       └── ClientCredentialsValidationWorkflow.java   # M2M grant validation
+│   └── infrastructure/
+│       ├── filter/                       # Spring Auth Server custom filters (THIN, delegan a workflows)
+│       │   ├── CustomAuthorizationRequestConverter.java   # Auth request handling (~250 lineas)
+│       │   ├── CustomAuthenticationProvider.java          # Token generation (~200 lineas)
+│       │   ├── CustomTokenRequestConverter.java           # Token request routing (~150 lineas)
+│       │   └── CustomErrorResponseHandler.java
+│       ├── controller/
+│       │   ├── LoginQrController.java    # QR generation
+│       │   └── ClientErrorController.java
+│       ├── adapter/
+│       │   ├── ClientAssertionValidationServiceImpl.java
+│       │   └── DelegatingRegisteredClientRepository.java
+│       └── config/
+│           ├── AuthorizationServerConfig.java  # OAuth2 server wiring
+│           ├── SecurityConfig.java             # Spring Security filter chain
+│           ├── CacheStoreConfig.java           # OAuth2 cache beans
+│           ├── ClientLoaderConfig.java         # OIDC client loading + refresh
+│           ├── PublicCorsConfig.java
+│           └── RegisteredClientsCorsConfig.java
+│
+└── shared/                                # Cross-cutting (41 ficheros)
+    ├── domain/
+    │   ├── model/
+    │   │   ├── CustomJWK.java, CustomJWKS.java, GlobalErrorMessage.java
+    │   │   └── sdjwt/                    # Disclosure, SdJwt, SdJwtVerificationResult
+    │   ├── exception/                    # JWT*, DID*, Crypto*, QRCode* exceptions
+    │   │   └── handler/GlobalExceptionHandler.java
+    │   └── util/
+    │       ├── Constants.java
+    │       └── UVarInt.java
+    ├── crypto/                           # Servicios criptograficos
+    │   ├── JWTService.java + JWTServiceImpl.java
+    │   ├── DIDService.java + DIDServiceImpl.java
+    │   ├── CertificateValidationService.java + Impl
+    │   ├── SdJwtVerificationService.java + Impl
+    │   └── CryptoComponent.java          # EC key management (P-256)
+    └── config/
+        ├── BackendConfig.java            # Backend properties accessor
+        ├── FrontendConfig.java
+        ├── CacheStore.java               # Generic TTL cache
+        ├── HttpClientConfig.java         # Singleton HttpClient con timeouts
+        ├── I18nConfig.java               # i18n (en, es, ca)
+        ├── WebSocketConfig.java          # WS for QR login
+        ├── JtiTokenCache.java            # JTI replay prevention
+        └── properties/
+            ├── BackendProperties.java    # @ConfigurationProperties
+            └── FrontendProperties.java
 ```
 
 ### 2.2 Dependencias externas
@@ -162,7 +216,7 @@ es.in2.vcverifier/
 | --- | --- | --- |
 | P2-1 | Normalizacion credenciales con FIXME | **HECHO** (LearCredentialClaimsExtractor con JSON path + coalesce) |
 | P2-2 | Sin HealthIndicators para dependencias | PENDIENTE |
-| P2-3 | Exclusiones de cobertura de tests para clases criticas | **HECHO** (reducidas de 5 a 1, 318 tests, ratio 1.19:1) |
+| P2-3 | Exclusiones de cobertura de tests para clases criticas | **HECHO** (reducidas de 5 a 1, 370 tests, ratio 1.22:1) |
 | P2-4 | 5 POJOs hardcodeados para credenciales (~10 ficheros por nueva credencial) | **HECHO** (JSON Schema + CredentialValidator SPI) |
 | P2-5 | instanceof chain en 5 sitios para tipo de credencial | **HECHO** (ClaimsExtractor.supports()) |
 | P2-6 | @context URLs hardcodeadas en Constants.java | **HECHO** (schemas JSON + LocalSchemaResolver) |
@@ -328,7 +382,7 @@ public interface TrustedIssuersProvider {
 | Implementacion | Activacion | Comportamiento |
 | --- | --- | --- |
 | `EbsiV4TrustedIssuersProvider` | `trustedIssuersListUrl` con valor | HTTP GET EBSI v4 (actual) |
-| `LocalTrustedIssuersProvider` | `trustedIssuersListUrl` vacio | YAML local. Wildcard `*` = confiar en todos |
+| `LocalTrustedIssuersProvider` | `trustedIssuersListUrl` vacio | YAML local o externo (via volumen). Wildcard `*` = confiar en todos |
 
 Nombrado `EbsiV4` para dejar espacio a `EbsiV5`, `LOTL`.
 
@@ -343,7 +397,7 @@ public interface ClientRegistryProvider {
 | Implementacion | Activacion | Comportamiento |
 | --- | --- | --- |
 | `RemoteClientRegistryProvider` | `trustedServicesListUrl` con valor | YAML remoto + refresh 30min (actual) |
-| `LocalClientRegistryProvider` | `trustedServicesListUrl` vacio | YAML local, carga una vez al startup |
+| `LocalClientRegistryProvider` | `trustedServicesListUrl` vacio | YAML local o externo (via volumen), carga al startup |
 
 ### 5.5 Eliminacion de revocacion legacy
 
@@ -489,13 +543,12 @@ VP Token JWT
 
 ---
 
-## 6. Dependencia nueva
+## 6. Dependencias destacadas
 
 ```gradle
-implementation 'com.networknt:json-schema-validator:1.5.6'
+implementation 'com.networknt:json-schema-validator:1.5.6'   // JSON Schema 2020-12
+testImplementation 'com.tngtech.archunit:archunit-junit5:1.4.1'  // Java 25 support
 ```
-
-JSON Schema 2020-12, Jackson-nativo, custom schema loading via ResourceLoader.
 
 ---
 
@@ -585,22 +638,105 @@ JSON Schema 2020-12, Jackson-nativo, custom schema loading via ResourceLoader.
 - [x] `CertificateValidationServiceImplTest` - x5c header validation
 - [x] `TrustFrameworkServiceImpTest` - bitstring status list revocation (14 tests)
 - [x] `VpSecurityTest` - malformed VP/VC, payload manipulation, context injection (22 tests)
-- [x] `ArchitectureRulesTest` - ArchUnit: layers, naming, dependencies (13 tests)
+- [x] `ArchitectureRulesTest` - ArchUnit: layers, naming, dependencies, BC isolation (17 tests)
 - [x] Reducir exclusiones JaCoCo de 5 a 1 clase (AuthorizationServerConfig)
 - [x] Reducir exclusiones Sonar de 7 a 2 clases
 
-### Metricas finales de tests
+### Paso 10: Refactorizacion hexagonal ✅
+
+Reorganizacion completa del codebase en arquitectura hexagonal con 2 bounded contexts + shared. Sin renaming de paquete raiz (`es.in2.vcverifier`). Ejecutado en 7 fases incrementales, cada una dejando la app compilando y los tests pasando.
+
+**Fase 1: Crear estructura + mover modelos de dominio**
+- [x] Mover modelos de credenciales, issuer, validation a `verifier/domain/model/`
+- [x] Mover modelos OAuth2 (AuthorizationCodeData, etc.) a `oauth2/domain/model/`
+- [x] Mover modelos compartidos (CustomJWK, GlobalErrorMessage) a `shared/domain/model/`
+- [x] Mover excepciones a sus respectivos bounded contexts
+- [x] Mover Constants, UVarInt a `shared/domain/util/`
+
+**Fase 2: Mover servicios crypto a shared**
+- [x] JWTService + JWTServiceImpl a `shared/crypto/`
+- [x] DIDService + DIDServiceImpl a `shared/crypto/`
+- [x] CertificateValidationService + Impl a `shared/crypto/`
+- [x] CryptoComponent a `shared/crypto/`
+- [x] SdJwtVerificationService + Impl a `shared/crypto/`
+
+**Fase 3: Mover servicios del verifier al bounded context**
+- [x] Interfaces (ports) a `verifier/domain/service/`
+- [x] Implementaciones (adapters) a `verifier/infrastructure/adapter/`
+- [x] Controllers a `verifier/infrastructure/controller/`
+- [x] Configs a `verifier/infrastructure/config/`
+
+**Fase 4: Crear application workflows (ficheros nuevos)**
+- [x] `AuthorizationRequestBuildWorkflow` - extrae logica OID4VP de CustomAuthorizationRequestConverter
+- [x] `VerifyPresentationWorkflow` - entry point limpio para validacion VP
+- [x] `TokenGenerationWorkflow` - extrae claims extraction + token generation de CustomAuthenticationProvider
+- [x] `ClientCredentialsValidationWorkflow` - extrae M2M validation de CustomTokenRequestConverter
+- [x] Tests unitarios para cada workflow
+
+**Fase 5: Adelgazar filtros OAuth2**
+- [x] `CustomAuthorizationRequestConverter`: 524 -> ~250 lineas (delega a AuthorizationRequestBuildWorkflow)
+- [x] `CustomTokenRequestConverter`: 229 -> ~150 lineas (delega a ClientCredentialsValidationWorkflow)
+- [x] `CustomAuthenticationProvider`: 392 -> ~200 lineas (delega a TokenGenerationWorkflow)
+- [x] Actualizar AuthorizationServerConfig para inyectar workflows
+- [x] Actualizar tests de filtros para mockear workflows
+
+**Fase 6: Mover infraestructura OAuth2**
+- [x] Filtros a `oauth2/infrastructure/filter/`
+- [x] Controllers a `oauth2/infrastructure/controller/`
+- [x] Configs a `oauth2/infrastructure/config/`
+- [x] Adapters a `oauth2/infrastructure/adapter/`
+
+**Fase 7: Mover config restante + cleanup + ArchUnit**
+- [x] Mover BackendConfig, FrontendConfig, CacheStore, etc. a `shared/config/`
+- [x] Mover CacheStoreConfig a `oauth2/infrastructure/config/` (crea caches OAuth2-specific)
+- [x] Mover SD-JWT models a `shared/domain/model/sdjwt/`
+- [x] Eliminar todos los paquetes vacios de la estructura antigua
+- [x] Actualizar ArchitectureRulesTest con reglas hexagonales + BC isolation (17 reglas)
+
+**Reglas ArchUnit finales (17 tests):**
+- Hexagonal: domain !-> infrastructure, domain !-> application, application !-> infrastructure, model !-> controller, exception !-> service
+- BC isolation: verifier.domain !-> oauth2.domain, oauth2.domain !-> verifier.domain, shared.domain !-> BCs, shared.config !-> BCs
+- Naming: ServiceImpl -> adapter/crypto, @Controller -> controller, @Configuration -> config/crypto
+- Dependencies: no java.util.logging, no generic exceptions, no System.out, util !-> service, util !-> controller
+
+### Paso 11: Inyeccion de ficheros externos (sin rebuild) ✅
+
+- [x] Anadir `BackendProperties.LocalFiles` record con 3 paths opcionales
+- [x] `LocalClientRegistryProvider`: acepta `externalPath` con fallback a classpath
+- [x] `LocalTrustedIssuersProvider`: acepta `externalPath` con fallback a classpath
+- [x] `LocalSchemaResolver`: acepta `externalSchemasDir` con prioridad sobre classpath
+- [x] Exponer paths via `BackendConfig` getters
+- [x] Actualizar `ClientRegistryConfig`, `TrustedIssuersConfig`, `CredentialValidationConfig` para inyectar paths
+- [x] Documentar env vars: `VERIFIER_BACKEND_LOCALFILES_CLIENTSPATH`, `TRUSTEDISSUERSPATH`, `SCHEMASDIR`
+- [x] Actualizar `.env.example`
+- [x] Crear guia de despliegue `.claude/docs/deployment.md`
+
+**Beneficio**: Cambiar clients, issuers de confianza o schemas de credenciales sin rebuild de imagen. Compatible con Docker volumes, K8s ConfigMaps, EFS.
+
+### Paso 12: Upgrade a Java 25 + Gradle 9.1.0 + Spring Boot 3.5.11 ✅
+
+- [x] Java 17 -> 25
+- [x] Gradle 8.8 -> 9.1.0 (wrapper + Docker image)
+- [x] Spring Boot 3.3.2 -> 3.5.11
+- [x] Dockerfile: `gradle:9.1.0-jdk25` + `eclipse-temurin:25-jre-alpine`
+- [x] ArchUnit 1.3.0 -> 1.4.1 (soporte bytecode Java 25)
+- [x] OWASP dependency-check 9.1.0 -> 12.2.0
+- [x] SonarQube plugin 5.1.0 -> 6.0.1, Swagger 2.2.22 -> 2.2.28
+
+### Metricas finales
 
 | Metrica | Valor |
 | --- | --- |
-| Tests totales | 318 |
+| Tests totales | 371 |
 | Failures | 0 |
-| Test files | 43 |
-| Source files | 154 |
-| Test LOC | 8,117 |
-| Source LOC | 6,819 |
-| Test:codigo ratio | 1.19:1 |
+| Test files | 51 |
+| Source files | 166 |
+| Test LOC | ~9,000 |
+| Source LOC | ~7,400 |
+| Test:codigo ratio | ~1.22:1 |
+| ArchUnit rules | 17 |
 | JaCoCo exclusions | 1 (AuthorizationServerConfig) |
+| Ficheros en estructura antigua | 0 |
 
 ---
 
@@ -638,6 +774,7 @@ JSON Schema 2020-12, Jackson-nativo, custom schema loading via ResourceLoader.
 
 | Item | Prioridad | Depende de |
 | --- | --- | --- |
+| ~~Refactorizacion hexagonal (2 BCs + shared)~~ | ~~Critica~~ | **HECHO** (Paso 10) |
 | `GenericClaimsExtractor` (schema-driven) | Media | Paso 6 |
 | Eliminar POJOs legacy (Fase 2) | Media | Paso 6 |
 | EbsiV5 / LOTL providers | Baja | Paso 4 (SPI) |
@@ -650,18 +787,25 @@ JSON Schema 2020-12, Jackson-nativo, custom schema loading via ResourceLoader.
 
 | Fichero | Responsabilidad |
 | --- | --- |
-| `component/CryptoComponent.java` | EC key P-256, firma JWT |
-| `config/BackendConfig.java` | Accessor de properties + trust framework selection |
-| `config/properties/BackendProperties.java` | @ConfigurationProperties validadas |
-| `config/ClientLoaderConfig.java` | Carga + refresh de OIDC clients |
-| `security/AuthorizationServerConfig.java` | JWKSource, token customizer, OAuth2 server |
-| `security/filters/CustomAuthenticationProvider.java` | Token generation, credential -> claims |
-| `security/filters/CustomAuthorizationRequestConverter.java` | Auth request handling, OID4VP |
-| `security/filters/CustomTokenRequestConverter.java` | Token request handling |
-| `service/impl/VpServiceImpl.java` | VP/VC validation pipeline |
-| `service/impl/TrustFrameworkServiceImpl.java` | HTTP calls a EBSI, client registry, revocation |
-| `service/impl/JWTServiceImpl.java` | JWT sign/verify operations |
-| `util/Constants.java` | @context URLs, timeouts, feature flags |
+| `shared/crypto/CryptoComponent.java` | EC key P-256, firma JWT |
+| `shared/config/BackendConfig.java` | Accessor de properties + trust framework selection |
+| `shared/config/properties/BackendProperties.java` | @ConfigurationProperties validadas |
+| `shared/crypto/JWTServiceImpl.java` | JWT sign/verify operations |
+| `shared/crypto/DIDServiceImpl.java` | did:key resolution |
+| `shared/crypto/SdJwtVerificationServiceImpl.java` | SD-JWT VC verification pipeline |
+| `shared/domain/util/Constants.java` | @context URLs, timeouts, feature flags |
+| `verifier/infrastructure/adapter/VpServiceImpl.java` | VP/VC validation pipeline (10 pasos) |
+| `verifier/infrastructure/adapter/trustframework/TrustFrameworkServiceImpl.java` | HTTP calls a EBSI, revocation |
+| `verifier/infrastructure/adapter/claims/LearCredentialClaimsExtractor.java` | JSON path extraction v1/v2/v3 |
+| `verifier/application/workflow/AuthorizationRequestBuildWorkflow.java` | OID4VP JWT payload + URL generation |
+| `verifier/application/workflow/VerifyPresentationWorkflow.java` | VP validation entry point |
+| `oauth2/infrastructure/config/AuthorizationServerConfig.java` | JWKSource, token customizer, OAuth2 server wiring |
+| `oauth2/infrastructure/config/ClientLoaderConfig.java` | Carga + refresh de OIDC clients |
+| `oauth2/infrastructure/filter/CustomAuthorizationRequestConverter.java` | Auth request handling (thin, delega a workflow) |
+| `oauth2/infrastructure/filter/CustomAuthenticationProvider.java` | Token generation (thin, delega a workflow) |
+| `oauth2/infrastructure/filter/CustomTokenRequestConverter.java` | Token request routing (thin, delega a workflow) |
+| `oauth2/application/workflow/TokenGenerationWorkflow.java` | Claims extraction + access/ID token generation |
+| `oauth2/application/workflow/ClientCredentialsValidationWorkflow.java` | M2M client_credentials validation |
 
 ## Apendice B: Modelo de credenciales actual (a deprecar)
 

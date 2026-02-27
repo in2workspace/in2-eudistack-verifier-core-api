@@ -3,12 +3,35 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-## [v2.0.12](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.12)
+
+## [v2.1.0] - 2026-02-27
+
+### Added
+- **Hexagonal architecture**: Reorganized entire codebase into 2 bounded contexts (`verifier/`, `oauth2/`) + `shared/` module with ports & adapters pattern.
+- **Application workflows**: Extracted business logic from OAuth2 filters into testable workflow classes (AuthorizationRequestBuildWorkflow, TokenGenerationWorkflow, ClientCredentialsValidationWorkflow, VerifyPresentationWorkflow).
+- **External file injection**: Clients YAML, trusted issuers YAML, and JSON Schemas can now be injected via Docker volumes or Kubernetes ConfigMaps without rebuilding the image (`VERIFIER_BACKEND_LOCALFILES_CLIENTSPATH`, `VERIFIER_BACKEND_LOCALFILES_TRUSTEDISSUERSPATH`, `VERIFIER_BACKEND_LOCALFILES_SCHEMASDIR`).
+- **ArchUnit enforcement**: 17 architecture rules validating hexagonal layers, bounded context isolation, naming conventions, and dependency constraints.
+- **Deployment guide**: Comprehensive deployment documentation at `.claude/docs/deployment.md`.
+
 ### Changed
+- **Java 17 -> 25**: Updated to Java 25 with Eclipse Temurin runtime.
+- **Gradle 8.8 -> 9.1.0**: Updated build tool and wrapper.
+- **Spring Boot 3.3.2 -> 3.5.11**: Major framework upgrade.
+- **Dockerfile**: `gradle:9.1.0-jdk25` build stage + `eclipse-temurin:25-jre-alpine` runtime.
+- **OAuth2 filters slimmed down**: CustomAuthorizationRequestConverter (524->250 lines), CustomAuthenticationProvider (392->200 lines), CustomTokenRequestConverter (229->150 lines) — all delegate to application workflows.
+- **ArchUnit 1.3.0 -> 1.4.1**: Java 25 bytecode support.
+- **OWASP dependency-check 9.1.0 -> 12.2.0**, SonarQube plugin 5.1.0 -> 6.0.1, Swagger 2.2.22 -> 2.2.28.
+
+## [v2.0.12](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.12)
+
+### Changed
+
 - Read bitstring-encoded lists using MSB-first ordering.
 
 ## [v2.0.11](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.11)
+
 ### Added
+
 - Add support for BitstringStatusListEntry credential status type.
 
 ## [v2.0.10](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.10)
