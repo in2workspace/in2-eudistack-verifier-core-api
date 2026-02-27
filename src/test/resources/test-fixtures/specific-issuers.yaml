@@ -1,0 +1,6 @@
+trustedIssuers:
+  "did:elsi:VATES-12345678":
+    - credentialsType: "LEARCredentialEmployee"
+  "did:elsi:VATES-87654321":
+    - credentialsType: "LEARCredentialEmployee"
+    - credentialsType: "LEARCredentialMachine"

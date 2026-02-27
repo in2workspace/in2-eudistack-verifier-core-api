@@ -1,0 +1,15 @@
+services:
+  verifier:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+      args:
+        SKIP_TESTS: "true"
+    container_name: verifier
+    ports:
+      - "8082:8082"
+    env_file:
+      - .env
+    environment:
+      SERVER_PORT: 8082
+    restart: unless-stopped

@@ -79,19 +79,16 @@ public class VpServiceImpl implements VpService {
         log.debug("VpServiceImpl -- validateVerifiablePresentation -- Validating the time window of the credential");
         validateCredentialTimeWindow(learCredential);
 
-        // Step 3: Validate the old credential id is not in the revoked list
+        // Step 3: Validate revocation (only if credentialStatus is present)
         if (hasCredentialStatus(learCredential)) {
             log.debug("CredentialStatus detected: {}", learCredential.credentialStatusId());
-            if (!validateNewCredentialNotRevoked(learCredential)) {
+            if (!validateCredentialNotRevoked(learCredential)) {
                 throw new CredentialRevokedException("Credential ID " + learCredential.id() + " is revoked.");
             }
+            log.info("Credential is not revoked");
         } else {
-            log.debug("No CredentialStatus block found; using old ID check for credential {}", learCredential.id());
-            if (!validateOldCredentialNotRevoked(learCredential.id())) {
-                throw new CredentialRevokedException("Credential ID " + learCredential.id() + " is revoked.");
-            }
+            log.debug("No CredentialStatus block found; skipping revocation check for credential {}", learCredential.id());
         }
-        log.info("Credential is not revoked");
 
         // Step 4: Validate the issuer
         String credentialIssuerDid = learCredential.issuer().getId();
@@ -332,15 +329,8 @@ public class VpServiceImpl implements VpService {
 
     }
 
-    // For VCs without credential status
-    private boolean validateOldCredentialNotRevoked(String credentialId) {
-        List<String> revokedIds = trustFrameworkService.getRevokedCredentialIds();
-        return !revokedIds.contains(credentialId); //negate because we want a true just only when really not exist
-
-    }
-
-    private boolean validateNewCredentialNotRevoked(LEARCredential learCredential) {
-        log.info("validateNewCredentialNotRevoked, vc: {}", learCredential);
+    private boolean validateCredentialNotRevoked(LEARCredential learCredential) {
+        log.info("validateCredentialNotRevoked, vc: {}", learCredential);
         if (!REVOCATION.equals(learCredential.credentialStatusPurpose())) {
             log.error("credentialStatus is not revocation: {}", learCredential.credentialStatusPurpose());
             return false;
@@ -348,18 +338,8 @@ public class VpServiceImpl implements VpService {
 
         String type = learCredential.credentialStatusType();
 
-        // Legacy PlainListEntry
-        // TODO Remove once the last credential of this type expires in DOME.
-        if ("PlainListEntity".equals(type)) {
-            log.info("Validating credential with PlainListEntity credential status");
-            // Legacy JSON: list of nonces
-            return !trustFrameworkService.getCredentialStatusListData(learCredential.statusListCredential())
-                    .contains(learCredential.credentialStatusListIndex());
-        }
-
         if ("BitstringStatusListEntry".equals(type)) {
             log.info("Validating credential with BitstringStatusListEntry credential status");
-            // Modern VC-JWT: bitstring encoded list
             return !trustFrameworkService.isCredentialRevokedInBitstringStatusList(
                     learCredential.statusListCredential(),
                     learCredential.credentialStatusListIndex(),

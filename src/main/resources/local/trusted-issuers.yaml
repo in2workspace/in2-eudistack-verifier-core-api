@@ -1,0 +1,19 @@
+# Local Trusted Issuers configuration.
+# Use "*" as key to trust ALL issuers (development mode).
+# For production, list specific issuer DIDs with their capabilities.
+#
+# Examples:
+#   Trust all issuers:
+#     trustedIssuers:
+#       "*": []
+#
+#   Trust specific issuers:
+#     trustedIssuers:
+#       "did:elsi:VATES-12345678":
+#         - credentialsType: "LEARCredentialEmployee"
+#       "did:elsi:VATES-87654321":
+#         - credentialsType: "LEARCredentialEmployee"
+#         - credentialsType: "LEARCredentialMachine"
+
+trustedIssuers:
+  "*": []

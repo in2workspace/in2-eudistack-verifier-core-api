@@ -71,6 +71,9 @@ class CustomAuthorizationRequestConverterTest {
     @Mock
     private  CacheStore<String> cacheForNonceByState;
 
+    @Mock
+    private HttpClient httpClient;
+
     private boolean isNonceRequiredOnFapiProfile = true;
 
     private CustomAuthorizationRequestConverter converter;
@@ -86,7 +89,8 @@ class CustomAuthorizationRequestConverterTest {
                 backendConfig,
                 registeredClientRepository,
                 isNonceRequiredOnFapiProfile,
-                cacheForNonceByState
+                cacheForNonceByState,
+                httpClient
         );
     }
 
@@ -301,59 +305,54 @@ class CustomAuthorizationRequestConverterTest {
 
         when(registeredClientRepository.findByClientId(clientId)).thenReturn(registeredClient);
 
-        // Mock del HttpClient y HttpResponse
-        HttpClient mockHttpClient = mock(HttpClient.class);
+        // Mock del HttpResponse usando el httpClient inyectado
         HttpResponse<String> mockHttpResponse = mock(HttpResponse.class);
 
-        try (MockedStatic<HttpClient> httpClientMockedStatic = Mockito.mockStatic(HttpClient.class)) {
-            httpClientMockedStatic.when(HttpClient::newHttpClient).thenReturn(mockHttpClient);
+        // Simulamos la respuesta de httpClient.send()
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenReturn(mockHttpResponse);
+        when(mockHttpResponse.statusCode()).thenReturn(200);
+        when(mockHttpResponse.body()).thenReturn(jwt);
 
-            // Simulamos la respuesta de client.send()
-            when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenReturn(mockHttpResponse);
-            when(mockHttpResponse.statusCode()).thenReturn(200);
-            when(mockHttpResponse.body()).thenReturn(jwt);
+        // Mock del JWT
+        SignedJWT signedJWT = mock(SignedJWT.class);
+        Payload payload = mock(Payload.class);
+        when(signedJWT.getPayload()).thenReturn(payload);
+        when(jwtService.parseJWT(jwt)).thenReturn(signedJWT);
+        when(jwtService.getClaimFromPayload(payload, OAuth2ParameterNames.CLIENT_ID)).thenReturn(clientId);
+        when(jwtService.getClaimFromPayload(payload, OAuth2ParameterNames.SCOPE)).thenReturn(scope);
+        when(jwtService.getClaimFromPayload(payload, OAuth2ParameterNames.REDIRECT_URI)).thenReturn(redirectUri);
 
-            // Mock del JWT
-            SignedJWT signedJWT = mock(SignedJWT.class);
-            Payload payload = mock(Payload.class);
-            when(signedJWT.getPayload()).thenReturn(payload);
-            when(jwtService.parseJWT(jwt)).thenReturn(signedJWT);
-            when(jwtService.getClaimFromPayload(payload, OAuth2ParameterNames.CLIENT_ID)).thenReturn(clientId);
-            when(jwtService.getClaimFromPayload(payload, OAuth2ParameterNames.SCOPE)).thenReturn(scope);
-            when(jwtService.getClaimFromPayload(payload, OAuth2ParameterNames.REDIRECT_URI)).thenReturn(redirectUri);
+        // Mock de la verificación del JWT
+        PublicKey publicKey = mock(PublicKey.class);
+        when(didService.getPublicKeyFromDid(clientId)).thenReturn(publicKey);
+        when(signedJWT.serialize()).thenReturn("serialized-jwt");
+        doNothing().when(jwtService).verifyJWTWithECKey(anyString(), eq(publicKey));
 
-            // Mock de la verificación del JWT
-            PublicKey publicKey = mock(PublicKey.class);
-            when(didService.getPublicKeyFromDid(clientId)).thenReturn(publicKey);
-            when(signedJWT.serialize()).thenReturn("serialized-jwt");
-            doNothing().when(jwtService).verifyJWTWithECKey(anyString(), eq(publicKey));
+        // Mock de la generación del JWT
+        ECKey ecKey = mock(ECKey.class);
+        when(ecKey.getKeyID()).thenReturn("key-id");
+        when(cryptoComponent.getECKey()).thenReturn(ecKey);
 
-            // Mock de la generación del JWT
-            ECKey ecKey = mock(ECKey.class);
-            when(ecKey.getKeyID()).thenReturn("key-id");
-            when(cryptoComponent.getECKey()).thenReturn(ecKey);
+        when(backendConfig.getUrl()).thenReturn("https://auth.server.com");
 
-            when(backendConfig.getUrl()).thenReturn("https://auth.server.com");
+        // Act & Assert
+        OAuth2AuthorizationCodeRequestAuthenticationException exception = assertThrows(
+                OAuth2AuthorizationCodeRequestAuthenticationException.class,
+                () -> converter.convert(request)
+        );
 
-            // Act & Assert
-            OAuth2AuthorizationCodeRequestAuthenticationException exception = assertThrows(
-                    OAuth2AuthorizationCodeRequestAuthenticationException.class,
-                    () -> converter.convert(request)
-            );
+        OAuth2Error error = exception.getError();
+        assertEquals("required_external_user_authentication", error.getErrorCode());
 
-            OAuth2Error error = exception.getError();
-            assertEquals("required_external_user_authentication", error.getErrorCode());
+        String redirectUrl = error.getUri();
+        assertNotNull(redirectUrl);
+        assertTrue(redirectUrl.contains("/login?"));
+        assertTrue(redirectUrl.contains("authRequest="));
+        assertTrue(redirectUrl.contains("state="));
+        assertTrue(redirectUrl.contains("homeUri="));
 
-            String redirectUrl = error.getUri();
-            assertNotNull(redirectUrl);
-            assertTrue(redirectUrl.contains("/login?"));
-            assertTrue(redirectUrl.contains("authRequest="));
-            assertTrue(redirectUrl.contains("state="));
-            assertTrue(redirectUrl.contains("homeUri="));
-
-            // Verificamos que se almacenó la solicitud de autorización
-            verify(cacheStoreForOAuth2AuthorizationRequest).add(eq(state), any(OAuth2AuthorizationRequest.class));
-        }
+        // Verificamos que se almacenó la solicitud de autorización
+        verify(cacheStoreForOAuth2AuthorizationRequest).add(eq(state), any(OAuth2AuthorizationRequest.class));
     }
 
     @Test
@@ -539,33 +538,26 @@ class CustomAuthorizationRequestConverterTest {
 
         when(registeredClientRepository.findByClientId(clientId)).thenReturn(registeredClient);
 
-        // Mock del HttpClient y HttpResponse
-        HttpClient mockHttpClient = mock(HttpClient.class);
+        // Mock del HttpResponse usando el httpClient inyectado
         HttpResponse<String> mockHttpResponse = mock(HttpResponse.class);
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenReturn(mockHttpResponse);
 
-        try (MockedStatic<HttpClient> httpClientMockedStatic = Mockito.mockStatic(HttpClient.class)) {
-            httpClientMockedStatic.when(HttpClient::newHttpClient).thenReturn(mockHttpClient);
+        // Act & Assert
+        OAuth2AuthorizationCodeRequestAuthenticationException exception = assertThrows(
+                OAuth2AuthorizationCodeRequestAuthenticationException.class,
+                () -> converter.convert(request)
+        );
 
-            // Simulamos la respuesta de client.send()
-            when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenReturn(mockHttpResponse);
+        OAuth2Error error = exception.getError();
+        assertEquals("invalid_client_authentication", error.getErrorCode());
+        assertTrue(error.getDescription().contains("Failed to retrieve JWT from request_uri: Invalid response."));
 
-            // Act & Assert
-            OAuth2AuthorizationCodeRequestAuthenticationException exception = assertThrows(
-                    OAuth2AuthorizationCodeRequestAuthenticationException.class,
-                    () -> converter.convert(request)
-            );
-
-            OAuth2Error error = exception.getError();
-            assertEquals("invalid_client_authentication", error.getErrorCode());
-            assertTrue(error.getDescription().contains("Failed to retrieve JWT from request_uri: Invalid response."));
-
-            String redirectUrl = error.getUri();
-            assertNotNull(redirectUrl);
-            assertTrue(redirectUrl.contains(CLIENT_ERROR_ENDPOINT));
-            assertTrue(redirectUrl.contains("errorCode="));
-            assertTrue(redirectUrl.contains("errorMessage="));
-            assertTrue(redirectUrl.contains("clientUrl="));
-        }
+        String redirectUrl = error.getUri();
+        assertNotNull(redirectUrl);
+        assertTrue(redirectUrl.contains(CLIENT_ERROR_ENDPOINT));
+        assertTrue(redirectUrl.contains("errorCode="));
+        assertTrue(redirectUrl.contains("errorMessage="));
+        assertTrue(redirectUrl.contains("clientUrl="));
     }
 
     @Test
@@ -599,33 +591,26 @@ class CustomAuthorizationRequestConverterTest {
 
         when(registeredClientRepository.findByClientId(clientId)).thenReturn(registeredClient);
 
-        // Mock del HttpClient para lanzar IOException
-        HttpClient mockHttpClient = mock(HttpClient.class);
+        // Simulamos que httpClient.send() lanza IOException
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenThrow(new IOException("Simulated IO Exception"));
 
-        try (MockedStatic<HttpClient> httpClientMockedStatic = Mockito.mockStatic(HttpClient.class)) {
-            httpClientMockedStatic.when(HttpClient::newHttpClient).thenReturn(mockHttpClient);
+        // Act & Assert
+        OAuth2AuthorizationCodeRequestAuthenticationException exception = assertThrows(
+                OAuth2AuthorizationCodeRequestAuthenticationException.class,
+                () -> converter.convert(request)
+        );
 
-            // Simulamos que client.send() lanza IOException
-            when(mockHttpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class))).thenThrow(new IOException("Simulated IO Exception"));
+        OAuth2Error error = exception.getError();
+        assertEquals("invalid_client_authentication", error.getErrorCode());
+        assertTrue(error.getDescription().contains("Failed to retrieve JWT from request_uri."));
 
-            // Act & Assert
-            OAuth2AuthorizationCodeRequestAuthenticationException exception = assertThrows(
-                    OAuth2AuthorizationCodeRequestAuthenticationException.class,
-                    () -> converter.convert(request)
-            );
-
-            OAuth2Error error = exception.getError();
-            assertEquals("invalid_client_authentication", error.getErrorCode());
-            assertTrue(error.getDescription().contains("Failed to retrieve JWT from request_uri."));
-
-            String redirectUrl = error.getUri();
-            assertNotNull(redirectUrl);
-            assertTrue(redirectUrl.contains(CLIENT_ERROR_ENDPOINT));
-            assertTrue(redirectUrl.contains("errorCode="));
-            assertTrue(redirectUrl.contains("errorMessage="));
-            assertTrue(redirectUrl.contains("clientUrl="));
-            assertTrue(redirectUrl.contains("originalRequestURL="));
-        }
+        String redirectUrl = error.getUri();
+        assertNotNull(redirectUrl);
+        assertTrue(redirectUrl.contains(CLIENT_ERROR_ENDPOINT));
+        assertTrue(redirectUrl.contains("errorCode="));
+        assertTrue(redirectUrl.contains("errorMessage="));
+        assertTrue(redirectUrl.contains("clientUrl="));
+        assertTrue(redirectUrl.contains("originalRequestURL="));
     }
 
     @Test

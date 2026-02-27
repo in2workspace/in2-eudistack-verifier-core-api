@@ -93,7 +93,7 @@ jobs:
           DH_IMAGE="docker.io/${DOCKERHUB_ORG}/${PROJECT_NAME}:${TAG}"
           ECR_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${TAG}"
           
-          docker build -f Dockerfile --build-arg SKIP_TESTS=true -t "${DH_IMAGE}" .
+          docker build -f docker/Dockerfile --build-arg SKIP_TESTS=true -t "${DH_IMAGE}" .
           docker tag "${DH_IMAGE}" "${ECR_IMAGE}"
          
           docker push "${DH_IMAGE}"
@@ -174,7 +174,7 @@ jobs:
           ECR_IMAGE="${ECR_REGISTRY}/${ECR_REPOSITORY}:${TAG}"
           ECR_LATEST="${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
 
-          docker build -f Dockerfile --build-arg SKIP_TESTS=true -t "${DH_IMAGE}" .
+          docker build -f docker/Dockerfile --build-arg SKIP_TESTS=true -t "${DH_IMAGE}" .
           docker tag "${DH_IMAGE}" "${DH_LATEST}"
           docker tag "${DH_IMAGE}" "${ECR_IMAGE}"
           docker tag "${DH_IMAGE}" "${ECR_LATEST}"

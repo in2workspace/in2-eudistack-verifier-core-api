@@ -1,105 +1,73 @@
 spring:
   application:
-    # Defines the name of the Spring application
     name: VC Verifier
   web:
     resources:
       static-locations:
-        # Specifies locations for serving static resources
         - classpath:/static/
-        # Additional location for static resources
         - classpath:/resources/
 
 server:
-  # Defines the port on which the application will run
-  port: 8080
+  port: 8082
 
 logging:
   pattern:
     level: "%5p [${spring.application.name:},%X{traceId:-},%X{spanId:-}]"
   level:
-    # Sets logging level for the custom package "es.in2.vcverifier"
     es.in2.vcverifier: INFO
-    # Sets logging level for Spring Security
     org.springframework.security: INFO
-    # Sets logging level for web filters
-    org.springframework.web.filter: INFO
-    # To see the DispatcherServlet in detail
-    org.springframework.web.servlet.DispatcherServlet: TRACE
-    # To track the mapping of URLs to @RequestMapping methods
-    org.springframework.web.servlet.handler.RequestMappingHandlerMapping: TRACE
 
 management:
   endpoints:
-    # Disables all management endpoints by default
     enabled-by-default: false
     web:
       exposure:
-        # Specifies the enabled management endpoints
         include: health, prometheus
-      # Sets the base path for management endpoints
       base-path: /
       path-mapping:
-        # Maps the health endpoint to /health
         health: health
-        # Maps the Prometheus metrics endpoint to /prometheus
         prometheus: prometheus
   endpoint:
     health:
-      # Enables the health endpoint
       enabled: true
-      # Always show detailed health information
       show-details: always
     prometheus:
-      # Enables the Prometheus endpoint for exporting metrics
       enabled: true
   metrics:
     tags:
-      # Adds application name as a tag to metrics
       application: ${spring.application.name}
 
+# ──────────────────────────────────────────────────────────
+# Verifier configuration
+#
+# All values below are dev defaults. Override via env vars
+# in production. Spring relaxed binding applies, e.g.:
+#   verifier.backend.url -> VERIFIER_BACKEND_URL
+# ──────────────────────────────────────────────────────────
 verifier:
   frontend:
     urls:
-      # Placeholder for onboarding URL (REQUIRED)
-      onboarding:
-      # Placeholder for support URL (REQUIRED)
-      support:
-      # Placeholder for wallet URL (REQUIRED)
-      wallet:
+      onboarding: http://localhost:4200
+      support: http://localhost:4200
+      wallet: http://localhost:4200
     colors:
-      # Defines primary color for the frontend (OPTIONAL with default value)
       primary: "#2D58A7"
-      # Defines contrasting text color for primary color (OPTIONAL with default value)
       primaryContrast: "#ffffff"
-      # Defines secondary color for the frontend (OPTIONAL with default value)
       secondary: "#14274A"
-      # Defines contrasting text color for secondary color (OPTIONAL with default value)
       secondaryContrast: "#00ADD3"
     assets:
-      # Base URL for assets (REQUIRED)
-      baseUrl:
-      # Placeholder for logo source path (REQUIRED)
-      logoPath:
-      # Placeholder for favicon source path (REQUIRED)
-      faviconPath:
-    # Default language for visible texts (REQUIRED)
+      baseUrl: http://localhost:4200/assets
+      logoPath: logo.png
+      faviconPath: favicon.ico
     defaultLang: en
   backend:
-    # Placeholder for backend URL (REQUIRED)
-    url:
+    url: http://localhost:8082
     identity:
-      # Placeholder for private key used in identity verification (REQUIRED)
+      # Leave empty to auto-generate ephemeral P-256 key + did:key at startup
       didKey:
       privateKey:
-      verifiableCredential:
     trustFrameworks:
-      # Placeholder for the name of a trust framework (REQUIRED)
       - name: DOME
-        # Placeholder for trusted issuers list URL
+        # Leave empty to use local providers (classpath YAML files)
         trustedIssuersListUrl:
-        # Placeholder for trusted services list URL
         trustedServicesListUrl:
-        # Placeholder for revoked credentials list URL
-        revokedCredentialListUrl:
-

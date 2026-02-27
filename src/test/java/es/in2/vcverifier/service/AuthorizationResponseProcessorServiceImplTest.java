@@ -1,5 +1,6 @@
 package es.in2.vcverifier.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -7,6 +8,7 @@ import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
+import es.in2.vcverifier.config.BackendConfig;
 import es.in2.vcverifier.config.CacheStore;
 import es.in2.vcverifier.exception.JWTClaimMissingException;
 import es.in2.vcverifier.exception.JWTParsingException;
@@ -56,6 +58,9 @@ class AuthorizationResponseProcessorServiceImplTest {
     private VpService vpService;
 
     @Mock
+    private SdJwtVerificationService sdJwtVerificationService;
+
+    @Mock
     private RegisteredClientRepository registeredClientRepository;
 
     @Mock
@@ -68,6 +73,9 @@ class AuthorizationResponseProcessorServiceImplTest {
     private CacheStore<AuthorizationCodeData> cacheStoreForAuthorizationCodeData;
 
     @Mock
+    private BackendConfig backendConfig;
+
+    @Mock
     private AuthorizationResponseProcessorServiceImpl authorizationResponseProcessorService;
 
     @BeforeEach
@@ -76,11 +84,15 @@ class AuthorizationResponseProcessorServiceImplTest {
                 cacheStoreForOAuth2AuthorizationRequest,
                 cacheStoreForAuthorizationCodeData,
                 vpService,
+                sdJwtVerificationService,
+                new ObjectMapper(),
                 registeredClientRepository,
                 oAuth2AuthorizationService,
                 messagingTemplate,
-                cacheForNonceByState // aquí se pasa el correcto
+                cacheForNonceByState,
+                backendConfig
         );
+        lenient().when(backendConfig.getUrl()).thenReturn("http://localhost:8080");
     }
 
 

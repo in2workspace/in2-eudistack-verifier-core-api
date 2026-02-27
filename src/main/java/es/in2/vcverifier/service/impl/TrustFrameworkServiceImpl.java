@@ -1,22 +1,10 @@
 package es.in2.vcverifier.service.impl;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.nimbusds.jwt.SignedJWT;
-import es.in2.vcverifier.config.BackendConfig;
-import es.in2.vcverifier.dto.CredentialStatusResponse;
 import es.in2.vcverifier.exception.*;
-import es.in2.vcverifier.model.ExternalTrustedListYamlData;
-import es.in2.vcverifier.model.RevokedCredentialIds;
 import es.in2.vcverifier.model.StatusListCredentialData;
-import es.in2.vcverifier.model.issuer.IssuerAttribute;
 import es.in2.vcverifier.model.issuer.IssuerCredentialsCapabilities;
-import es.in2.vcverifier.model.issuer.IssuerResponse;
-import es.in2.vcverifier.service.CertificateValidationService;
-import es.in2.vcverifier.service.StatusListCredentialService;
-import es.in2.vcverifier.service.TrustFrameworkService;
+import es.in2.vcverifier.service.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -28,12 +16,11 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.text.ParseException;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 
 @Service
@@ -41,97 +28,15 @@ import java.util.zip.GZIPInputStream;
 @Slf4j
 public class TrustFrameworkServiceImpl implements TrustFrameworkService {
 
-    private final ObjectMapper objectMapper;
-    private final BackendConfig backendConfig;
-    private final ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+
     private final CertificateValidationService certificateValidationService;
     private final StatusListCredentialService statusListCredentialService;
-
-    @Override
-    public ExternalTrustedListYamlData fetchAllowedClient() {
-        try {
-            String clientsYaml = fetchRemoteFile(backendConfig.getClientsRepositoryUri());
-            return yamlMapper.readValue(clientsYaml, ExternalTrustedListYamlData.class);
-        } catch (IOException | InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new RemoteFileFetchException("Error reading clients list from GitHub.", e);
-        }
-    }
-
+    private final HttpClient httpClient;
+    private final TrustedIssuersProvider trustedIssuersProvider;
     @Override
     public List<IssuerCredentialsCapabilities> getTrustedIssuerListData(String id) {
-        try {
-            // Step 1: Send HTTP request to fetch issuer data
-            HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(backendConfig.getTrustedIssuerListUri() + id))
-                    .build();
-
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == 200) {
-                // Step 2: Map response to IssuerResponse object
-                IssuerResponse issuerResponse = objectMapper.readValue(response.body(), IssuerResponse.class);
-
-                // Step 3: Decode and map each attribute's body to IssuerCredentialsCapabilities
-                return issuerResponse.attributes().stream()
-                        .map(this::decodeAndMapIssuerAttributeBody)
-                        .toList();
-            } else if (response.statusCode() == 404) {
-                throw new IssuerNotAuthorizedException("Issuer with id: " + id + " not found.");
-            } else {
-                throw new IOException("Failed to fetch issuer data. Status code: " + response.statusCode());
-            }
-        } catch (IssuerNotAuthorizedException e) {
-            log.error("Issuer not found: {}", e.getMessage());
-            throw e;
-        } catch (IOException | InterruptedException e) {
-            log.error("Error fetching issuer data for id {}: {}", id, e.getMessage());
-            Thread.currentThread().interrupt();
-            throw new FailedCommunicationException("Error fetching issuer data");
-        }
-    }
-
-    // Legacy PlainListEntry status list data
-    // TODO remove once the last credential of this type expires in DOME.
-    public List<String> getCredentialStatusListData(String url) {
-        try {
-            // Step 1: Send HTTP request to fetch issuer data
-            HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .build();
-
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-            if (response.statusCode() == 200) {
-                return objectMapper.readValue(response.body(), new TypeReference<List<CredentialStatusResponse>>() {})
-                        .stream()
-                        .map(CredentialStatusResponse::credentialNonce)
-                        .collect(Collectors.toList());
-            } else if (response.statusCode() == 404) {
-                throw new IOException("Credential List with url: " + url + " not found.");
-            } else {
-                throw new IOException("Failed to fetch credential data. Status code: " + response.statusCode());
-            }
-        } catch (IOException | InterruptedException e) {
-            log.error("Error fetching credential status data for url {}: {}", url, e.getMessage());
-            Thread.currentThread().interrupt();
-            throw new FailedCommunicationException("Error fetching credential status data");
-        }
-    }
-
-    @Override
-    public List<String> getRevokedCredentialIds() {
-        try {
-            String revokedCredentialIdsYaml = fetchRemoteFile(backendConfig.getRevocationListUri());
-            RevokedCredentialIds revokedCredentialIds = yamlMapper.readValue(revokedCredentialIdsYaml, RevokedCredentialIds.class);
-            return revokedCredentialIds.revokedCredentials();
-        } catch (IOException | InterruptedException e) {
-            log.error("Error fetching revoked credential IDs from URI {}: {}", backendConfig.getRevocationListUri(), e.getMessage());
-            Thread.currentThread().interrupt();
-            throw new FailedCommunicationException("Error fetching revoked credential IDs: " + e.getMessage());
-        }
+        return trustedIssuersProvider.getIssuerCapabilities(id);
     }
 
     @Override
@@ -182,33 +87,6 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
         return isRevoked;
     }
 
-
-    // Helper method to decode Base64 and map to IssuerCredentialsCapabilities
-    private IssuerCredentialsCapabilities decodeAndMapIssuerAttributeBody(IssuerAttribute issuerAttribute) {
-        try {
-            // Decode the Base64 body
-            String decodedBody = new String(Base64.getDecoder().decode(issuerAttribute.body()), StandardCharsets.UTF_8);
-
-            // Map the decoded string to IssuerCredentialsCapabilities
-            return objectMapper.readValue(decodedBody, IssuerCredentialsCapabilities.class);
-        } catch (IOException e) {
-            log.error("Failed to decode and map issuer attribute body: {}", e.getMessage());
-            throw new JsonConversionException("Failed to decode and map issuer attribute body");
-        }
-    }
-
-    private String fetchRemoteFile(String fileUrl) throws IOException, InterruptedException {
-        HttpClient client = HttpClient.newHttpClient();
-        HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(fileUrl))
-                .build();
-        HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-        if (response.statusCode() == 200) {
-            return response.body();
-        } else {
-            throw new RemoteFileFetchException("Failed to fetch file from GitHub. Status code: " + response.statusCode());
-        }
-    }
 
     private byte[] gunzip(byte[] input) {
         try (ByteArrayInputStream bais = new ByteArrayInputStream(input);
@@ -274,16 +152,16 @@ public class TrustFrameworkServiceImpl implements TrustFrameworkService {
     }
 
     private String fetchStatusListCredentialJwt(String statusListCredentialUrl) {
-        final HttpClient client = HttpClient.newHttpClient();
         final HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(statusListCredentialUrl))
                 .header("Accept", "application/vc+jwt")
+                .timeout(REQUEST_TIMEOUT)
                 .GET()
                 .build();
 
         final HttpResponse<String> response;
         try {
-            response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new FailedCommunicationException(

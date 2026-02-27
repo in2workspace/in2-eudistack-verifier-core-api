@@ -14,20 +14,18 @@ import java.util.NoSuchElementException;
 @ConfigurationProperties(prefix = "verifier.backend")
 public record BackendProperties(
         @NotBlank @URL String url,
-        @NotNull Identity identity,
+        Identity identity,
         @NotNull @Valid List<TrustFramework> trustFrameworks
 ) {
 
     public record Identity(
-            @NotBlank String didKey,
-            @NotBlank String privateKey,
-            @NotBlank String verifiableCredential) {}
+            String didKey,
+            String privateKey) {}
 
     public record TrustFramework(
             @NotBlank String name,
-            @NotBlank @URL String trustedIssuersListUrl,
-            @NotBlank @URL String trustedServicesListUrl,
-            @NotBlank @URL String revokedCredentialListUrl
+            String trustedIssuersListUrl,
+            String trustedServicesListUrl
     ) {}
 
     // TODO: this is temporary while VCVerifier can handle only one trustFramework

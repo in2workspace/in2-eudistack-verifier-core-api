@@ -17,15 +17,21 @@ public class BackendConfig {
     }
 
     public String getPrivateKey() {
-        String privateKey = properties.identity().privateKey();
-        if (privateKey.startsWith("0x")) {
+        String privateKey = properties.identity() != null ? properties.identity().privateKey() : null;
+        if (privateKey != null && privateKey.startsWith("0x")) {
             privateKey = privateKey.substring(2);
         }
         return privateKey;
     }
 
     public String getDidKey() {
-        return properties.identity().didKey();
+        return properties.identity() != null ? properties.identity().didKey() : null;
+    }
+
+    public boolean hasIdentityConfigured() {
+        return properties.identity() != null
+                && properties.identity().privateKey() != null
+                && !properties.identity().privateKey().isBlank();
     }
 
     private BackendProperties.TrustFramework getSelectedTrustFramework() {
@@ -38,10 +44,6 @@ public class BackendConfig {
 
     public String getClientsRepositoryUri() {
         return getSelectedTrustFramework().trustedServicesListUrl();
-    }
-
-    public String getRevocationListUri() {
-        return getSelectedTrustFramework().revokedCredentialListUrl();
     }
 
     // todo currently unused, will be used when Verifier can manage multiple trustframeworks

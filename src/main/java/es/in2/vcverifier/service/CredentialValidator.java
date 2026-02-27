@@ -1,0 +1,11 @@
+package es.in2.vcverifier.service;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import es.in2.vcverifier.model.validation.ValidationResult;
+
+/**
+ * Validates a credential's structure against its JSON Schema.
+ */
+public interface CredentialValidator {
+    ValidationResult validate(JsonNode credential);
+}

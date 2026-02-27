@@ -37,10 +37,6 @@ class BackendConfigTest {
         assertThat(backendConfig.getClientsRepositoryUri())
                 .as("Clients Repository URI should match")
                 .isEqualTo("https://raw.githubusercontent.com/in2workspace/in2-dome-gitops/refs/heads/main/trust-framework/trusted_services_list.yaml");
-
-        assertThat(backendConfig.getRevocationListUri())
-                .as("Revocation List URI should match")
-                .isEqualTo("https://raw.githubusercontent.com/in2workspace/in2-dome-gitops/refs/heads/main/trust-framework/revoked_credential_list.yaml");
     }
 
     @Configuration

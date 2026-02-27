@@ -1,7 +1,6 @@
 package es.in2.vcverifier.security.filters;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.Payload;
 import com.nimbusds.jwt.SignedJWT;
 import es.in2.vcverifier.config.CacheStore;
@@ -9,9 +8,6 @@ import es.in2.vcverifier.exception.InvalidCredentialTypeException;
 import es.in2.vcverifier.exception.UnsupportedGrantTypeException;
 import es.in2.vcverifier.model.AuthorizationCodeData;
 import es.in2.vcverifier.model.RefreshTokenDataCache;
-import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachine;
-import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachineV1;
-import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachineV2;
 import es.in2.vcverifier.model.enums.LEARCredentialType;
 import es.in2.vcverifier.service.ClientAssertionValidationService;
 import es.in2.vcverifier.service.JWTService;
@@ -33,12 +29,12 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static es.in2.vcverifier.util.Constants.LEAR_CREDENTIAL_MACHINE_V2_CONTEXT;
 import static org.springframework.security.oauth2.core.oidc.IdTokenClaimNames.NONCE;
 
 @Slf4j
@@ -49,7 +45,6 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
     private final ClientAssertionValidationService clientAssertionValidationService;
     private final VpService vpService;
     private final CacheStore<AuthorizationCodeData> cacheStoreForAuthorizationCodeData;
-    private final ObjectMapper objectMapper;
     private final CacheStore<RefreshTokenDataCache> refreshTokenDataCacheCacheStore;
 
     @Override
@@ -58,7 +53,9 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
         MultiValueMap<String, String> parameters = getParameters(request);
         // grant_type (REQUIRED)
         String grantType = parameters.getFirst(OAuth2ParameterNames.GRANT_TYPE);
-        assert grantType != null;
+        if (grantType == null) {
+            throw new UnsupportedGrantTypeException("The grant_type parameter is required");
+        }
         return switch (grantType) {
             case "authorization_code" -> handleAuthorizationCodeGrant(parameters);
             case "client_credentials" -> handleClientCredentialsGrant(parameters);
@@ -152,15 +149,8 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
 
         // Check if VC is LEARCredentialMachine Type
         JsonNode vc = vpService.getCredentialFromTheVerifiablePresentationAsJsonNode(decodedVpToken);
-        List<String> contexts = vpService.extractContextFromJson(vc);
-        LEARCredentialMachine learCredentialMachine;
-        if(contexts.equals(LEAR_CREDENTIAL_MACHINE_V2_CONTEXT)){
-            learCredentialMachine = objectMapper.convertValue(vc, LEARCredentialMachineV2.class);
-        } else {
-            learCredentialMachine = objectMapper.convertValue(vc, LEARCredentialMachineV1.class);
-        }
 
-        List<String> types = learCredentialMachine.type();
+        List<String> types = extractTypes(vc);
         if (!types.contains(LEARCredentialType.LEAR_CREDENTIAL_MACHINE.getValue())){
             log.error("CustomTokenRequestConverter -- handleClientCredentialsGrant-- LEARCredentialType Expected: {}", LEARCredentialType.LEAR_CREDENTIAL_MACHINE.getValue());
             throw new InvalidCredentialTypeException("Invalid LEARCredentialType. Expected LEARCredentialMachine");
@@ -212,6 +202,18 @@ public class CustomTokenRequestConverter implements AuthenticationConverter {
         return new OAuth2RefreshTokenAuthenticationToken(refreshTokenValue, clientPrincipal, null, additionalParameters);
     }
 
+
+    private static List<String> extractTypes(JsonNode vc) {
+        JsonNode typeNode = vc.get("type");
+        if (typeNode == null || !typeNode.isArray()) {
+            return List.of();
+        }
+        List<String> types = new ArrayList<>();
+        for (JsonNode t : typeNode) {
+            types.add(t.asText());
+        }
+        return types;
+    }
 
     private static MultiValueMap<String, String> getParameters(HttpServletRequest request) {
         Map<String, String[]> parameterMap = request.getParameterMap();

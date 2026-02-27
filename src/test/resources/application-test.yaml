@@ -10,27 +10,16 @@ verifier:
       secondary: "#00ADD3"
       secondaryContrast: "#000000"
     assets:
-      # Base URL for images (REQUIRED)
-      baseUrl: "https://cdn.example.com/assets"
-      # Placeholder for logo source path (REQUIRED)
-      logoPath: "logo.png"
-      # Placeholder for favicon source path (OPTIONAL)
-      faviconPath: "favicon.ico"
-    defaultLang: "en"
+      baseUrl: https://cdn.example.com/assets
+      logoPath: logo.png
+      faviconPath: favicon.ico
+    defaultLang: en
   backend:
-    # Placeholder for backend URL (REQUIRED)
-    url: "https://raw.githubusercontent.com"
+    url: https://raw.githubusercontent.com
     identity:
-      # Placeholder for private key used in identity verification (REQUIRED)
-      didKey: "did:key"
+      didKey: did:key:zDnaeTest
       privateKey: "0x73e509a7681d4a395b1ced75681c4dc4020dbab02da868512276dd766733d5b5"
-      verifiableCredential: "verifiableCredential"
     trustFrameworks:
-      # Placeholder for the name of a trust framework (REQUIRED)
       - name: DOME
-        # Placeholder for trusted issuers list URL
-        trustedIssuersListUrl: "https://raw.githubusercontent.com"
-        # Placeholder for trusted services list URL
-        trustedServicesListUrl: "https://raw.githubusercontent.com/in2workspace/in2-dome-gitops/refs/heads/main/trust-framework/trusted_services_list.yaml"
-        # Placeholder for revoked credentials list URL
-        revokedCredentialListUrl: "https://raw.githubusercontent.com/in2workspace/in2-dome-gitops/refs/heads/main/trust-framework/revoked_credential_list.yaml"
+        trustedIssuersListUrl: https://raw.githubusercontent.com
+        trustedServicesListUrl: https://raw.githubusercontent.com/in2workspace/in2-dome-gitops/refs/heads/main/trust-framework/trusted_services_list.yaml

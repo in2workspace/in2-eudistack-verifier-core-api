@@ -1,28 +1,29 @@
 package es.in2.vcverifier.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import es.in2.vcverifier.config.BackendConfig;
-import es.in2.vcverifier.dto.CredentialStatusResponse;
-import es.in2.vcverifier.model.ExternalTrustedListYamlData;
-import es.in2.vcverifier.model.issuer.IssuerAttribute;
+import com.nimbusds.jose.JWSAlgorithm;
+import com.nimbusds.jose.JWSHeader;
+import com.nimbusds.jose.JWSObject;
+import com.nimbusds.jose.Payload;
+import com.nimbusds.jwt.JWTClaimsSet;
+import com.nimbusds.jwt.SignedJWT;
+import es.in2.vcverifier.exception.CredentialException;
+import es.in2.vcverifier.exception.FailedCommunicationException;
+import es.in2.vcverifier.model.StatusListCredentialData;
 import es.in2.vcverifier.model.issuer.IssuerCredentialsCapabilities;
-import es.in2.vcverifier.model.issuer.IssuerResponse;
 import es.in2.vcverifier.service.impl.TrustFrameworkServiceImpl;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentMatchers;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.io.IOException;
 import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
@@ -34,133 +35,278 @@ class TrustFrameworkServiceImpTest {
     private TrustFrameworkServiceImpl trustFrameworkService;
 
     @Mock
-    private ObjectMapper objectMapper;
+    private CertificateValidationService certificateValidationService;
 
     @Mock
-    private BackendConfig backendConfig;
+    private StatusListCredentialService statusListCredentialService;
 
     @Mock
-    HttpResponse<String> httpResponse;
+    private HttpClient httpClient;
 
     @Mock
-    HttpClient mockClient;
+    private TrustedIssuersProvider trustedIssuersProvider;
 
-    @BeforeEach
-    void mockreset(){
-        reset(objectMapper);
-    }
+    // --- getTrustedIssuerListData ---
 
     @Test
-    void shouldReturnListOfNonces_whenStatusCodeIs200() throws Exception {
-        // Given
-        String url = "https://example.com/credential-status";
-        String responseBody = "[{\"nonce\": \"abc\"}, {\"nonce\": \"def\"}]";
-
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(responseBody);
-
-        // Simular cliente HTTP estático
-        try (MockedStatic<HttpClient> mockedHttpClient = mockStatic(HttpClient.class)) {
-            mockedHttpClient.when(HttpClient::newHttpClient).thenReturn(mockClient);
-            when(mockClient.send(any(), eq(HttpResponse.BodyHandlers.ofString()))).thenReturn(httpResponse);
-
-            List<CredentialStatusResponse> mockList = List.of(
-                    new CredentialStatusResponse("abc"),
-                    new CredentialStatusResponse("def")
-            );
-            when(objectMapper.readValue(eq(responseBody), ArgumentMatchers.<TypeReference<List<CredentialStatusResponse>>>any())).thenReturn(mockList);
-
-            // When
-            List<String> result = trustFrameworkService.getCredentialStatusListData(url);
-
-            // Then
-            assertEquals(List.of("abc", "def"), result);
-        }
-    }
-
-    @Test
-    void shouldReturnListOfIssuerCredentialsCapabilities_whenStatusCodeIs200() throws Exception {
-        // Given
+    void shouldReturnListOfIssuerCredentialsCapabilities_whenProviderReturnsData() {
         String id = "issuer-id";
-        String responseBody = "[{\"nonce\": \"abc\"}, {\"nonce\": \"def\"}]";
-        when(httpResponse.statusCode()).thenReturn(200);
-        when(httpResponse.body()).thenReturn(responseBody);
-        when(backendConfig.getTrustedIssuerListUri()).thenReturn("https://test.com/clients.yaml");
+        List<IssuerCredentialsCapabilities> expectedCapabilities = List.of(
+                IssuerCredentialsCapabilities.builder()
+                        .credentialsType("SomeType")
+                        .build()
+        );
+        when(trustedIssuersProvider.getIssuerCapabilities(id)).thenReturn(expectedCapabilities);
 
-        try (MockedStatic<HttpClient> mockedHttpClient = mockStatic(HttpClient.class)) {
-            mockedHttpClient.when(HttpClient::newHttpClient).thenReturn(mockClient);
-            when(mockClient.send(any(), eq(HttpResponse.BodyHandlers.ofString()))).thenReturn(httpResponse);
+        List<IssuerCredentialsCapabilities> result = trustFrameworkService.getTrustedIssuerListData(id);
 
-            IssuerAttribute attribute = IssuerAttribute.builder()
-                    .body("eyJ0eXBlIjoiU29tZVR5cGUifQ==")
-                    .hash("hash1")
-                    .issuerType("type1")
-                    .build();
-
-            IssuerResponse issuerResponse = IssuerResponse.builder()
-                    .did("did:example:123")
-                    .attributes(List.of(attribute))
-                    .build();
-
-            IssuerCredentialsCapabilities expectedCapability = IssuerCredentialsCapabilities.builder()
-                    .credentialsType("SomeType")
-                    .build();
-
-            when(objectMapper.readValue(eq(responseBody), eq(IssuerResponse.class))).thenReturn(issuerResponse);
-            when(objectMapper.readValue(eq("{\"type\":\"SomeType\"}"), eq(IssuerCredentialsCapabilities.class)))
-                    .thenReturn(expectedCapability);
-
-            // When
-            List<IssuerCredentialsCapabilities> result = trustFrameworkService.getTrustedIssuerListData(id);
-
-            // Then
-            assertEquals(1, result.size());
-            assertEquals("SomeType", result.get(0).credentialsType());
-        }
-    }
-
-
-    @Test
-    void shouldReturnListOfRevokedCredentialIds_whenYamlIsValid() throws Exception {
-        // Given
-        String yamlResponse =  "revoked_credentials:\n  - id1\n  - id2";
-        when(backendConfig.getRevocationListUri()).thenReturn("https://test.com/clients.yaml");
-
-        try (MockedStatic<HttpClient> mockedHttpClient = mockStatic(HttpClient.class)) {
-            mockedHttpClient.when(HttpClient::newHttpClient).thenReturn(mockClient);
-            when(httpResponse.statusCode()).thenReturn(200);
-            when(httpResponse.body()).thenReturn(yamlResponse);
-            when(mockClient.send(any(), eq(HttpResponse.BodyHandlers.ofString()))).thenReturn(httpResponse);
-
-            // When
-            List<String> result = trustFrameworkService.getRevokedCredentialIds();
-
-            // Then
-            assertEquals(List.of("id1", "id2"), result);
-        }
+        assertEquals(1, result.size());
+        assertEquals("SomeType", result.get(0).credentialsType());
+        verify(trustedIssuersProvider).getIssuerCapabilities(id);
     }
 
     @Test
-    void shouldReturnExternalTrustedList_whenYamlFetchedSuccessfully() throws Exception {
-        // Given
-        String yamlResponse = "clients: []";
-        ExternalTrustedListYamlData mockTrustedList = new ExternalTrustedListYamlData(List.of());
-        when(backendConfig.getClientsRepositoryUri()).thenReturn("https://test.com/clients.yaml");
+    void shouldReturnEmptyList_whenProviderReturnsEmpty() {
+        when(trustedIssuersProvider.getIssuerCapabilities("unknown")).thenReturn(List.of());
 
-        try (MockedStatic<HttpClient> mockedHttpClient = mockStatic(HttpClient.class)) {
-            mockedHttpClient.when(HttpClient::newHttpClient).thenReturn(mockClient);
-            when(httpResponse.statusCode()).thenReturn(200);
-            when(httpResponse.body()).thenReturn(yamlResponse);
-            when(mockClient.send(any(), eq(HttpResponse.BodyHandlers.ofString()))).thenReturn(httpResponse);
+        List<IssuerCredentialsCapabilities> result = trustFrameworkService.getTrustedIssuerListData("unknown");
 
-            // When
-            ExternalTrustedListYamlData result = trustFrameworkService.fetchAllowedClient();
-
-            // Then
-            assertEquals(mockTrustedList, result);
-        }
+        assertTrue(result.isEmpty());
     }
 
+    // --- isCredentialRevokedInBitstringStatusList: input validation ---
 
+    @Test
+    void isCredentialRevoked_invalidStatusListIndex_throwsCredentialException() {
+        assertThrows(CredentialException.class,
+                () -> trustFrameworkService.isCredentialRevokedInBitstringStatusList(
+                        "https://example.com/status", "not-a-number", "revocation"));
+    }
 
+    @Test
+    void isCredentialRevoked_negativeIndex_throwsCredentialException() {
+        assertThrows(CredentialException.class,
+                () -> trustFrameworkService.isCredentialRevokedInBitstringStatusList(
+                        "https://example.com/status", "-1", "revocation"));
+    }
+
+    // --- isCredentialRevokedInBitstringStatusList: HTTP failures ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void isCredentialRevoked_httpReturns404_throwsFailedCommunication() throws Exception {
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(404);
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResponse);
+
+        assertThrows(FailedCommunicationException.class,
+                () -> trustFrameworkService.isCredentialRevokedInBitstringStatusList(
+                        "https://example.com/status", "0", "revocation"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void isCredentialRevoked_httpReturns500_throwsFailedCommunication() throws Exception {
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(500);
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResponse);
+
+        assertThrows(FailedCommunicationException.class,
+                () -> trustFrameworkService.isCredentialRevokedInBitstringStatusList(
+                        "https://example.com/status", "0", "revocation"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void isCredentialRevoked_httpThrowsIOException_throwsFailedCommunication() throws Exception {
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenThrow(new IOException("connection refused"));
+
+        assertThrows(FailedCommunicationException.class,
+                () -> trustFrameworkService.isCredentialRevokedInBitstringStatusList(
+                        "https://example.com/status", "0", "revocation"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void isCredentialRevoked_httpThrowsInterruptedException_throwsFailedCommunication() throws Exception {
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenThrow(new InterruptedException("interrupted"));
+
+        assertThrows(FailedCommunicationException.class,
+                () -> trustFrameworkService.isCredentialRevokedInBitstringStatusList(
+                        "https://example.com/status", "0", "revocation"));
+    }
+
+    // --- isCredentialRevokedInBitstringStatusList: JWT parse failure ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void isCredentialRevoked_invalidJwt_throwsCredentialException() throws Exception {
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.body()).thenReturn("not-a-jwt");
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResponse);
+
+        assertThrows(CredentialException.class,
+                () -> trustFrameworkService.isCredentialRevokedInBitstringStatusList(
+                        "https://example.com/status", "0", "revocation"));
+    }
+
+    // --- isCredentialRevokedInBitstringStatusList: index out of range ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void isCredentialRevoked_indexOutOfRange_throwsCredentialException() throws Exception {
+        // Build a minimal valid-looking JWT string (header.payload.signature)
+        String jwtString = buildMinimalJwtString("did:elsi:VATES-12345");
+
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.body()).thenReturn(jwtString);
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResponse);
+
+        // Certificate validation passes
+        doNothing().when(certificateValidationService)
+                .extractAndVerifyCertificate(any(), any(), any());
+
+        byte[] rawBytes = new byte[]{(byte) 0xFF}; // 8 bits
+        StatusListCredentialData statusData = new StatusListCredentialData(
+                "did:elsi:VATES-12345", "revocation", rawBytes);
+
+        when(statusListCredentialService.parse(any(SignedJWT.class))).thenReturn(statusData);
+        doNothing().when(statusListCredentialService).validateStatusPurposeMatches(any(), any());
+        when(statusListCredentialService.maxBits(any())).thenReturn(8);
+
+        // Index 100 is out of range for 8-bit bitstring
+        assertThrows(CredentialException.class,
+                () -> trustFrameworkService.isCredentialRevokedInBitstringStatusList(
+                        "https://example.com/status", "100", "revocation"));
+    }
+
+    // --- isCredentialRevokedInBitstringStatusList: happy path (revoked) ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void isCredentialRevoked_bitIsSet_returnsTrue() throws Exception {
+        String jwtString = buildMinimalJwtString("did:elsi:VATES-12345");
+
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.body()).thenReturn(jwtString);
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResponse);
+
+        doNothing().when(certificateValidationService)
+                .extractAndVerifyCertificate(any(), any(), any());
+
+        byte[] rawBytes = new byte[]{(byte) 0xFF};
+        StatusListCredentialData statusData = new StatusListCredentialData(
+                "did:elsi:VATES-12345", "revocation", rawBytes);
+
+        when(statusListCredentialService.parse(any(SignedJWT.class))).thenReturn(statusData);
+        doNothing().when(statusListCredentialService).validateStatusPurposeMatches(any(), any());
+        when(statusListCredentialService.maxBits(any())).thenReturn(8);
+        when(statusListCredentialService.isBitSet(any(), eq(3))).thenReturn(true);
+
+        boolean result = trustFrameworkService.isCredentialRevokedInBitstringStatusList(
+                "https://example.com/status", "3", "revocation");
+
+        assertTrue(result);
+    }
+
+    // --- isCredentialRevokedInBitstringStatusList: happy path (not revoked) ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void isCredentialRevoked_bitNotSet_returnsFalse() throws Exception {
+        String jwtString = buildMinimalJwtString("did:elsi:VATES-12345");
+
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.body()).thenReturn(jwtString);
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResponse);
+
+        doNothing().when(certificateValidationService)
+                .extractAndVerifyCertificate(any(), any(), any());
+
+        byte[] rawBytes = new byte[]{0x00};
+        StatusListCredentialData statusData = new StatusListCredentialData(
+                "did:elsi:VATES-12345", "revocation", rawBytes);
+
+        when(statusListCredentialService.parse(any(SignedJWT.class))).thenReturn(statusData);
+        doNothing().when(statusListCredentialService).validateStatusPurposeMatches(any(), any());
+        when(statusListCredentialService.maxBits(any())).thenReturn(8);
+        when(statusListCredentialService.isBitSet(any(), eq(3))).thenReturn(false);
+
+        boolean result = trustFrameworkService.isCredentialRevokedInBitstringStatusList(
+                "https://example.com/status", "3", "revocation");
+
+        assertFalse(result);
+    }
+
+    // --- isCredentialRevoked: missing issuer in JWT ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void isCredentialRevoked_missingIssuerClaim_throwsCredentialException() throws Exception {
+        // JWT without "issuer" claim
+        String jwtString = buildMinimalJwtString(null);
+
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.body()).thenReturn(jwtString);
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResponse);
+
+        assertThrows(CredentialException.class,
+                () -> trustFrameworkService.isCredentialRevokedInBitstringStatusList(
+                        "https://example.com/status", "0", "revocation"));
+    }
+
+    // --- isCredentialRevoked: non-did:elsi issuer ---
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void isCredentialRevoked_unsupportedIssuerDid_throwsCredentialException() throws Exception {
+        String jwtString = buildMinimalJwtString("did:key:z123abc");
+
+        HttpResponse<String> mockResponse = mock(HttpResponse.class);
+        when(mockResponse.statusCode()).thenReturn(200);
+        when(mockResponse.body()).thenReturn(jwtString);
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenReturn(mockResponse);
+
+        assertThrows(CredentialException.class,
+                () -> trustFrameworkService.isCredentialRevokedInBitstringStatusList(
+                        "https://example.com/status", "0", "revocation"));
+    }
+
+    // --- Helper: build a minimal unsigned JWT string for testing ---
+
+    private String buildMinimalJwtString(String issuerDid) {
+        try {
+            JWSHeader header = new JWSHeader.Builder(JWSAlgorithm.RS256)
+                    .build();
+            JWTClaimsSet.Builder claimsBuilder = new JWTClaimsSet.Builder();
+            if (issuerDid != null) {
+                claimsBuilder.claim("issuer", issuerDid);
+            }
+            // Create a JWSObject (unsigned) with a dummy signature for parsing
+            JWSObject jwsObject = new JWSObject(header, new Payload(claimsBuilder.build().toJSONObject()));
+            // We need a parseable JWT string - use base64url encoding manually
+            String headerB64 = jwsObject.getHeader().toBase64URL().toString();
+            String payloadB64 = jwsObject.getPayload().toBase64URL().toString();
+            // Dummy signature (will fail verification but parses fine)
+            String sigB64 = "dummysig";
+            return headerB64 + "." + payloadB64 + "." + sigB64;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to build test JWT", e);
+        }
+    }
 }

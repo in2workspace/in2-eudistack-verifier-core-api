@@ -1,12 +1,17 @@
 package es.in2.vcverifier.service.impl;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jwt.SignedJWT;
+import es.in2.vcverifier.config.BackendConfig;
 import es.in2.vcverifier.config.CacheStore;
 import es.in2.vcverifier.exception.JWTClaimMissingException;
 import es.in2.vcverifier.exception.JWTParsingException;
 import es.in2.vcverifier.exception.LoginTimeoutException;
 import es.in2.vcverifier.model.AuthorizationCodeData;
+import es.in2.vcverifier.model.sdjwt.SdJwtVerificationResult;
 import es.in2.vcverifier.service.AuthorizationResponseProcessorService;
+import es.in2.vcverifier.service.SdJwtVerificationService;
 import es.in2.vcverifier.service.VpService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -43,11 +48,14 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
 
     private final CacheStore<OAuth2AuthorizationRequest> cacheStoreForOAuth2AuthorizationRequest;
     private final CacheStore<AuthorizationCodeData> cacheStoreForAuthorizationCodeData;
-    private final VpService vpService; // Service responsible for VP validation
+    private final VpService vpService;
+    private final SdJwtVerificationService sdJwtVerificationService;
+    private final ObjectMapper objectMapper;
     private final RegisteredClientRepository registeredClientRepository;
     private final OAuth2AuthorizationService oAuth2AuthorizationService;
     private final SimpMessagingTemplate messagingTemplate;
     private final CacheStore<String> cacheForNonceByState;
+    private final BackendConfig backendConfig;
 
     @Override
     public void processAuthResponse(String state, String vpToken){
@@ -73,19 +81,30 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
         String redirectUri = oAuth2AuthorizationRequest.getRedirectUri();
         // Decode vpToken from Base64
         String decodedVpToken = new String(Base64.getDecoder().decode(vpToken), StandardCharsets.UTF_8);
-        log.info("Decoded VP Token: {}", decodedVpToken);
+        log.info("Decoded VP Token (format={})", isSdJwt(decodedVpToken) ? "sd-jwt" : "jwt");
 
-        // Validates the 'nonce' and 'aud' claims from the VP token against the cached state
-        validateVpTokenNonceAndAudience(decodedVpToken, state);
-
-        // Send the decoded token to a service for validation
-        try{
-            vpService.validateVerifiablePresentation(decodedVpToken);
-        }catch(Exception e){
-            log.error("VP Token is invalid - VP Token used in H2M flow is invalid");
-            throw e;
+        // Validate and extract credential based on format
+        JsonNode credentialJson;
+        if (isSdJwt(decodedVpToken)) {
+            // SD-JWT VC path: nonce/aud validation is done inside KB-JWT verification
+            String cachedNonce = cacheForNonceByState.get(state);
+            String expectedAud = backendConfig.getUrl();
+            SdJwtVerificationResult result = sdJwtVerificationService.verifyPresentation(
+                    decodedVpToken, expectedAud, cachedNonce);
+            credentialJson = objectMapper.valueToTree(result.resolvedClaims());
+            log.info("SD-JWT VC validated successfully. vct={}", result.vct());
+        } else {
+            // JWT VP path (existing logic, unchanged)
+            validateVpTokenNonceAndAudience(decodedVpToken, state);
+            try {
+                vpService.validateVerifiablePresentation(decodedVpToken);
+            } catch (Exception e) {
+                log.error("VP Token is invalid - VP Token used in H2M flow is invalid");
+                throw e;
+            }
+            credentialJson = vpService.getCredentialFromTheVerifiablePresentationAsJsonNode(decodedVpToken);
+            log.info("JWT VP Token validated successfully");
         }
-        log.info("VP Token validated successfully");
 
         // Generate a code (code)
         String code = UUID.randomUUID().toString();
@@ -133,7 +152,7 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
         // Create a builder
         AuthorizationCodeData.AuthorizationCodeDataBuilder authCodeDataBuilder = AuthorizationCodeData.builder()
                 .state(state)
-                .verifiableCredential(vpService.getCredentialFromTheVerifiablePresentationAsJsonNode(decodedVpToken))
+                .verifiableCredential(credentialJson)
                 .oAuth2Authorization(authorization)
                 .requestedScopes(oAuth2AuthorizationRequest.getScopes());
 
@@ -160,6 +179,10 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
     }
 
 
+    private boolean isSdJwt(String token) {
+        return token != null && token.contains("~");
+    }
+
     private void validateVpTokenNonceAndAudience(String decodedVpToken, String state) {
         if (state == null || state.isBlank()) {
             throw new JWTClaimMissingException("The 'state' claim is missing in the VP token.");
@@ -181,12 +204,11 @@ public class AuthorizationResponseProcessorServiceImpl implements AuthorizationR
             if (audiences == null || audiences.isEmpty()) {
                 throw new JWTClaimMissingException("The 'aud' claim is missing in the VP token.");
             }
-//            TODO This will be fixed with this wallet change
-//            String expectedAudience = backendConfig.getUrl();
-//            log.info("The aud expected is : {} and the aud recibed is: {}",audiences,expectedAudience);
-//            if (!audiences.contains(expectedAudience)) {
-//                throw new JWTClaimMissingException("The 'aud' claim in the VP token does not match the expected verifier URL.");
-//            }
+            String expectedAudience = backendConfig.getUrl();
+            log.debug("VP aud validation: expected={}, received={}", expectedAudience, audiences);
+            if (!audiences.contains(expectedAudience)) {
+                throw new JWTClaimMissingException("The 'aud' claim in the VP token does not match the expected verifier URL.");
+            }
             log.debug("Validated VP nonce: received={}, cached={}, audience={}", vpNonce, cachedNonce, audiences);
         } catch (ParseException e) {
             throw new JWTParsingException("Failed to parse the VP JWT or extract claims.");

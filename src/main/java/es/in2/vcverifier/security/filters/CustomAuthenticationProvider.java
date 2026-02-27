@@ -1,27 +1,15 @@
 package es.in2.vcverifier.security.filters;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jwt.JWTClaimsSet;
 import es.in2.vcverifier.config.BackendConfig;
 import es.in2.vcverifier.config.CacheStore;
-import es.in2.vcverifier.exception.InvalidCredentialTypeException;
 import es.in2.vcverifier.exception.JsonConversionException;
 import es.in2.vcverifier.model.RefreshTokenDataCache;
-import es.in2.vcverifier.model.credentials.lear.LEARCredential;
-import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployee;
-import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV1;
-import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV2;
-import es.in2.vcverifier.model.credentials.lear.employee.LEARCredentialEmployeeV3;
-import es.in2.vcverifier.model.credentials.lear.employee.subject.CredentialSubjectV2;
-import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.MandateV2;
-import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.mandatee.MandateeV2;
-import es.in2.vcverifier.model.credentials.lear.employee.subject.mandate.power.PowerV2;
-import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachineV1;
-import es.in2.vcverifier.model.credentials.lear.machine.LEARCredentialMachineV2;
-import es.in2.vcverifier.model.enums.LEARCredentialType;
+import es.in2.vcverifier.model.validation.ExtractedClaims;
+import es.in2.vcverifier.service.ClaimsExtractor;
 import es.in2.vcverifier.service.JWTService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -58,6 +46,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     private final ObjectMapper objectMapper;
     private final CacheStore<RefreshTokenDataCache> cacheStoreForRefreshTokenData;
     private final OAuth2AuthorizationService oAuth2AuthorizationService;
+    private final List<ClaimsExtractor> claimsExtractors;
 
     @Override
     public Authentication authenticate(Authentication authentication) throws AuthenticationException {
@@ -74,10 +63,9 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         log.info("Processing authorization grant");
 
         String clientId = getClientId(authentication);
-        log.debug("CustomAuthenticationProvider -- handleGrant -- Client ID obtained: {}", clientId);
+        log.debug("Client ID obtained: {}", clientId);
 
         RegisteredClient registeredClient = getRegisteredClient(clientId);
-        log.debug("CustomAuthenticationProvider -- handleGrant -- Registered client found: {}", registeredClient);
 
         if (authentication instanceof OAuth2AuthorizationCodeAuthenticationToken authCodeToken) {
             if (isPublicPkceClient(registeredClient)) {
@@ -92,21 +80,20 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                 Long.parseLong(ACCESS_TOKEN_EXPIRATION_TIME),
                 ChronoUnit.valueOf(ACCESS_TOKEN_EXPIRATION_CHRONO_UNIT)
         );
-        log.debug("CustomAuthenticationProvider -- handleGrant -- Issue time: {}, Expiration time: {}", issueTime, expirationTime);
 
         JsonNode credentialJson = getJsonCredential(authentication);
 
-        LEARCredential credential = getVerifiableCredential(authentication, credentialJson);
+        // Extract claims using the SPI chain (replaces all instanceof chains)
+        String credentialType = extractCredentialType(credentialJson);
+        ExtractedClaims extractedClaims = extractClaims(credentialType, credentialJson);
 
-        String subject = resolveCredentialSubjectDid(credential, credentialJson);
-        log.debug("CustomAuthenticationProvider -- handleGrant -- Credential subject obtained: {}", subject);
+        String subject = resolveSubjectDid(extractedClaims, credentialJson);
+        log.debug("Credential subject obtained: {}", subject);
 
-        String audience = getAudience(authentication, credential);
+        String audience = getAudience(authentication, credentialType);
+        log.debug("Audience for credential: {}", audience);
 
-        log.debug("CustomAuthenticationProvider -- handleGrant -- Audience for credential: {}", audience);
-
-        String jwtToken = generateAccessTokenWithVc(credential, issueTime, expirationTime, subject, audience);
-        log.debug("CustomAuthenticationProvider -- handleGrant -- Generated JWT token: {}", jwtToken);
+        String jwtToken = generateAccessTokenWithVc(credentialJson, extractedClaims, issueTime, expirationTime, subject, audience);
 
         OAuth2AccessToken oAuth2AccessToken = new OAuth2AccessToken(
                 OAuth2AccessToken.TokenType.BEARER,
@@ -124,7 +111,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         } else {
             additionalParameters = Map.of(
                     "id_token",
-                    generateIdToken(credential, subject, audience, authentication.getAdditionalParameters()));
+                    generateIdToken(credentialJson, extractedClaims, subject, audience, authentication.getAdditionalParameters()));
 
             oAuth2RefreshToken = getOAuth2RefreshToken(
                     authentication,
@@ -147,6 +134,144 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         return new OAuth2AccessTokenAuthenticationToken(registeredClient, authentication, oAuth2AccessToken, oAuth2RefreshToken, additionalParameters);
     }
 
+    private ExtractedClaims extractClaims(String credentialType, JsonNode credentialJson) {
+        for (ClaimsExtractor extractor : claimsExtractors) {
+            if (extractor.supports(credentialType)) {
+                return extractor.extract(credentialJson);
+            }
+        }
+        throw new OAuth2AuthenticationException(new OAuth2Error(
+                OAuth2ErrorCodes.INVALID_REQUEST,
+                "No claims extractor found for credential type: " + credentialType,
+                null));
+    }
+
+    private String extractCredentialType(JsonNode credentialJson) {
+        // W3C VCDM: type array
+        JsonNode typeNode = credentialJson.get("type");
+        if (typeNode != null && typeNode.isArray()) {
+            for (JsonNode t : typeNode) {
+                String type = t.asText();
+                if (!"VerifiableCredential".equals(type) && !"VerifiableAttestation".equals(type)) {
+                    return type;
+                }
+            }
+        }
+        // SD-JWT VC: vct claim
+        JsonNode vctNode = credentialJson.get("vct");
+        if (vctNode != null && vctNode.isTextual()) {
+            String vct = vctNode.asText();
+            if (vct.contains("LEARCredentialEmployee") || vct.contains("lear_credential_employee")) {
+                return "LEARCredentialEmployee";
+            }
+            if (vct.contains("LEARCredentialMachine") || vct.contains("lear_credential_machine")) {
+                return "LEARCredentialMachine";
+            }
+            return vct;
+        }
+        throw new OAuth2AuthenticationException(new OAuth2Error(
+                OAuth2ErrorCodes.INVALID_REQUEST,
+                "Cannot determine credential type from 'type' or 'vct' field",
+                null));
+    }
+
+    private String resolveSubjectDid(ExtractedClaims extractedClaims, JsonNode credentialJson) {
+        // Priority 1: from ClaimsExtractor
+        if (extractedClaims.subjectDid() != null && !extractedClaims.subjectDid().isBlank()) {
+            log.info("Subject DID resolved via ClaimsExtractor");
+            return extractedClaims.subjectDid();
+        }
+
+        // Priority 2: credentialSubject.id from JSON (fallback)
+        String csId = credentialJson.at("/credentialSubject/id").asText(null);
+        if (csId != null && !csId.isBlank()) {
+            log.info("Subject DID resolved via credentialSubject.id JSON path");
+            return csId;
+        }
+
+        // Priority 3: mandatee.id from JSON (legacy fallback)
+        String mandateeId = credentialJson.at("/credentialSubject/mandate/mandatee/id").asText(null);
+        if (mandateeId != null && !mandateeId.isBlank()) {
+            log.info("Subject DID resolved via mandatee.id JSON path");
+            return mandateeId;
+        }
+
+        log.error("[GRANT] Cannot resolve subject DID. Paths checked: extractedClaims, credentialSubject.id, mandatee.id");
+        throw new IllegalStateException("Missing cryptographic binding DID in credential");
+    }
+
+    private String getAudience(OAuth2AuthorizationGrantAuthenticationToken authentication, String credentialType) {
+        if ("LEARCredentialMachine".equals(credentialType)) {
+            return backendConfig.getUrl();
+        }
+        // For employee credentials, get audience from additional parameters
+        Map<String, Object> additionalParameters = authentication.getAdditionalParameters();
+        if (additionalParameters.containsKey(OAuth2ParameterNames.AUDIENCE)) {
+            return additionalParameters.get(OAuth2ParameterNames.AUDIENCE).toString();
+        }
+        log.error("Parameter 'audience' not found in additional parameters");
+        throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_REQUEST);
+    }
+
+    private String generateAccessTokenWithVc(JsonNode credentialJson, ExtractedClaims extractedClaims, Instant issueTime, Instant expirationTime, String subject, String audience) {
+        log.info("Generating access token with verifiableCredential");
+
+        Map<String, Object> credentialData = objectMapper.convertValue(credentialJson, new TypeReference<>() {});
+
+        JWTClaimsSet payload = new JWTClaimsSet.Builder()
+                .issuer(backendConfig.getUrl())
+                .audience(audience)
+                .subject(subject)
+                .jwtID(UUID.randomUUID().toString())
+                .issueTime(Date.from(issueTime))
+                .expirationTime(Date.from(expirationTime))
+                .claim(OAuth2ParameterNames.SCOPE, extractedClaims.scope())
+                .claim(CLIENT_ID, backendConfig.getUrl())
+                .claim("vc", credentialData)
+                .build();
+
+        return jwtService.generateJWT(payload.toString());
+    }
+
+    private String generateIdToken(JsonNode credentialJson, ExtractedClaims extractedClaims, String subject, String audience, Map<String, Object> additionalParameters) {
+        Instant issueTime = Instant.now();
+        Instant expirationTime = issueTime.plus(
+                Long.parseLong(ID_TOKEN_EXPIRATION_TIME),
+                ChronoUnit.valueOf(ID_TOKEN_EXPIRATION_CHRONO_UNIT)
+        );
+
+        String verifiableCredentialJson;
+        try {
+            verifiableCredentialJson = objectMapper.writeValueAsString(credentialJson);
+        } catch (Exception e) {
+            throw new JsonConversionException("Error converting Verifiable Credential to JSON: " + e.getMessage());
+        }
+
+        JWTClaimsSet.Builder idTokenClaimsBuilder = new JWTClaimsSet.Builder()
+                .subject(subject)
+                .issuer(backendConfig.getUrl())
+                .audience(audience)
+                .issueTime(Date.from(issueTime))
+                .expirationTime(Date.from(expirationTime))
+                .claim("auth_time", Date.from(issueTime))
+                .claim("acr", "0")
+                .claim("vc_json", verifiableCredentialJson);
+
+        // Add ID token claims from the extractor (name, email, etc.)
+        if (additionalParameters.containsKey(OAuth2ParameterNames.SCOPE)) {
+            extractedClaims.idTokenClaims().forEach(idTokenClaimsBuilder::claim);
+        }
+
+        if (additionalParameters.containsKey(NONCE)) {
+            idTokenClaimsBuilder.claim(NONCE, additionalParameters.get(NONCE));
+        }
+
+        JWTClaimsSet idTokenClaims = idTokenClaimsBuilder.build();
+        return jwtService.generateJWT(idTokenClaims.toString());
+    }
+
+    // --- Helper methods (unchanged) ---
+
     private boolean isPublicPkceClient(RegisteredClient rc) {
         if (rc == null) return false;
         boolean isPublic = rc.getClientAuthenticationMethods().size() == 1
@@ -154,7 +279,6 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         boolean requirePkce = rc.getClientSettings() != null && rc.getClientSettings().isRequireProofKey();
         return isPublic && requirePkce;
     }
-
 
     private void validateAuthorizationCodePkce(OAuth2AuthorizationCodeAuthenticationToken authCodeToken, String requestedClientId) {
         final String code = authCodeToken.getCode();
@@ -208,22 +332,17 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         }
     }
 
-
-
     private OAuth2RefreshToken getOAuth2RefreshToken(OAuth2AuthorizationGrantAuthenticationToken authentication, Instant issueTime, String clientId, JsonNode credentialJson, RegisteredClient registeredClient) {
-        OAuth2RefreshToken oAuth2RefreshToken;
-        oAuth2RefreshToken = generateRefreshToken(issueTime);
+        OAuth2RefreshToken oAuth2RefreshToken = generateRefreshToken(issueTime);
 
-        // Generate the data necessary to be able to refresh the token
         RefreshTokenDataCache refreshTokenDataCache = RefreshTokenDataCache.builder()
                 .refreshToken(oAuth2RefreshToken)
                 .clientId(clientId)
                 .verifiableCredential(credentialJson)
                 .build();
 
-        cacheStoreForRefreshTokenData.add(oAuth2RefreshToken.getTokenValue(),refreshTokenDataCache);
+        cacheStoreForRefreshTokenData.add(oAuth2RefreshToken.getTokenValue(), refreshTokenDataCache);
 
-        // Save the OAuth2Authorization
         OAuth2Authorization authorization = OAuth2Authorization.withRegisteredClient(registeredClient)
                 .id(registeredClient.getId())
                 .principalName(registeredClient.getClientId())
@@ -236,12 +355,11 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
     }
 
     private String getClientId(OAuth2AuthorizationGrantAuthenticationToken authentication) {
-        // Extract the client ID from the additional parameters
         Map<String, Object> additionalParameters = authentication.getAdditionalParameters();
         if (additionalParameters != null && additionalParameters.containsKey(OAuth2ParameterNames.CLIENT_ID)) {
             return additionalParameters.get(OAuth2ParameterNames.CLIENT_ID).toString();
         }
-        log.error("CustomAuthenticationProvider -- getClientId -- Client ID not found in additional parameters");
+        log.error("Client ID not found in additional parameters");
         throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_REQUEST);
     }
 
@@ -249,7 +367,7 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         log.info("Looking up registered client with Client ID: {}", clientId);
         RegisteredClient registeredClient = registeredClientRepository.findByClientId(clientId);
         if (registeredClient == null) {
-            log.error("CustomAuthenticationProvider -- getRegisteredClient -- Registered client not found for Client ID: {}", clientId);
+            log.error("Registered client not found for Client ID: {}", clientId);
             throw new OAuth2AuthenticationException(OAuth2ErrorCodes.UNAUTHORIZED_CLIENT);
         }
         return registeredClient;
@@ -263,272 +381,18 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
         return objectMapper.convertValue(additionalParameters.get("vc"), JsonNode.class);
     }
 
-    private LEARCredential getVerifiableCredential(OAuth2AuthorizationGrantAuthenticationToken authentication, JsonNode verifiableCredential) {
-        List<String> contextList = extractContextFromJson(verifiableCredential);
-        if (authentication instanceof OAuth2AuthorizationCodeAuthenticationToken ||
-                authentication instanceof OAuth2RefreshTokenAuthenticationToken) {
-
-            // Extract and validate the '@context' field from the JsonNode
-
-            if (contextList.equals(LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT)) {
-                return objectMapper.convertValue(verifiableCredential, LEARCredentialEmployeeV1.class);
-            } else if (contextList.equals(LEAR_CREDENTIAL_EMPLOYEE_V2_CONTEXT)) {
-                LEARCredentialEmployeeV2 learCredentialEmployeeV2 = objectMapper.convertValue(verifiableCredential, LEARCredentialEmployeeV2.class);
-                return normalizeLearCredentialEmployeeV2(learCredentialEmployeeV2);
-            } else if(contextList.equals(LEAR_CREDENTIAL_EMPLOYEE_V3_CONTEXT)){
-                return objectMapper.convertValue(verifiableCredential, LEARCredentialEmployeeV3.class);
-
-            }
-            else {
-                throw new OAuth2AuthenticationException(new OAuth2Error(
-                        OAuth2ErrorCodes.INVALID_REQUEST,
-                        "Unknown LEARCredentialEmployee version: " + contextList,
-                        null));
-            }
-        } else if (authentication instanceof OAuth2ClientCredentialsAuthenticationToken) {
-            if (contextList.equals(LEAR_CREDENTIAL_MACHINE_V2_CONTEXT)){
-                return objectMapper.convertValue(verifiableCredential, LEARCredentialMachineV2.class);
-            }else{
-                return objectMapper.convertValue(verifiableCredential, LEARCredentialMachineV1.class);
-            }
-        }
-        throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_REQUEST);
-    }
-
-
-    private List<String> extractContextFromJson(JsonNode verifiableCredential) {
-        JsonNode contextNode = verifiableCredential.get("@context");
-        if (contextNode == null || !contextNode.isArray()) {
-            throw new OAuth2AuthenticationException(new OAuth2Error(
-                    OAuth2ErrorCodes.INVALID_REQUEST,
-                    "'@context' field is missing or is not an array",
-                    null));
-        }
-
-        List<String> contextList = new ArrayList<>();
-        for (JsonNode node : contextNode) {
-            if (!node.isTextual()) {
-                throw new OAuth2AuthenticationException(new OAuth2Error(
-                        OAuth2ErrorCodes.INVALID_REQUEST,
-                        "Elements of '@context' must be strings",
-                        null));
-            }
-            contextList.add(node.asText());
-        }
-        return contextList;
-    }
-
-    private String getAudience(OAuth2AuthorizationGrantAuthenticationToken authentication, LEARCredential credential) {
-        // Extract the audience based on the type of credential
-        if (credential instanceof LEARCredentialMachineV1 || credential instanceof LEARCredentialMachineV2) {
-            return backendConfig.getUrl();
-        } else if (credential instanceof LEARCredentialEmployeeV1 || credential instanceof LEARCredentialEmployeeV2 || credential instanceof LEARCredentialEmployeeV3) {
-            // Get the audience from the additional parameters
-            Map<String, Object> additionalParameters = authentication.getAdditionalParameters();
-            if (additionalParameters.containsKey(OAuth2ParameterNames.AUDIENCE)) {
-                return additionalParameters.get(OAuth2ParameterNames.AUDIENCE).toString();
-            } else {
-                log.error("CustomAuthenticationProvider -- getAudience -- Parameter 'audience' not found in additional parameters");
-                throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_REQUEST);
-            }
-        }
-        throw new OAuth2AuthenticationException(OAuth2ErrorCodes.INVALID_REQUEST);
-    }
-
-    private String generateAccessTokenWithVc(LEARCredential learCredential, Instant issueTime, Instant expirationTime, String subject, String audience) {
-        log.info("Generating access token with verifiableCredential");
-
-        // Build the JWTClaimsSet builder
-        JWTClaimsSet.Builder claimsBuilder = new JWTClaimsSet.Builder()
-                .issuer(backendConfig.getUrl())
-                .audience(audience)
-                .subject(subject)
-                .jwtID(UUID.randomUUID().toString())
-                .issueTime(Date.from(issueTime))
-                .expirationTime(Date.from(expirationTime))
-                .claim(OAuth2ParameterNames.SCOPE, getScope(learCredential))
-                .claim(CLIENT_ID, backendConfig.getUrl());
-
-
-        List<String> credentialTypes = learCredential.type();
-        List<String> context = learCredential.context();
-        if (credentialTypes.contains(LEARCredentialType.LEAR_CREDENTIAL_EMPLOYEE.getValue())) {
-            if (context.equals(LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT)) {
-                LEARCredentialEmployeeV1 credential = objectMapper.convertValue(learCredential, LEARCredentialEmployeeV1.class);
-                Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
-                claimsBuilder.claim("vc", credentialData);
-            } else if (context.equals(LEAR_CREDENTIAL_EMPLOYEE_V2_CONTEXT)) {
-                LEARCredentialEmployeeV2 credential = objectMapper.convertValue(learCredential, LEARCredentialEmployeeV2.class);
-                Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
-                claimsBuilder.claim("vc", credentialData);
-            } else if (context.equals(LEAR_CREDENTIAL_EMPLOYEE_V3_CONTEXT)) {
-                LEARCredentialEmployeeV3 credential = objectMapper.convertValue(learCredential, LEARCredentialEmployeeV3.class);
-                Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
-                claimsBuilder.claim("vc", credentialData);
-            } else {
-                throw new InvalidCredentialTypeException("Unknown LEARCredentialEmployee version: " + context);
-            }
-        } else if (credentialTypes.contains(LEARCredentialType.LEAR_CREDENTIAL_MACHINE.getValue())) {
-            if (context.equals(LEAR_CREDENTIAL_MACHINE_V2_CONTEXT)){
-                LEARCredentialMachineV2 credential = (LEARCredentialMachineV2) learCredential;
-                Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
-                claimsBuilder.claim("vc", credentialData);
-            }else{
-                LEARCredentialMachineV1 credential = (LEARCredentialMachineV1) learCredential;
-                Map<String, Object> credentialData = objectMapper.convertValue(credential, new TypeReference<>() {});
-                claimsBuilder.claim("vc", credentialData);
-            }
-        } else {
-            throw new InvalidCredentialTypeException("Unsupported credential type: " + credentialTypes);
-        }
-
-        JWTClaimsSet payload = claimsBuilder.build();
-
-        return jwtService.generateJWT(payload.toString());
-    }
-
-
-    private String generateIdToken(LEARCredential learCredential, String subject, String audience, Map<String, Object> additionalParameters) {
-        Instant issueTime = Instant.now();
-        Instant expirationTime = issueTime.plus(
-                Long.parseLong(ID_TOKEN_EXPIRATION_TIME),
-                ChronoUnit.valueOf(ID_TOKEN_EXPIRATION_CHRONO_UNIT)
-        );
-
-        // Convert the VerifiableCredential to a JSON string
-        String verifiableCredentialJson;
-        try {
-            verifiableCredentialJson = objectMapper.writeValueAsString(learCredential);
-        } catch (JsonProcessingException e) {
-            throw new JsonConversionException("Error converting Verifiable Credential to JSON: " + e.getMessage());
-        }
-
-        // Create the JWT payload (claims) for the ID token
-        JWTClaimsSet.Builder idTokenClaimsBuilder = new JWTClaimsSet.Builder()
-                .subject(subject)
-                .issuer(backendConfig.getUrl())
-                .audience(audience)
-                .issueTime(Date.from(issueTime))
-                .expirationTime(Date.from(expirationTime))
-                .claim("auth_time", Date.from(issueTime))
-                .claim("acr", "0")
-                // Here is used in json format string to be able to save the VC in json format as Keycloak user attribute
-                .claim("vc_json", verifiableCredentialJson);
-
-        // Add each additional claim to the ID token
-        // Extract additional claims from the verifiable credential
-        Map<String, Object> additionalClaims;
-
-        if (additionalParameters.containsKey(OAuth2ParameterNames.SCOPE)) {
-            additionalClaims = extractClaimsFromVerifiableCredential(learCredential);
-            additionalClaims.forEach(idTokenClaimsBuilder::claim);
-        }
-
-        // This is used only in the authorization code flow
-        if (additionalParameters.containsKey(NONCE)) {
-            idTokenClaimsBuilder.claim(NONCE, additionalParameters.get(NONCE));
-        }
-
-        JWTClaimsSet idTokenClaims = idTokenClaimsBuilder.build();
-
-        // Use JWTService to generate the ID Token (JWT)
-        return jwtService.generateJWT(idTokenClaims.toString());
-    }
-
     private OAuth2RefreshToken generateRefreshToken(Instant issueTime) {
-        // Generate a random refresh token with at least 128 bits of entropy. Here we use 256 bits (32 bytes)
         SecureRandom secureRandom = new SecureRandom();
-        byte[] refreshTokenBytes = new byte[32]; // 256 bits
+        byte[] refreshTokenBytes = new byte[32];
         secureRandom.nextBytes(refreshTokenBytes);
         String refreshTokenValue = Base64.getUrlEncoder().withoutPadding().encodeToString(refreshTokenBytes);
 
-        // Use the expiration time of the access token to calculate the expiration time of the refresh token
         Instant refreshTokenExpirationTime = issueTime.plus(
                 Long.parseLong(ACCESS_TOKEN_EXPIRATION_TIME),
                 ChronoUnit.valueOf(ACCESS_TOKEN_EXPIRATION_CHRONO_UNIT)
         );
-        log.debug("CustomAuthenticationProvider -- generateRefreshToken -- Refresh Token Expiration time: {}", refreshTokenExpirationTime);
 
-        // Create the OAuth2RefreshToken object
         return new OAuth2RefreshToken(refreshTokenValue, issueTime, refreshTokenExpirationTime);
-    }
-
-
-    private Map<String, Object> extractClaimsFromVerifiableCredential(LEARCredential learCredential) {
-        Map<String, Object> claims = new HashMap<>();
-        if (learCredential instanceof LEARCredentialEmployee learCredentialEmployee) {
-            String name = learCredentialEmployee.mandateeFirstName() + " " + learCredentialEmployee.mandateeLastName();
-            claims.put("name", name);
-            claims.put("given_name", learCredentialEmployee.mandateeFirstName());
-            claims.put("family_name", learCredentialEmployee.mandateeLastName());
-            claims.put("email", learCredentialEmployee.mandateeEmail());
-            claims.put("email_verified", true);
-        }
-        return claims;
-    }
-
-
-    private String getScope(LEARCredential learCredential) {
-        if (learCredential instanceof LEARCredentialEmployeeV1 || learCredential instanceof LEARCredentialEmployeeV2 || learCredential instanceof LEARCredentialEmployeeV3) {
-            return "openid learcredential";
-        } else if (learCredential instanceof LEARCredentialMachineV1 || learCredential instanceof LEARCredentialMachineV2) {
-            return "machine learcredential";
-        } else {
-            throw new InvalidCredentialTypeException("Credential Type not supported: " + learCredential.getClass().getName());
-        }
-    }
-
-    /**
-     * FIXME: Temporary workaround to normalize LEAR V2 credential for compatibility.
-     * This function copies V2 attributes into their legacy counterparts.
-     */
-    private LEARCredentialEmployee normalizeLearCredentialEmployeeV2(LEARCredentialEmployeeV2 credentialV2) {
-        // Cast the mandatee to MandateeV2
-        MandateeV2 originalMandatee = credentialV2.credentialSubjectV2().mandate().mandatee();
-        MandateeV2 normalizedMandatee = MandateeV2.builder()
-                .id(originalMandatee.id())
-                .email(originalMandatee.email())
-                .firstName(originalMandatee.firstName())
-                .lastName(originalMandatee.lastName())
-                .nationality(originalMandatee.nationality())
-                .firstNameV1(originalMandatee.firstName())
-                .lastNameV1(originalMandatee.lastName())
-                .build();
-
-        // Normalize each PowerV2: duplicate values into tmf_* fields for compatibility
-        List<PowerV2> originalPowers = credentialV2.credentialSubjectV2().mandate().power();
-        List<PowerV2> normalizedPowers = originalPowers.stream()
-                .map(power -> PowerV2.builder()
-                        .id(power.id())
-                        .action(power.action())
-                        .domain(power.domain())
-                        .function(power.function())
-                        .type(power.type())
-                        .tmfAction(power.action())
-                        .tmfDomain(power.domain())
-                        .tmfFunction(power.function())
-                        .tmfType(power.type())
-                        .build())
-                .toList();
-
-        // Build a normalized Mandate using the normalized mandatee and powers
-        return LEARCredentialEmployeeV2.builder()
-                .context(credentialV2.context())
-                .id(credentialV2.id())
-                .type(credentialV2.type())
-                .description(credentialV2.description())
-                .issuer(credentialV2.issuer())
-                .validFrom(credentialV2.validFrom())
-                .validUntil(credentialV2.validUntil())
-                .credentialSubjectV2(CredentialSubjectV2.builder()
-                        .mandate(MandateV2.builder()
-                                .id(credentialV2.credentialSubjectV2().mandate().id())
-                                .mandatee(normalizedMandatee)
-                                .power(normalizedPowers)
-                                .mandator(credentialV2.credentialSubjectV2().mandate().mandator())
-                                .build())
-                        .build())
-                .build();
     }
 
     @Override
@@ -537,62 +401,4 @@ public class CustomAuthenticationProvider implements AuthenticationProvider {
                 || OAuth2ClientCredentialsAuthenticationToken.class.isAssignableFrom(authentication)
                 || OAuth2RefreshTokenAuthenticationToken.class.isAssignableFrom(authentication);
     }
-
-    private String resolveCredentialSubjectDid(LEARCredential credential, JsonNode credentialJson) {
-
-        String csId = tryGetCredentialSubjectId(credential, credentialJson);
-        if (csId != null && !csId.isBlank()) {
-            log.info("Subject DID resolved via credentialSubject.id()");
-            return csId;
-        }
-
-        String mandateeId = tryGetMandateeIdFromCredential(credential);
-        if (mandateeId != null && !mandateeId.isBlank()) {
-            log.info("Subject DID resolved via mandateeId()");
-            return mandateeId;
-        }
-
-        String mandateeIdJson = getMandateeIdFromJson(credentialJson);
-        if (mandateeIdJson != null && !mandateeIdJson.isBlank()) {
-            return mandateeIdJson;
-        }
-
-        log.error("[GRANT] Cannot resolve subject DID. Paths checked: credentialSubject.id, mandatee.id, credentialSubject.mandate.mandatee.id");
-        log.error("[GRANT] credentialSubject keys={}",
-                credentialJson.path("credentialSubject").isObject()
-                        ? credentialJson.path("credentialSubject").fieldNames().toString()
-                        : "not-object");
-
-        throw new IllegalStateException("Missing cryptographic binding DID in credential (credentialSubject.id or mandatee.id)");
-    }
-    private String tryGetCredentialSubjectId(LEARCredential credential, JsonNode credentialJson) {
-        try {
-            return credentialJson.path("credentialSubject").path("id").asText(null);
-        } catch (Exception e) {
-            log.debug("Cannot extract credentialSubject from credential implementation: {}",
-                    credential.getClass().getSimpleName(), e);
-            return null;
-        }
-    }
-
-    private String tryGetMandateeIdFromCredential(LEARCredential credential) {
-        try {
-            return credential.mandateeId();
-        } catch (Exception e) {
-            log.debug("Cannot extract mandateeId from credential implementation: {}",
-                    credential.getClass().getSimpleName(), e);
-            return null;
-        }
-    }
-
-    private String getMandateeIdFromJson(JsonNode credentialJson) {
-        return credentialJson
-                .path("credentialSubject")
-                .path("mandate")
-                .path("mandatee")
-                .path("id")
-                .asText(null);
-    }
-
-
 }

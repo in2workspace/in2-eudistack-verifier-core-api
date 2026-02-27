@@ -16,12 +16,16 @@ import es.in2.vcverifier.security.filters.CustomAuthenticationProvider;
 import es.in2.vcverifier.security.filters.CustomAuthorizationRequestConverter;
 import es.in2.vcverifier.security.filters.CustomErrorResponseHandler;
 import es.in2.vcverifier.security.filters.CustomTokenRequestConverter;
+import es.in2.vcverifier.service.ClaimsExtractor;
 import es.in2.vcverifier.service.ClientAssertionValidationService;
 import es.in2.vcverifier.service.DIDService;
 import es.in2.vcverifier.service.JWTService;
 import es.in2.vcverifier.service.VpService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
+
+import java.net.http.HttpClient;
+import java.util.List;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
@@ -64,6 +68,8 @@ public class AuthorizationServerConfig {
     private final RegisteredClientsCorsConfig registeredClientsCorsConfig;
     private final CacheStore<RefreshTokenDataCache> refreshTokenDataCacheCacheStore;
     private final CacheStore<String> cacheForNonceByState;
+    private final HttpClient httpClient;
+    private final List<ClaimsExtractor> claimsExtractors;
 
     @Bean
     @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -78,13 +84,13 @@ public class AuthorizationServerConfig {
                                 // Adds an AuthenticationConverter (pre-processor) used when attempting to extract
                                 // an OAuth2 authorization request (or consent) from HttpServletRequest to an instance
                                 // of OAuth2AuthorizationCodeRequestAuthenticationToken or OAuth2AuthorizationConsentAuthenticationToken.
-                                .authorizationRequestConverter(new CustomAuthorizationRequestConverter(didService,jwtService,cryptoComponent,cacheStoreForAuthorizationRequestJWT,cacheStoreForOAuth2AuthorizationRequest,backendConfig,registeredClientRepository, IS_NONCE_REQUIRED_ON_FAPI_PROFILE,cacheForNonceByState))
+                                .authorizationRequestConverter(new CustomAuthorizationRequestConverter(didService,jwtService,cryptoComponent,cacheStoreForAuthorizationRequestJWT,cacheStoreForOAuth2AuthorizationRequest,backendConfig,registeredClientRepository, IS_NONCE_REQUIRED_ON_FAPI_PROFILE,cacheForNonceByState,httpClient))
                                 .errorResponseHandler(new CustomErrorResponseHandler())
                 )
                 .tokenEndpoint(tokenEndpoint ->
                         tokenEndpoint
-                                .accessTokenRequestConverter(new CustomTokenRequestConverter(jwtService, clientAssertionValidationService, vpService, cacheStoreForAuthorizationCodeData,objectMapper, refreshTokenDataCacheCacheStore))
-                                .authenticationProvider(new CustomAuthenticationProvider(jwtService,registeredClientRepository,backendConfig,objectMapper, refreshTokenDataCacheCacheStore, oAuth2AuthorizationService()))
+                                .accessTokenRequestConverter(new CustomTokenRequestConverter(jwtService, clientAssertionValidationService, vpService, cacheStoreForAuthorizationCodeData, refreshTokenDataCacheCacheStore))
+                                .authenticationProvider(new CustomAuthenticationProvider(jwtService,registeredClientRepository,backendConfig,objectMapper, refreshTokenDataCacheCacheStore, oAuth2AuthorizationService(), claimsExtractors))
                 )
                 .oidc(Customizer.withDefaults());    // Enable OpenID Connect 1.0
         return http.build();

@@ -34,7 +34,6 @@ import java.security.interfaces.ECPublicKey;
 import java.security.spec.ECGenParameterSpec;
 import java.time.Instant;
 import java.time.ZonedDateTime;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -320,9 +319,6 @@ class VpServiceImplTest {
             LinkedTreeMap<String, Object> vcFromPayload = new LinkedTreeMap<>();
             when(jwtService.getVCFromPayload(payload)).thenReturn(vcFromPayload);
 
-            // Mock trustFrameworkService.getRevokedCredentialIds to return an empty list
-            when(trustFrameworkService.getRevokedCredentialIds()).thenReturn(Collections.emptyList());
-
             // Step 4: Extract and validate credential types
             vcFromPayload.put("type", List.of("LEARCredentialEmployee"));
             vcFromPayload.put("@context", LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT);
@@ -418,10 +414,8 @@ class VpServiceImplTest {
             when(cred.validFrom()).thenReturn(ZonedDateTime.now().minusMinutes(1).toString());
             when(cred.validUntil()).thenReturn(ZonedDateTime.now().plusMinutes(5).toString());
 
-            // Revocation path: old (no credentialStatus)
+            // Revocation path: no credentialStatus -> skip
             when(cred.learCredentialStatusExist()).thenReturn(false);
-            when(cred.id()).thenReturn("urn:uuid:1234");
-            when(trustFrameworkService.getRevokedCredentialIds()).thenReturn(List.of());
 
             // Types
             when(cred.type()).thenReturn(List.of("LEARCredentialEmployee"));
@@ -471,114 +465,6 @@ class VpServiceImplTest {
             verify(jwtService).verifyJWTWithECKey(verifiablePresentation, holderPublicKey);
             verify(certificateValidationService).extractAndVerifyCertificate(vcJwt, vcHeaderMap, "VATES-FOO");
             verify(didService).getPublicKeyFromDid("did:example:holder");
-        }
-    }
-
-    @Test
-    void validateNewVerifiablePresentation_revoked() throws Exception {
-        // Given
-        String verifiablePresentation = "valid.vp.jwt";
-        String vcJwt = "valid.vc.jwt";
-
-        SignedJWT vpSignedJWT = mock(SignedJWT.class);
-        SignedJWT vcSignedJWT = mock(SignedJWT.class);
-
-        try (MockedStatic<SignedJWT> mockedSignedJWT = mockStatic(SignedJWT.class)) {
-
-            mockedSignedJWT.when(() -> SignedJWT.parse(verifiablePresentation)).thenReturn(vpSignedJWT);
-            mockedSignedJWT.when(() -> SignedJWT.parse(vcJwt)).thenReturn(vcSignedJWT);
-
-            // VP -> contains VC JWT
-            JWTClaimsSet vpClaimsSet = mock(JWTClaimsSet.class);
-            when(vpSignedJWT.getJWTClaimsSet()).thenReturn(vpClaimsSet);
-            when(vpClaimsSet.getClaim("vp")).thenReturn(Map.of("verifiableCredential", List.of(vcJwt)));
-
-            // VC subject (not critical here)
-            JWTClaimsSet vcClaimsSet = mock(JWTClaimsSet.class);
-            when(vcSignedJWT.getJWTClaimsSet()).thenReturn(vcClaimsSet);
-            when(vcClaimsSet.getSubject()).thenReturn("did:example:any");
-
-            // VC payload
-            Payload payload = mock(Payload.class);
-            when(jwtService.getPayloadFromSignedJWT(vcSignedJWT)).thenReturn(payload);
-
-            Map<String, Object> vcFromPayload = new HashMap<>();
-            vcFromPayload.put("id", "urn:uuid:1234");
-            vcFromPayload.put("type", List.of("LEARCredentialEmployee"));
-            vcFromPayload.put("@context", LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT);
-            when(jwtService.getVCFromPayload(payload)).thenReturn(vcFromPayload);
-
-            // Map -> credential domain object
-            LEARCredentialEmployeeV1 cred = mock(LEARCredentialEmployeeV1.class);
-            when(objectMapper.convertValue(vcFromPayload, LEARCredentialEmployeeV1.class)).thenReturn(cred);
-
-            // Time window ok
-            when(cred.validFrom()).thenReturn(ZonedDateTime.now().minusMinutes(1).toString());
-            when(cred.validUntil()).thenReturn(ZonedDateTime.now().plusMinutes(5).toString());
-
-            // Revocation path: old (no credentialStatus) -> revoked list contains the id
-            when(cred.learCredentialStatusExist()).thenReturn(false);
-            when(cred.id()).thenReturn("urn:uuid:1234");
-            when(trustFrameworkService.getRevokedCredentialIds()).thenReturn(List.of("urn:uuid:1234"));
-
-            assertThrows(CredentialRevokedException.class, () ->
-                    vpServiceImpl.validateVerifiablePresentation(verifiablePresentation)
-            );
-
-            // Should fail early (before PoP / did resolution)
-            verifyNoInteractions(didService);
-            verify(jwtService, never()).verifyJWTWithECKey(anyString(), any());
-        }
-    }
-
-    @Test
-    void validateOldVerifiablePresentation_revocated() throws Exception {
-        // Given
-        String verifiablePresentation = "valid.vp.jwt";
-        LEARCredentialEmployeeV1 learCredentialEmployeeV1 = getLEARCredentialEmployee();
-
-        // Step 1: Parse the VP JWT
-        SignedJWT vpSignedJWT = mock(SignedJWT.class);
-        try (MockedStatic<SignedJWT> mockedSignedJWT = mockStatic(SignedJWT.class)) {
-
-            mockedSignedJWT.when(() -> SignedJWT.parse(verifiablePresentation)).thenReturn(vpSignedJWT);
-
-            // Set up the VP claims
-            JWTClaimsSet vpClaimsSet = mock(JWTClaimsSet.class);
-            when(vpSignedJWT.getJWTClaimsSet()).thenReturn(vpClaimsSet);
-
-            // Mock the "vp" claim in the VP
-            Map<String, Object> vcClaimMap = new HashMap<>();
-            String vcJwt = "valid.vc.jwt";
-            vcClaimMap.put("verifiableCredential", List.of(vcJwt));
-            when(vpClaimsSet.getClaim("vp")).thenReturn(vcClaimMap);
-
-            // Step 2: Parse the VC JWT
-            SignedJWT jwtCredential = mock(SignedJWT.class);
-            mockedSignedJWT.when(() -> SignedJWT.parse(vcJwt)).thenReturn(jwtCredential);
-
-            Payload payload = mock(Payload.class);
-            when(jwtService.getPayloadFromSignedJWT(jwtCredential)).thenReturn(payload);
-
-            // Step 3: Validate the credential id is not in the revoked list
-            // Create a vcFromPayload Map
-            LinkedTreeMap<String, Object> vcFromPayload = new LinkedTreeMap<>();
-            when(jwtService.getVCFromPayload(payload)).thenReturn(vcFromPayload);
-
-            when(trustFrameworkService.getRevokedCredentialIds()).thenReturn(List.of("urn:uuid:1234"));
-
-            // Step 4: Extract and validate credential types
-            vcFromPayload.put("id", "urn:uuid:1234");
-            vcFromPayload.put("type", List.of("LEARCredentialEmployee"));
-            vcFromPayload.put("@context", LEAR_CREDENTIAL_EMPLOYEE_V1_CONTEXT);
-
-            when(objectMapper.convertValue(vcFromPayload, LEARCredentialEmployeeV1.class)).thenReturn(learCredentialEmployeeV1);
-
-            assertThrows(CredentialRevokedException.class, () ->
-                    vpServiceImpl.validateVerifiablePresentation(verifiablePresentation)
-            );
-
-
         }
     }
 
@@ -918,10 +804,8 @@ class VpServiceImplTest {
             when(cred.validFrom()).thenReturn(ZonedDateTime.now().minusMinutes(1).toString());
             when(cred.validUntil()).thenReturn(ZonedDateTime.now().plusMinutes(5).toString());
 
-            // Revocation path (old)
+            // Revocation path: no credentialStatus -> skip
             when(cred.learCredentialStatusExist()).thenReturn(false);
-            when(cred.id()).thenReturn("urn:uuid:test");
-            when(trustFrameworkService.getRevokedCredentialIds()).thenReturn(List.of());
 
             // Issuer + capabilities OK
             var issuer = mock(es.in2.vcverifier.model.credentials.Issuer.class);
@@ -1002,8 +886,6 @@ class VpServiceImplTest {
             when(cred.validFrom()).thenReturn(ZonedDateTime.now().minusMinutes(1).toString());
             when(cred.validUntil()).thenReturn(ZonedDateTime.now().plusMinutes(5).toString());
             when(cred.learCredentialStatusExist()).thenReturn(false);
-            when(cred.id()).thenReturn("urn:uuid:test");
-            when(trustFrameworkService.getRevokedCredentialIds()).thenReturn(List.of());
 
             var issuer = mock(es.in2.vcverifier.model.credentials.Issuer.class);
             when(cred.issuer()).thenReturn(issuer);
@@ -1078,8 +960,6 @@ class VpServiceImplTest {
             when(cred.validFrom()).thenReturn(ZonedDateTime.now().minusMinutes(1).toString());
             when(cred.validUntil()).thenReturn(ZonedDateTime.now().plusMinutes(5).toString());
             when(cred.learCredentialStatusExist()).thenReturn(false);
-            when(cred.id()).thenReturn("urn:uuid:test");
-            when(trustFrameworkService.getRevokedCredentialIds()).thenReturn(List.of());
 
             var issuer = mock(es.in2.vcverifier.model.credentials.Issuer.class);
             when(cred.issuer()).thenReturn(issuer);
@@ -1153,8 +1033,6 @@ class VpServiceImplTest {
             when(cred.validFrom()).thenReturn(ZonedDateTime.now().minusMinutes(1).toString());
             when(cred.validUntil()).thenReturn(ZonedDateTime.now().plusMinutes(5).toString());
             when(cred.learCredentialStatusExist()).thenReturn(false);
-            when(cred.id()).thenReturn("urn:uuid:test");
-            when(trustFrameworkService.getRevokedCredentialIds()).thenReturn(List.of());
 
             var issuer = mock(es.in2.vcverifier.model.credentials.Issuer.class);
             when(cred.issuer()).thenReturn(issuer);
@@ -1226,8 +1104,6 @@ class VpServiceImplTest {
             when(cred.validUntil()).thenReturn(ZonedDateTime.now().plusMinutes(5).toString());
 
             when(cred.learCredentialStatusExist()).thenReturn(false);
-            when(trustFrameworkService.getRevokedCredentialIds()).thenReturn(List.of());
-            when(cred.id()).thenReturn("urn:uuid:test");
             when(cred.type()).thenReturn(List.of("LEARCredentialEmployee"));
 
             var issuer = mock(es.in2.vcverifier.model.credentials.Issuer.class);

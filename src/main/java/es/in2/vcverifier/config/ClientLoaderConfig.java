@@ -3,8 +3,9 @@ package es.in2.vcverifier.config;
 import es.in2.vcverifier.exception.ClientLoadingException;
 import es.in2.vcverifier.model.ClientData;
 import es.in2.vcverifier.model.ExternalTrustedListYamlData;
-import es.in2.vcverifier.service.TrustFrameworkService;
+import es.in2.vcverifier.service.ClientRegistryProvider;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -20,31 +21,46 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
 
+@Slf4j
 @Configuration
 @RequiredArgsConstructor
 public class ClientLoaderConfig {
 
-    private final TrustFrameworkService trustFrameworkService;
+    private final ClientRegistryProvider clientRegistryProvider;
     private final Set<String> allowedClientsOrigins;
+
+    private final AtomicReference<RegisteredClientRepository> repositoryRef = new AtomicReference<>();
 
     @Bean
     public RegisteredClientRepository getRegisteredClientRepository() {
-        return registeredClientRepository();
+        RegisteredClientRepository initialRepo = buildRepository();
+        repositoryRef.set(initialRepo);
+        return new DelegatingRegisteredClientRepository(repositoryRef);
     }
 
     @Scheduled(cron = "0 */30 * * * *")
-    private RegisteredClientRepository registeredClientRepository() {
-        List<RegisteredClient> clients = loadClients(); // Cargar los clientes
-        return new InMemoryRegisteredClientRepository(clients); // Pasar los clientes al repositorio
+    public void refreshClients() {
+        try {
+            log.info("Refreshing client registry...");
+            RegisteredClientRepository refreshedRepo = buildRepository();
+            repositoryRef.set(refreshedRepo);
+            log.info("Client registry refreshed successfully");
+        } catch (Exception e) {
+            log.error("Failed to refresh client registry, keeping previous version", e);
+        }
+    }
+
+    private RegisteredClientRepository buildRepository() {
+        List<RegisteredClient> clients = loadClients();
+        return new InMemoryRegisteredClientRepository(clients);
     }
 
     private List<RegisteredClient> loadClients() {
         try {
-            // Leer el archivo YAML
-            ExternalTrustedListYamlData clientsYamlData = trustFrameworkService.fetchAllowedClient();
+            ExternalTrustedListYamlData clientsYamlData = clientRegistryProvider.loadClients();
             List<RegisteredClient> registeredClients = new ArrayList<>();
-            // Convertir cada ClientData a RegisteredClient y agregarlo a la lista
             for (ClientData clientData : clientsYamlData.clients()) {
                 RegisteredClient.Builder registeredClientBuilder = RegisteredClient
                         .withId(UUID.randomUUID().toString())
@@ -59,9 +75,7 @@ public class ClientLoaderConfig {
                 if (clientData.clientSecret() != null && !clientData.clientSecret().isBlank()) {
                     registeredClientBuilder.clientSecret(clientData.clientSecret());
                 }
-                // Configurar ClientSettings
                 ClientSettings.Builder clientSettingsBuilder = ClientSettings.builder().requireAuthorizationConsent(clientData.requireAuthorizationConsent());
-                // Configurar valores opcionales si están presentes en el JSON
                 if (clientData.jwkSetUrl() != null) {
                     clientSettingsBuilder.jwkSetUrl(clientData.jwkSetUrl());
                 }
@@ -74,7 +88,6 @@ public class ClientLoaderConfig {
                 registeredClientBuilder.clientSettings(clientSettingsBuilder.build());
                 registeredClients.add(registeredClientBuilder.build());
 
-                // Add the client origin to the allowed clients origins
                 if (clientData.url() != null && !clientData.url().isBlank()) {
                     allowedClientsOrigins.add(clientData.url());
                 }

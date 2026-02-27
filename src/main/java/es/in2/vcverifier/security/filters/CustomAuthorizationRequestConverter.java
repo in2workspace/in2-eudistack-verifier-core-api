@@ -34,6 +34,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.PublicKey;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
@@ -47,6 +48,8 @@ import static es.in2.vcverifier.util.Constants.EXPIRATION;
 @RequiredArgsConstructor
 public class CustomAuthorizationRequestConverter implements AuthenticationConverter {
 
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+
     private final DIDService didService;
     private final JWTService jwtService;
     private final CryptoComponent cryptoComponent;
@@ -56,6 +59,7 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
     private final RegisteredClientRepository registeredClientRepository;
     private final boolean isNonceRequiredOnFapiProfile;
     private final CacheStore<String> cacheForNonceByState;
+    private final HttpClient httpClient;
 
     /**
      * The Authorization Request MUST be signed by the Client, and MUST use the request_uri parameter which enables
@@ -214,12 +218,12 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
         if (requestUri != null) {
             try {
                 log.info("Retrieving JWT from request_uri: {}", requestUri);
-                HttpClient client = HttpClient.newHttpClient();
                 HttpRequest httpRequest = HttpRequest.newBuilder()
                         .uri(URI.create(requestUri))
+                        .timeout(REQUEST_TIMEOUT)
                         .GET()
                         .build();
-                HttpResponse<String> httpResponse = client.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+                HttpResponse<String> httpResponse = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
 
                 if (httpResponse.statusCode() != 200 || StringUtils.isBlank(httpResponse.body())) {
                     String errorCode = generateNonce();
@@ -407,7 +411,7 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
                 .claim(OAuth2ParameterNames.STATE, state)
                 .claim(OAuth2ParameterNames.RESPONSE_TYPE, "vp_token")
                 .claim("response_mode", "direct_post")
-                //.claim("dcql_query",buildDcqlQuery())
+                .claim("dcql_query", buildDcqlQuery())
                 .jwtID(UUID.randomUUID().toString())
                 .build();
 
@@ -416,12 +420,24 @@ public class CustomAuthorizationRequestConverter implements AuthenticationConver
         return payload.toString();
     }
 
-    /*private Map<String, Object> buildDcqlQuery() {
-        return Collections.singletonMap(
-                "credentials",
-                List.of(Map.of("id", "LEARCredentialEmployee", "format", "jwt_vc_json"))
-        );
-    }*/
+    private Map<String, Object> buildDcqlQuery() {
+        return Map.of("credentials", List.of(
+                // SD-JWT VC format
+                Map.of(
+                        "id", "lear_sd_jwt",
+                        "format", "dc+sd-jwt",
+                        "meta", Map.of("vct_values", List.of("LEARCredentialEmployee"))
+                ),
+                // jwt_vc_json format (DOME backward compat)
+                Map.of(
+                        "id", "lear_jwt_vc",
+                        "format", "jwt_vc_json",
+                        "meta", Map.of("credential_definition", Map.of(
+                                "type", List.of("VerifiableCredential", "LEARCredentialEmployee")
+                        ))
+                )
+        ));
+    }
 
     /**
      * Checks that the scope contains the required 'learcredential' string.

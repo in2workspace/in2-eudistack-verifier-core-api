@@ -1,0 +1,21 @@
+# Local OIDC Client Registry for development.
+# This file is used when no remote trustedServicesListUrl is configured.
+#
+# Each entry maps to a Spring Security RegisteredClient.
+
+clients:
+  - clientId: "dev-client"
+    url: "http://localhost:4200"
+    clientAuthenticationMethods:
+      - "none"
+    authorizationGrantTypes:
+      - "authorization_code"
+    redirectUris:
+      - "http://localhost:4200/callback"
+    postLogoutRedirectUris:
+      - "http://localhost:4200"
+    scopes:
+      - "openid"
+      - "lear"
+    requireAuthorizationConsent: false
+    requireProofKey: true
