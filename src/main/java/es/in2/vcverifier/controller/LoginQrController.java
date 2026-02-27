@@ -1,10 +1,10 @@
 package es.in2.vcverifier.controller;
 
-import static es.in2.vcverifier.util.Constants.LOGIN_TIMEOUT;
-import static es.in2.vcverifier.util.Constants.LOGIN_TIMEOUT_CHRONO_UNIT;
+import static es.in2.vcverifier.shared.domain.util.Constants.LOGIN_TIMEOUT;
+import static es.in2.vcverifier.shared.domain.util.Constants.LOGIN_TIMEOUT_CHRONO_UNIT;
 
 import es.in2.vcverifier.config.FrontendConfig;
-import es.in2.vcverifier.exception.QRCodeGenerationException;
+import es.in2.vcverifier.shared.domain.exception.QRCodeGenerationException;
 import lombok.RequiredArgsConstructor;
 import net.glxn.qrgen.javase.QRCode;
 import org.springframework.http.HttpStatus;

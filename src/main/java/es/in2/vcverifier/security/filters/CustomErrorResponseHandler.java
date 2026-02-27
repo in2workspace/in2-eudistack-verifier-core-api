@@ -9,8 +9,8 @@ import org.springframework.security.web.authentication.AuthenticationFailureHand
 
 import java.io.IOException;
 
-import static es.in2.vcverifier.util.Constants.INVALID_CLIENT_AUTHENTICATION;
-import static es.in2.vcverifier.util.Constants.REQUIRED_EXTERNAL_USER_AUTHENTICATION;
+import static es.in2.vcverifier.shared.domain.util.Constants.INVALID_CLIENT_AUTHENTICATION;
+import static es.in2.vcverifier.shared.domain.util.Constants.REQUIRED_EXTERNAL_USER_AUTHENTICATION;
 
 public class CustomErrorResponseHandler implements AuthenticationFailureHandler {
 

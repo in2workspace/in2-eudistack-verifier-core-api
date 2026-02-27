@@ -1,9 +1,9 @@
 package es.in2.vcverifier.config;
 
-import es.in2.vcverifier.exception.ClientLoadingException;
-import es.in2.vcverifier.model.ClientData;
-import es.in2.vcverifier.model.ExternalTrustedListYamlData;
-import es.in2.vcverifier.service.ClientRegistryProvider;
+import es.in2.vcverifier.oauth2.domain.exception.ClientLoadingException;
+import es.in2.vcverifier.verifier.domain.model.ClientData;
+import es.in2.vcverifier.verifier.domain.model.ExternalTrustedListYamlData;
+import es.in2.vcverifier.verifier.domain.service.ClientRegistryProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;

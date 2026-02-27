@@ -6,11 +6,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jwt.JWTClaimsSet;
 import es.in2.vcverifier.config.BackendConfig;
 import es.in2.vcverifier.config.CacheStore;
-import es.in2.vcverifier.exception.JsonConversionException;
-import es.in2.vcverifier.model.RefreshTokenDataCache;
-import es.in2.vcverifier.model.validation.ExtractedClaims;
-import es.in2.vcverifier.service.ClaimsExtractor;
-import es.in2.vcverifier.service.JWTService;
+import es.in2.vcverifier.shared.domain.exception.JsonConversionException;
+import es.in2.vcverifier.oauth2.domain.model.RefreshTokenDataCache;
+import es.in2.vcverifier.verifier.domain.model.validation.ExtractedClaims;
+import es.in2.vcverifier.verifier.domain.service.ClaimsExtractor;
+import es.in2.vcverifier.shared.crypto.JWTService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.AuthenticationProvider;
@@ -34,7 +34,7 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-import static es.in2.vcverifier.util.Constants.*;
+import static es.in2.vcverifier.shared.domain.util.Constants.*;
 import static org.springframework.security.oauth2.core.oidc.IdTokenClaimNames.NONCE;
 
 @Slf4j

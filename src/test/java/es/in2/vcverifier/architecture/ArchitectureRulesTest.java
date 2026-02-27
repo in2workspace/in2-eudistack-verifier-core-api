@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.classes;
 import static com.tngtech.archunit.lang.syntax.ArchRuleDefinition.noClasses;
-import static com.tngtech.archunit.library.Architectures.layeredArchitecture;
 import static com.tngtech.archunit.library.GeneralCodingRules.*;
 
 class ArchitectureRulesTest {
@@ -24,53 +23,29 @@ class ArchitectureRulesTest {
                 .importPackages("es.in2.vcverifier");
     }
 
-    // --- Layer rules ---
+    // --- Hexagonal architecture rules ---
 
     @Nested
-    @DisplayName("Layer separation")
-    class LayerRules {
+    @DisplayName("Hexagonal architecture")
+    class HexagonalRules {
 
         @Test
-        @DisplayName("Layered architecture: controller -> service -> (config|model|exception|util)")
-        void layeredArchitectureIsRespected() {
-            layeredArchitecture()
-                    .consideringOnlyDependenciesInLayers()
-                    .layer("Controller").definedBy("..controller..")
-                    .layer("Security").definedBy("..security..")
-                    .layer("Service").definedBy("..service..")
-                    .layer("Config").definedBy("..config..", "..component..")
-                    .layer("Model").definedBy("..model..")
-                    .layer("Exception").definedBy("..exception..")
-                    .layer("Util").definedBy("..util..")
-
-                    .whereLayer("Controller").mayNotBeAccessedByAnyLayer()
-                    .whereLayer("Model").mayOnlyBeAccessedByLayers(
-                            "Controller", "Service", "Security", "Config", "Exception")
-                    .whereLayer("Exception").mayOnlyBeAccessedByLayers(
-                            "Controller", "Service", "Security", "Config")
-                    .whereLayer("Util").mayOnlyBeAccessedByLayers(
-                            "Controller", "Service", "Security", "Config")
-
+        @DisplayName("Domain must not depend on infrastructure")
+        void domainMustNotDependOnInfrastructure() {
+            noClasses()
+                    .that().resideInAPackage("..domain..")
+                    .should().dependOnClassesThat().resideInAPackage("..infrastructure..")
+                    .because("Domain layer is the innermost hexagonal ring")
                     .check(importedClasses);
         }
 
         @Test
-        @DisplayName("Controllers should not depend on service implementations directly")
-        void controllersShouldNotDependOnServiceImpl() {
+        @DisplayName("Domain must not depend on application")
+        void domainMustNotDependOnApplication() {
             noClasses()
-                    .that().resideInAPackage("..controller..")
-                    .should().dependOnClassesThat().resideInAPackage("..service.impl..")
-                    .because("Controllers should depend on service interfaces, not implementations")
-                    .check(importedClasses);
-        }
-
-        @Test
-        @DisplayName("Model classes should not depend on service layer")
-        void modelShouldNotDependOnService() {
-            noClasses()
-                    .that().resideInAPackage("..model..")
-                    .should().dependOnClassesThat().resideInAPackage("..service..")
-                    .because("Model classes should be independent of the service layer")
+                    .that().resideInAPackage("..domain..")
+                    .should().dependOnClassesThat().resideInAPackage("..application..")
+                    .because("Domain is independent of application orchestration")
                     .check(importedClasses);
         }
 
@@ -102,12 +77,12 @@ class ArchitectureRulesTest {
     class NamingConventions {
 
         @Test
-        @DisplayName("Service implementations should be in ..service.impl.. package")
-        void serviceImplsShouldBeInImplPackage() {
+        @DisplayName("Service implementations should be in adapter or impl package")
+        void serviceImplsShouldBeInAdapterOrImplPackage() {
             classes()
                     .that().haveSimpleNameEndingWith("ServiceImpl")
-                    .should().resideInAPackage("..service.impl..")
-                    .because("Service implementations belong in the impl subpackage")
+                    .should().resideInAnyPackage("..adapter..", "..service.impl..", "..crypto..")
+                    .because("Service implementations belong in adapter, impl, or crypto packages")
                     .check(importedClasses);
         }
 
@@ -123,12 +98,12 @@ class ArchitectureRulesTest {
         }
 
         @Test
-        @DisplayName("Classes annotated with @Configuration should reside in config, security, or component package")
+        @DisplayName("Classes annotated with @Configuration should reside in config, security, or infrastructure package")
         void configClassesShouldBeInConfigPackage() {
             classes()
                     .that().areAnnotatedWith(org.springframework.context.annotation.Configuration.class)
-                    .should().resideInAnyPackage("..config..", "..security..", "..component..")
-                    .because("Configuration classes should be in config, security, or component packages")
+                    .should().resideInAnyPackage("..config..", "..security..", "..infrastructure..", "..crypto..")
+                    .because("Configuration classes should be in config, security, or infrastructure packages")
                     .check(importedClasses);
         }
     }

@@ -4,7 +4,7 @@ import com.nimbusds.jose.Payload;
 import es.in2.vcverifier.config.BackendConfig;
 import es.in2.vcverifier.config.JtiTokenCache;
 import es.in2.vcverifier.service.ClientAssertionValidationService;
-import es.in2.vcverifier.service.JWTService;
+import es.in2.vcverifier.shared.crypto.JWTService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;

@@ -3,13 +3,13 @@ package es.in2.vcverifier.security.filters;
 import com.nimbusds.jose.Payload;
 import com.nimbusds.jwt.JWTClaimsSet;
 import com.nimbusds.jwt.SignedJWT;
-import es.in2.vcverifier.component.CryptoComponent;
+import es.in2.vcverifier.shared.crypto.CryptoComponent;
 import es.in2.vcverifier.config.BackendConfig;
 import es.in2.vcverifier.config.CacheStore;
-import es.in2.vcverifier.model.AuthorizationContext;
-import es.in2.vcverifier.model.AuthorizationRequestJWT;
-import es.in2.vcverifier.service.DIDService;
-import es.in2.vcverifier.service.JWTService;
+import es.in2.vcverifier.oauth2.domain.model.AuthorizationContext;
+import es.in2.vcverifier.oauth2.domain.model.AuthorizationRequestJWT;
+import es.in2.vcverifier.shared.crypto.DIDService;
+import es.in2.vcverifier.shared.crypto.JWTService;
 import io.micrometer.common.util.StringUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
@@ -39,10 +39,10 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.*;
 
-import static es.in2.vcverifier.util.Constants.*;
+import static es.in2.vcverifier.shared.domain.util.Constants.*;
 import static org.springframework.security.oauth2.core.oidc.endpoint.OidcParameterNames.NONCE;
-import static es.in2.vcverifier.util.Constants.LOGIN_TIMEOUT;
-import static es.in2.vcverifier.util.Constants.EXPIRATION;
+import static es.in2.vcverifier.shared.domain.util.Constants.LOGIN_TIMEOUT;
+import static es.in2.vcverifier.shared.domain.util.Constants.EXPIRATION;
 
 @Slf4j
 @RequiredArgsConstructor

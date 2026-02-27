@@ -1,26 +1,26 @@
 package es.in2.vcverifier.security;
 
-import static es.in2.vcverifier.util.Constants.IS_NONCE_REQUIRED_ON_FAPI_PROFILE;
+import static es.in2.vcverifier.shared.domain.util.Constants.IS_NONCE_REQUIRED_ON_FAPI_PROFILE;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
-import es.in2.vcverifier.component.CryptoComponent;
+import es.in2.vcverifier.shared.crypto.CryptoComponent;
 import es.in2.vcverifier.config.BackendConfig;
 import es.in2.vcverifier.config.CacheStore;
-import es.in2.vcverifier.model.AuthorizationCodeData;
-import es.in2.vcverifier.model.AuthorizationRequestJWT;
-import es.in2.vcverifier.model.RefreshTokenDataCache;
+import es.in2.vcverifier.oauth2.domain.model.AuthorizationCodeData;
+import es.in2.vcverifier.oauth2.domain.model.AuthorizationRequestJWT;
+import es.in2.vcverifier.oauth2.domain.model.RefreshTokenDataCache;
 import es.in2.vcverifier.security.filters.CustomAuthenticationProvider;
 import es.in2.vcverifier.security.filters.CustomAuthorizationRequestConverter;
 import es.in2.vcverifier.security.filters.CustomErrorResponseHandler;
 import es.in2.vcverifier.security.filters.CustomTokenRequestConverter;
-import es.in2.vcverifier.service.ClaimsExtractor;
+import es.in2.vcverifier.verifier.domain.service.ClaimsExtractor;
 import es.in2.vcverifier.service.ClientAssertionValidationService;
-import es.in2.vcverifier.service.DIDService;
-import es.in2.vcverifier.service.JWTService;
-import es.in2.vcverifier.service.VpService;
+import es.in2.vcverifier.shared.crypto.DIDService;
+import es.in2.vcverifier.shared.crypto.JWTService;
+import es.in2.vcverifier.verifier.domain.service.VpService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 

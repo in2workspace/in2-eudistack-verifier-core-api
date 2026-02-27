@@ -1,8 +1,8 @@
 package es.in2.vcverifier.config;
 
-import es.in2.vcverifier.model.AuthorizationCodeData;
-import es.in2.vcverifier.model.AuthorizationRequestJWT;
-import es.in2.vcverifier.model.RefreshTokenDataCache;
+import es.in2.vcverifier.oauth2.domain.model.AuthorizationCodeData;
+import es.in2.vcverifier.oauth2.domain.model.AuthorizationRequestJWT;
+import es.in2.vcverifier.oauth2.domain.model.RefreshTokenDataCache;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,7 +14,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
-import static es.in2.vcverifier.util.Constants.*;
+import static es.in2.vcverifier.shared.domain.util.Constants.*;
 
 @Configuration
 @RequiredArgsConstructor
