@@ -12,4 +12,18 @@ services:
       - .env
     environment:
       SERVER_PORT: 8082
+      VERIFIER_FRONTEND_PORTALURL: http://localhost:4200
+    restart: unless-stopped
+
+  portal-acceso:
+    build:
+      context: ../../eudistack-portal-acceso-ui
+      dockerfile: Dockerfile
+    container_name: portal-acceso
+    ports:
+      - "4200:80"
+    volumes:
+      - ../../eudistack-portal-acceso-ui/themes/dome.json:/usr/share/nginx/html/assets/theme.json:ro
+    depends_on:
+      - verifier
     restart: unless-stopped

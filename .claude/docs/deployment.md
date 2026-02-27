@@ -69,17 +69,9 @@ No se usan perfiles de Spring (`application-prod.yaml`, etc.).
 
 | Env var | Default | Descripcion |
 | --- | --- | --- |
-| `VERIFIER_FRONTEND_URLS_ONBOARDING` | `http://localhost:4200` | URL de la pagina de onboarding (mostrada en el QR login) |
-| `VERIFIER_FRONTEND_URLS_SUPPORT` | `http://localhost:4200` | URL de soporte/ticketing |
-| `VERIFIER_FRONTEND_URLS_WALLET` | `http://localhost:4200` | URL de descarga/info de la wallet |
-| `VERIFIER_FRONTEND_COLORS_PRIMARY` | `#2D58A7` | Color primario del QR login (hex) |
-| `VERIFIER_FRONTEND_COLORS_PRIMARYCONTRAST` | `#ffffff` | Contraste del primario |
-| `VERIFIER_FRONTEND_COLORS_SECONDARY` | `#14274A` | Color secundario |
-| `VERIFIER_FRONTEND_COLORS_SECONDARYCONTRAST` | `#00ADD3` | Contraste del secundario |
-| `VERIFIER_FRONTEND_ASSETS_BASEURL` | `http://localhost:4200/assets` | Base URL para assets estaticos (logo, favicon) |
-| `VERIFIER_FRONTEND_ASSETS_LOGOPATH` | `logo.png` | Path relativo al logo (sobre baseUrl) |
-| `VERIFIER_FRONTEND_ASSETS_FAVICONPATH` | `favicon.ico` | Path relativo al favicon |
-| `VERIFIER_FRONTEND_DEFAULTLANG` | `en` | Idioma por defecto (`en`, `es`, `ca`) |
+| `VERIFIER_FRONTEND_PORTALURL` | `http://localhost:4200` | URL del portal Angular SPA. El backend redirige aqui para login y errores. |
+
+> **Nota**: Branding (colores, logos, links, idioma) se configura en el Angular SPA via `theme.json` montado como volumen Docker, no en el backend.
 
 #### Server
 
@@ -93,7 +85,7 @@ No se usan perfiles de Spring (`application-prod.yaml`, etc.).
 | --- | --- | --- |
 | Access token TTL | 3600 segundos (1h) | Expiracion del access_token |
 | ID token TTL | 60 segundos | Expiracion del id_token |
-| Login timeout | 120 segundos | Timeout del flujo QR login (WebSocket) |
+| Login timeout | 120 segundos | Timeout del flujo QR login (SSE) |
 | Nonce obligatorio | `true` | Nonce requerido en authorization request |
 
 ---
@@ -379,6 +371,20 @@ services:
       - .env
     environment:
       SERVER_PORT: 8082
+      VERIFIER_FRONTEND_PORTALURL: http://localhost:4200
+    restart: unless-stopped
+
+  portal-acceso:
+    build:
+      context: ../../eudistack-portal-acceso-ui
+      dockerfile: Dockerfile
+    container_name: portal-acceso
+    ports:
+      - "4200:80"
+    volumes:
+      - ../../eudistack-portal-acceso-ui/themes/dome.json:/usr/share/nginx/html/assets/theme.json:ro
+    depends_on:
+      - verifier
     restart: unless-stopped
 ```
 
@@ -403,6 +409,17 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  portal-acceso:
+    image: registry.example.com/portal-acceso-ui:latest
+    container_name: portal-acceso
+    ports:
+      - "4200:80"
+    volumes:
+      - ./config/theme.json:/usr/share/nginx/html/assets/theme.json:ro
+    depends_on:
+      - verifier
+    restart: unless-stopped
 ```
 
 ### `.env` de produccion
@@ -430,16 +447,9 @@ VERIFIER_BACKEND_LOCALFILES_TRUSTEDISSUERSPATH=/config/trusted-issuers.yaml
 VERIFIER_BACKEND_LOCALFILES_SCHEMASDIR=/config/schemas
 
 # --- Frontend ---
-VERIFIER_FRONTEND_URLS_ONBOARDING=https://portal.midominio.com/onboarding
-VERIFIER_FRONTEND_URLS_SUPPORT=https://portal.midominio.com/soporte
-VERIFIER_FRONTEND_URLS_WALLET=https://wallet.midominio.com
-
-# --- Branding ---
-VERIFIER_FRONTEND_COLORS_PRIMARY=#1A73E8
-VERIFIER_FRONTEND_COLORS_PRIMARYCONTRAST=#ffffff
-VERIFIER_FRONTEND_ASSETS_BASEURL=https://cdn.midominio.com/assets
-VERIFIER_FRONTEND_ASSETS_LOGOPATH=mi-logo.svg
-VERIFIER_FRONTEND_ASSETS_FAVICONPATH=mi-favicon.ico
+VERIFIER_FRONTEND_PORTALURL=https://portal.midominio.com
+# Nota: Branding (colores, logos, links, idioma) se configura en el Angular SPA
+# via theme.json montado como volumen Docker en el contenedor portal-acceso.
 ```
 
 ---
@@ -455,8 +465,7 @@ VERIFIER_FRONTEND_ASSETS_FAVICONPATH=mi-favicon.ico
 | `/oauth2/token` | POST | Token endpoint |
 | `/oauth2/jwks` | GET | JWK Set del Verifier |
 | `/oid4vp/auth-response` | POST | Endpoint `direct_post` donde la wallet envia el VP Token |
-| `/login` | GET | Pagina QR login (Thymeleaf) |
-| `/client-error` | GET | Pagina de error de autenticacion del client |
+| `/api/login/events?state={state}` | GET (SSE) | Server-Sent Events para notificacion de login completado |
 | `/api/v1/resolve-did` | POST | Resolucion did:key -> JWK |
 
 ---

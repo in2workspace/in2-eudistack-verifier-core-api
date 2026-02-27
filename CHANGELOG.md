@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **External file injection**: Clients YAML, trusted issuers YAML, and JSON Schemas can now be injected via Docker volumes or Kubernetes ConfigMaps without rebuilding the image (`VERIFIER_BACKEND_LOCALFILES_CLIENTSPATH`, `VERIFIER_BACKEND_LOCALFILES_TRUSTEDISSUERSPATH`, `VERIFIER_BACKEND_LOCALFILES_SCHEMASDIR`).
 - **ArchUnit enforcement**: 17 architecture rules validating hexagonal layers, bounded context isolation, naming conventions, and dependency constraints.
 - **Deployment guide**: Comprehensive deployment documentation at `.claude/docs/deployment.md`.
+- **SSE login notification**: New `SseEmitterStore` + `LoginSseController` (`/api/login/events?state=...`) replaces WebSocket for cross-device QR login flow.
+- **External frontend support**: New `VERIFIER_FRONTEND_PORTALURL` config property. `CustomAuthorizationRequestConverter` redirects to external Angular SPA instead of embedded Thymeleaf pages.
+- **Portal CORS**: New `PortalCorsConfig` allows the external SPA (`portalUrl`) to access `/api/login/**` endpoints.
 
 ### Changed
 - **Java 17 -> 25**: Updated to Java 25 with Eclipse Temurin runtime.
@@ -21,6 +24,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **OAuth2 filters slimmed down**: CustomAuthorizationRequestConverter (524->250 lines), CustomAuthenticationProvider (392->200 lines), CustomTokenRequestConverter (229->150 lines) — all delegate to application workflows.
 - **ArchUnit 1.3.0 -> 1.4.1**: Java 25 bytecode support.
 - **OWASP dependency-check 9.1.0 -> 12.2.0**, SonarQube plugin 5.1.0 -> 6.0.1, Swagger 2.2.22 -> 2.2.28.
+- **AuthorizationResponseProcessorServiceImpl**: `SimpMessagingTemplate` replaced by `SseEmitterStore.send(state, redirectUrl)`.
+- **FrontendProperties**: Simplified to a single `portalUrl` field. Colors, assets, URLs, and defaultLang moved to Angular SPA `theme.json`.
+
+### Removed
+- **Thymeleaf**: Removed `spring-boot-starter-thymeleaf`, 6 HTML templates (login-en/es/ca, client-authentication-error-en/es/ca), all static CSS/JS/images.
+- **WebSocket**: Removed `spring-boot-starter-websocket`, `WebSocketConfig`, SockJS/STOMP infrastructure.
+- **QR server-side**: Removed `com.github.kenglxn.QRGen`, `LoginQrController`, `QRCodeGenerationException`. QR is now generated client-side by the Angular SPA.
+- **ClientErrorController**: Error page now served by Angular SPA at `{portalUrl}/error`.
 
 ## [v2.0.12](https://github.com/in2workspace/in2-verifier-api/releases/tag/v2.0.12)
 

@@ -46,7 +46,7 @@ Wallet                    Verifier                    Relying Party (RP)
 | --- | --- | --- |
 | OAuth2/OIDC Authorization Server | Authorization Code flow con Spring Auth Server | Implementado |
 | OpenID4VP | Recepcion de VP Token via `direct_post` | Implementado |
-| QR Login | WebSocket para login via QR con wallet | Implementado |
+| QR Login | SSE para login via QR con wallet (frontend Angular SPA externo) | Implementado |
 | Credential Validation | Validacion estructura + firma + trust + revocacion | Implementado (hardcoded) |
 | Token Generation | Emision access_token/id_token con claims del VC | Implementado |
 | Client Registry | Registro de Relying Parties (OIDC clients) | Implementado (remoto) |
@@ -128,9 +128,9 @@ es.in2.vcverifier/
 │       │   ├── CustomTokenRequestConverter.java           # Token request routing (~150 lineas)
 │       │   └── CustomErrorResponseHandler.java
 │       ├── controller/
-│       │   ├── LoginQrController.java    # QR generation
-│       │   └── ClientErrorController.java
+│       │   └── LoginSseController.java   # SSE endpoint for QR login
 │       ├── adapter/
+│       │   ├── SseEmitterStore.java      # SSE emitter registry by state
 │       │   ├── ClientAssertionValidationServiceImpl.java
 │       │   └── DelegatingRegisteredClientRepository.java
 │       └── config/
@@ -159,15 +159,14 @@ es.in2.vcverifier/
     │   └── CryptoComponent.java          # EC key management (P-256)
     └── config/
         ├── BackendConfig.java            # Backend properties accessor
-        ├── FrontendConfig.java
+        ├── FrontendConfig.java           # getPortalUrl() only
         ├── CacheStore.java               # Generic TTL cache
         ├── HttpClientConfig.java         # Singleton HttpClient con timeouts
         ├── I18nConfig.java               # i18n (en, es, ca)
-        ├── WebSocketConfig.java          # WS for QR login
         ├── JtiTokenCache.java            # JTI replay prevention
         └── properties/
             ├── BackendProperties.java    # @ConfigurationProperties
-            └── FrontendProperties.java
+            └── FrontendProperties.java   # portalUrl only
 ```
 
 ### 2.2 Dependencias externas
